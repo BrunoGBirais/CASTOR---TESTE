@@ -82,8 +82,9 @@ Há **duas** fontes de porte, com precedência:
 2. **Porte Receita Federal (fallback)** — subflow `[Castor] Sub-fluxo_ Consultar CNPJ`:
 
 1. Consulta cache `castor_cnpj_cache` (TTL 30 dias).
-2. Se expirado/ausente: chama BrasilAPI (`https://brasilapi.com.br/api/cnpj/v1/{cnpj}`); fallback ReceitaWS em caso de erro.
-3. Armazena `payload` completo + `fetched_at` + `expires_at = fetched_at + 30 days`.
+2. Se expirado/ausente: chama BrasilAPI (`https://brasilapi.com.br/api/cnpj/v1/{cnpj}`) com backoff exponencial (3 tentativas: 1s, 2s, 4s); fallback CNPJ.ws (`https://publica.cnpj.ws/cnpj/{cnpj}`) em caso de erro.
+3. Tratamento de erros: 404 = CNPJ inexistente (sem retry), 429 = rate limit (espera 20s), timeout = 15s por tentativa.
+4. Armazena `payload` completo + `fetched_at` + `expires_at = fetched_at + 30 days`.
 
 Mapeamento Receita Federal → Castor:
 

@@ -17,6 +17,13 @@
       rel="stylesheet"
     />
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Leaflet — mapa interativo sem chave de API -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Leaflet.markercluster — agrupamento dinâmico por zoom -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
     <!-- Iframe polyfills — MUST load BEFORE Supabase SDK -->
     <script>
       (function () {
@@ -237,6 +244,101 @@
       }
       window.buildAuthStorage = buildAuthStorage;
       window.diagnoseAuthStorage = diagnoseAuthStorage;
+
+      /* ── Multi-backend auth helpers ─────────────────────────────────── */
+      var authCookie = {
+        set: function (name, value, days) {
+          try {
+            var d = new Date();
+            d.setTime(d.getTime() + days * 24 * 60 * 60 * 1000);
+            var secure = location.protocol === "https:" ? "; Secure" : "";
+            document.cookie =
+              name +
+              "=" +
+              encodeURIComponent(value) +
+              "; expires=" +
+              d.toUTCString() +
+              "; path=/; SameSite=Lax" +
+              secure;
+            return this.get(name) === value;
+          } catch (e) {
+            console.error("authCookie.set failed:", e);
+            return false;
+          }
+        },
+        get: function (name) {
+          try {
+            var match = document.cookie
+              .split("; ")
+              .find(function (row) {
+                return row.startsWith(name + "=");
+              });
+            return match
+              ? decodeURIComponent(match.split("=")[1])
+              : null;
+          } catch (e) {
+            return null;
+          }
+        },
+        remove: function (name) {
+          try {
+            document.cookie =
+              name +
+              "=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
+          } catch (e) {}
+        },
+      };
+
+      var authWinName = {
+        _parse: function () {
+          try {
+            var parts = (window.name || "").split("|");
+            var map = {};
+            for (var i = 0; i < parts.length; i++) {
+              var idx = parts[i].indexOf("=");
+              if (idx > 0)
+                map[parts[i].substring(0, idx)] = decodeURIComponent(
+                  parts[i].substring(idx + 1),
+                );
+            }
+            return map;
+          } catch (e) {
+            return {};
+          }
+        },
+        _serialize: function (map) {
+          return Object.keys(map)
+            .map(function (k) {
+              return k + "=" + encodeURIComponent(map[k]);
+            })
+            .join("|");
+        },
+        set: function (key, value) {
+          try {
+            var map = this._parse();
+            map[key] = value;
+            window.name = this._serialize(map);
+            return true;
+          } catch (e) {
+            console.error("authWinName.set failed:", e);
+            return false;
+          }
+        },
+        get: function (key) {
+          try {
+            return this._parse()[key] || null;
+          } catch (e) {
+            return null;
+          }
+        },
+        remove: function (key) {
+          try {
+            var map = this._parse();
+            delete map[key];
+            window.name = this._serialize(map);
+          } catch (e) {}
+        },
+      };
     </script>
     <style>
       :root {
@@ -1372,7 +1474,7 @@
         width: 100%;
         height: 100%;
         background: rgba(0, 0, 0, 0.85);
-        display: flex;
+        display: none;
         align-items: center;
         justify-content: center;
         z-index: 9999;
@@ -1494,6 +1596,11 @@
       .btn-confirm {
         background: var(--color-primary);
         color: white;
+      }
+
+      .prod-period-btn.prod-period-active {
+        background: var(--accent, #2563eb);
+        color: #fff;
       }
 
       .ms-wrapper {
@@ -2306,6 +2413,25 @@
         width: 14px;
         height: 14px;
       }
+      .btn-chat-map-route {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 10px;
+        padding: 7px 14px;
+        font-size: 12.5px;
+        font-weight: 600;
+        font-family: inherit;
+        color: #fff;
+        background: var(--color-primary, #0ea5e9);
+        border: none;
+        border-radius: 999px;
+        cursor: pointer;
+        transition: background 0.15s ease, transform 0.1s ease;
+      }
+      .btn-chat-map-route:hover { background: #0284c7; }
+      .btn-chat-map-route:active { transform: scale(0.97); }
+      .btn-chat-map-route svg { width: 14px; height: 14px; }
 
       @keyframes fadeIn {
         from {
@@ -3347,7 +3473,7 @@
               aria-selected="false"
             >
               <i data-lucide="map-pin"></i>
-              <span>Roteiros</span>
+              <span>Clientes</span>
             </button>
             <button
               class="sidebar-nav-btn"
@@ -3479,7 +3605,7 @@
                 class="footer-btn"
                 id="manageUsersBtn"
                 title="Gerenciar Usuários"
-                data-admin-only
+                data-users-only
               >
                 <i data-lucide="users" style="width: 14px; height: 14px"></i>
                 <span>Usuários</span>
@@ -3520,7 +3646,19 @@
               <button
                 type="button"
                 class="welcome-card"
-                data-quick-prompt="Me mostre os top 5 leads (prospects) prioritários da minha base."
+                data-quick-prompt="Consultar cliente por CNPJ ou código Protheus: "
+                data-quick-submit="false"
+              >
+                <span class="wc-icon"><i data-lucide="search"></i></span>
+                <span class="wc-body">
+                  <span class="wc-title">Consultar cliente</span>
+                  <span class="wc-sub">Por CNPJ ou código Protheus</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                class="welcome-card"
+                data-quick-prompt="Me mostre os top 5 leads (prospects) prioritários da minha base, ignorando filtro de estado/UF. Não exiba dados de estado/UF na resposta."
               >
                 <span class="wc-icon"><i data-lucide="sparkles"></i></span>
                 <span class="wc-body">
@@ -3539,29 +3677,6 @@
                 <span class="wc-body">
                   <span class="wc-title">Fila de reativação</span>
                   <span class="wc-sub">Clientes inativos mais urgentes</span>
-                </span>
-              </button>
-              <button
-                type="button"
-                class="welcome-card"
-                data-quick-prompt="Monta um roteiro otimizado pra mim com os 8 clientes de maior urgência (mix de reativação)."
-              >
-                <span class="wc-icon"><i data-lucide="map"></i></span>
-                <span class="wc-body">
-                  <span class="wc-title">Montar roteiro</span>
-                  <span class="wc-sub">Otimizado por urgência e distância</span>
-                </span>
-              </button>
-              <button
-                type="button"
-                class="welcome-card"
-                data-quick-prompt="Consultar cliente por CNPJ ou código Protheus: "
-                data-quick-submit="false"
-              >
-                <span class="wc-icon"><i data-lucide="search"></i></span>
-                <span class="wc-body">
-                  <span class="wc-title">Consultar cliente</span>
-                  <span class="wc-sub">Por CNPJ ou código Protheus</span>
                 </span>
               </button>
               <button
@@ -3605,7 +3720,15 @@
               <button
                 type="button"
                 class="quick-chip"
-                data-quick-prompt="Me mostre os top 5 leads (prospects) prioritários da minha base."
+                data-quick-prompt="Consultar cliente por CNPJ ou código Protheus: "
+                data-quick-submit="false"
+              >
+                <i data-lucide="search"></i> Consultar CNPJ
+              </button>
+              <button
+                type="button"
+                class="quick-chip"
+                data-quick-prompt="Me mostre os top 5 leads (prospects) prioritários da minha base, ignorando filtro de estado/UF. Não exiba dados de estado/UF na resposta."
               >
                 <i data-lucide="sparkles"></i> Top leads
               </button>
@@ -3615,21 +3738,6 @@
                 data-quick-prompt="Quais clientes da fila de reativação devo visitar primeiro? Liste os mais urgentes."
               >
                 <i data-lucide="alarm-clock"></i> Reativação
-              </button>
-              <button
-                type="button"
-                class="quick-chip"
-                data-quick-prompt="Monta um roteiro otimizado pra mim com os 8 clientes de maior urgência (mix de reativação)."
-              >
-                <i data-lucide="map"></i> Roteiro
-              </button>
-              <button
-                type="button"
-                class="quick-chip"
-                data-quick-prompt="Consultar cliente por CNPJ ou código Protheus: "
-                data-quick-submit="false"
-              >
-                <i data-lucide="search"></i> Consultar CNPJ
               </button>
               <button
                 type="button"
@@ -3840,6 +3948,7 @@
                       style="cursor: pointer"
                     >
                       <option value="vendedor">Vendedor de Vendas</option>
+                      <option value="supervisor">Supervisor</option>
                       <option value="admin">Administrador</option>
                     </select>
                     <label class="form-label"
@@ -4271,6 +4380,21 @@
                 <i data-lucide="route" style="width: 14px; height: 14px"></i>
                 <span>Gerar roteiro (<span id="selCount">0</span>)</span>
               </button>
+              <button
+                class="btn-modal"
+                id="allClientsMapBtn"
+                title="Ver todos os clientes no mapa"
+                style="
+                  display: inline-flex;
+                  align-items: center;
+                  gap: 6px;
+                  font-size: 13px;
+                  padding: 8px 14px;
+                "
+              >
+                <i data-lucide="map" style="width: 14px; height: 14px"></i>
+                Mapa
+              </button>
             </div>
           </div>
 
@@ -4280,7 +4404,7 @@
                 data-lucide="kanban-square"
                 style="width: 14px; height: 14px"
               ></i>
-              Meu Roteiro <span class="tab-count" id="tabCountMyRoute">0</span>
+              Meus Contatos <span class="tab-count" id="tabCountMyRoute">0</span>
             </button>
             <button class="routes-tab" data-tab="reactivation">
               <i data-lucide="rotate-ccw" style="width: 14px; height: 14px"></i>
@@ -4292,7 +4416,7 @@
             </button>
             <button
               class="routes-tab"
-              data-tab="prospects"
+              data-tab="leads"
               title="Leads não têm endereço estruturado (ZA7010 não traz município/UF), portanto não entram em roteiros geográficos. Use Reativação ou Ativos para montar rotas."
             >
               <i data-lucide="search" style="width: 14px; height: 14px"></i>
@@ -4581,6 +4705,11 @@
               </thead>
               <tbody id="routesTableBody"></tbody>
             </table>
+            <div id="routesPagination" style="display:none;align-items:center;justify-content:center;gap:10px;padding:10px 0;border-top:1px solid var(--border-color,#e5e5e5);font-size:13px;">
+              <button id="routesPaginationPrev" style="background:none;border:1px solid #d1d5db;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px;">← Anterior</button>
+              <span id="routesPaginationInfo" style="white-space:nowrap;color:#374151;font-weight:500;"></span>
+              <button id="routesPaginationNext" style="background:none;border:1px solid #d1d5db;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px;">Próximo →</button>
+            </div>
           </div>
         </section>
 
@@ -4619,6 +4748,107 @@
                 <span>Atualizar</span>
               </button>
             </div>
+          </div>
+          <div
+            id="prodDateFilter"
+            style="
+              display: flex;
+              align-items: center;
+              gap: 6px;
+              padding: 4px 16px 8px;
+              flex-wrap: wrap;
+            "
+          >
+            <button
+              class="btn-modal prod-period-btn"
+              data-months="3"
+              title="Últimos 3 meses"
+            >
+              3m
+            </button>
+            <button
+              class="btn-modal prod-period-btn"
+              data-months="6"
+              title="Últimos 6 meses"
+            >
+              6m
+            </button>
+            <button
+              class="btn-modal prod-period-btn"
+              data-months="12"
+              title="Últimos 12 meses"
+            >
+              12m
+            </button>
+            <button
+              class="btn-modal prod-period-btn"
+              data-months="36"
+              title="Últimos 36 meses"
+            >
+              36m
+            </button>
+            <span
+              style="
+                width: 1px;
+                height: 20px;
+                background: var(--border-color, #e5e7eb);
+                margin: 0 4px;
+              "
+            ></span>
+            <label
+              style="
+                font-size: 12px;
+                color: var(--text-secondary);
+                display: flex;
+                align-items: center;
+                gap: 4px;
+              "
+            >
+              De
+              <input
+                type="date"
+                id="prodDateFrom"
+                style="
+                  font-size: 12px;
+                  padding: 3px 6px;
+                  border: 1px solid var(--border-color, #e5e7eb);
+                  border-radius: 6px;
+                  background: var(--bg-card, #fff);
+                  color: var(--text-primary);
+                "
+              />
+            </label>
+            <label
+              style="
+                font-size: 12px;
+                color: var(--text-secondary);
+                display: flex;
+                align-items: center;
+                gap: 4px;
+              "
+            >
+              Até
+              <input
+                type="date"
+                id="prodDateTo"
+                style="
+                  font-size: 12px;
+                  padding: 3px 6px;
+                  border: 1px solid var(--border-color, #e5e7eb);
+                  border-radius: 6px;
+                  background: var(--bg-card, #fff);
+                  color: var(--text-primary);
+                "
+              />
+            </label>
+            <button
+              class="btn-modal"
+              id="prodDateClear"
+              title="Limpar filtro de datas"
+              style="font-size: 12px; padding: 3px 8px; display: none"
+            >
+              Limpar
+            </button>
           </div>
           <div
             id="prodStatus"
@@ -5406,25 +5636,40 @@
           id="routeStops"
           style="padding-left: 18px; margin: 0 0 12px; font-size: 0.85rem"
         ></ol>
-        <a
-          id="routeMapsLink"
-          href="#"
-          target="_blank"
-          rel="noopener"
+        <button
+          id="routeMapBtn"
           style="
             display: inline-flex;
             align-items: center;
             gap: 6px;
             color: var(--color-primary);
             font-weight: 600;
-            text-decoration: none;
+            background: none;
+            border: 1px solid var(--color-primary);
+            border-radius: 6px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 0.88rem;
           "
         >
-          <i data-lucide="external-link" style="width: 14px; height: 14px"></i>
-          Abrir no Google Maps
-        </a>
+          <i data-lucide="map-pin" style="width: 14px; height: 14px"></i>
+          Ver no Mapa
+        </button>
         <div class="routes-modal-actions">
           <button id="routeCloseBtn">Fechar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Client address map modal -->
+    <div id="clientMapModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.65);flex-direction:column;">
+      <div style="position:relative;width:100%;height:100%;">
+        <div id="clientMapDiv" style="width:100%;height:100%;"></div>
+        <button id="clientMapClose" title="Fechar mapa" style="position:absolute;top:14px;right:14px;z-index:1001;background:#fff;border:1px solid #ccc;border-radius:6px;padding:6px 16px;font-weight:600;cursor:pointer;font-size:14px;">&#x2715; Fechar</button>
+        <div id="clientMapNav" style="display:none;position:absolute;bottom:20px;left:50%;transform:translateX(-50%);z-index:10;background:#fff;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.25);padding:8px 14px;align-items:center;gap:10px;font-size:13px;">
+          <button id="clientMapPrev" style="background:none;border:1px solid #d1d5db;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px;">← Anterior</button>
+          <span id="clientMapPageInfo" style="white-space:nowrap;color:#374151;font-weight:500;"></span>
+          <button id="clientMapNext" style="background:none;border:1px solid #d1d5db;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px;">Próximo →</button>
         </div>
       </div>
     </div>
@@ -6785,6 +7030,7 @@
       let abortController = null;
       let isEditing = false;
       let uploadAbortController = null;
+      let _pendingChatRoute = null; // Promise de rota estruturada ao clicar em Roteiro
       let appStarted = false; // Moved to top for hoisting safety
       const elements = {
         sessionList: document.getElementById("sessionList"),
@@ -6834,14 +7080,155 @@
           "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzczNjY1NzE2LCJleHAiOjE4MDUyMDE3MTZ9.nM55mAkSiyvvaIoUACEw4pY4GSJVfvrMX7b1q5JVwyg",
         STORAGE_KEY: "castor-auth",
         ADMIN_ROLE: "admin",
+        SUPERVISOR_ROLE: "supervisor",
         DEFAULT_ROLE: "vendedor",
         ROLE_LABELS: {
           admin: "Administrador",
+          supervisor: "Supervisor",
           vendedor: "Rep. Vendas",
         },
       };
 
-      const authStorage = buildAuthStorage();
+      // Supervisor tem as mesmas permissões de UI do admin, exceto a
+      // gestão de Usuários (ver data-users-only em applyRoleUI).
+      function isAdminLevel(role) {
+        return (
+          role === AUTH_CONFIG.ADMIN_ROLE ||
+          role === AUTH_CONFIG.SUPERVISOR_ROLE
+        );
+      }
+      // Normaliza supervisor -> "admin" para os contextos (getUserCtx/
+      // currentUserCtx) que o resto do app já compara com === "admin".
+      function _normalizeCtxRole(role) {
+        return role === AUTH_CONFIG.SUPERVISOR_ROLE ? AUTH_CONFIG.ADMIN_ROLE : role;
+      }
+
+      /* ── Multi-backend auth persistence ─────────────────────────────── */
+      var AUTH_EXPIRY_MS   = 12 * 60 * 60 * 1000; // 12h local window
+      var AUTH_COOKIE_NAME = "castor_rt_v2";
+      var AUTH_COOKIE_DAYS = 30;
+      var AUTH_WINNAME_KEY = "castor_rt_v2";
+
+      /* ── cookie helpers (wrappers around authCookie) ─────────────────── */
+      function saveRefreshTokenCookie(rt) {
+        if (!rt) return;
+        authCookie.set(AUTH_COOKIE_NAME, rt, AUTH_COOKIE_DAYS);
+      }
+      function getRefreshTokenCookie() {
+        return authCookie.get(AUTH_COOKIE_NAME);
+      }
+      function removeRefreshTokenCookie() {
+        authCookie.remove(AUTH_COOKIE_NAME);
+      }
+
+      /* ── window.name helpers ─────────────────────────────────────────── */
+      function saveRefreshTokenWinName(rt) {
+        if (!rt) return;
+        authWinName.set(AUTH_WINNAME_KEY, rt);
+      }
+      function getRefreshTokenWinName() {
+        return authWinName.get(AUTH_WINNAME_KEY);
+      }
+      function removeRefreshTokenWinName() {
+        authWinName.remove(AUTH_WINNAME_KEY);
+      }
+
+      /* ── Save / clear auth to ALL backends ───────────────────────────── */
+      function saveAuthData(authData) {
+        var json = JSON.stringify(authData);
+        // 1. localStorage (may be blocked by CSP sandbox)
+        try { authStorage.setItem(AUTH_CONFIG.STORAGE_KEY, json); } catch (e) {}
+        // 2. cookie (blocked if CSP sandbox lacks allow-same-origin)
+        saveRefreshTokenCookie(authData.refresh_token);
+        // 3. window.name (always works in same-tab reloads)
+        saveRefreshTokenWinName(authData.refresh_token);
+      }
+      function clearAuthData() {
+        try { authStorage.removeItem(AUTH_CONFIG.STORAGE_KEY); } catch (e) {}
+        removeRefreshTokenCookie();
+        removeRefreshTokenWinName();
+      }
+
+      /* ── refreshSession: call Supabase token endpoint ────────────────── */
+      async function refreshSession() {
+        // 1. Find a refresh_token from storage → cookie → window.name
+        var rt = null;
+        try {
+          var raw = authStorage.getItem(AUTH_CONFIG.STORAGE_KEY);
+          if (raw) {
+            var j = JSON.parse(raw);
+            rt = (j && j.refresh_token) || (j.session && j.session.refresh_token) || null;
+          }
+        } catch (e) {}
+        if (!rt) rt = getRefreshTokenCookie();
+        if (!rt) rt = getRefreshTokenWinName();
+        if (!rt) return null;
+
+        try {
+          var resp = await fetch(
+            AUTH_CONFIG.SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                apikey: AUTH_CONFIG.SUPABASE_ANON_KEY,
+              },
+              body: JSON.stringify({ refresh_token: rt }),
+            },
+          );
+          var data = await resp.json();
+          if (data && data.access_token) {
+            var session = data.session || data;
+            saveAuthData({
+              access_token: session.access_token,
+              refresh_token: session.refresh_token || rt,
+              expires_at: session.expires_at || (Math.floor(Date.now() / 1000) + 3600),
+              expires_in: session.expires_in || 3600,
+              token_type: session.token_type || "bearer",
+              user: session.user || data.user,
+            });
+            return session;
+          }
+        } catch (e) {
+          console.warn("refreshSession failed:", e);
+        }
+        return null;
+      }
+
+      /* ── Periodic token refresh (every 50 min) ──────────────────────── */
+      var _tokenRefreshInterval = null;
+      function startTokenRefresh() {
+        stopTokenRefresh();
+        _tokenRefreshInterval = setInterval(async function () {
+          var session = await refreshSession();
+          if (!session) {
+            console.warn("Periodic refresh failed — clearing auth");
+            stopTokenRefresh();
+            clearAuthData();
+            toggleLogin(false);
+          }
+        }, 50 * 60 * 1000); // 50 minutes
+      }
+      function stopTokenRefresh() {
+        if (_tokenRefreshInterval) {
+          clearInterval(_tokenRefreshInterval);
+          _tokenRefreshInterval = null;
+        }
+      }
+
+      /* ── Storage write verification ──────────────────────────────────── */
+      var authStorage = buildAuthStorage();
+      // Wrap setItem to verify writes
+      (function () {
+        var origSetItem = authStorage.setItem;
+        authStorage.setItem = function (key, val) {
+          origSetItem.call(authStorage, key, val);
+          var readBack = authStorage.getItem(key);
+          if (readBack !== val) {
+            console.warn("[auth] localStorage.setItem verify failed for", key, "— cookie/window.name fallback active");
+          }
+        };
+      })();
       diagnoseAuthStorage(authStorage, AUTH_CONFIG.STORAGE_KEY);
 
       const supabaseClient = supabase.createClient(
@@ -6903,11 +7290,20 @@
       }
 
       function applyRoleUI() {
-        const isAdmin = currentUserRole === AUTH_CONFIG.ADMIN_ROLE;
+        // isAdmin aqui = "nível admin" (admin OU supervisor) — cobre tudo
+        // que é igual entre os dois. isTrueAdmin = só admin de fato, usado
+        // exclusivamente para a gestão de Usuários.
+        const isAdmin = isAdminLevel(currentUserRole);
+        const isTrueAdmin = currentUserRole === AUTH_CONFIG.ADMIN_ROLE;
         document.querySelectorAll("[data-admin-only]").forEach((el) => {
           el.style.display = isAdmin ? "" : "none";
         });
-        // Vendedor-only: admin não atua no kanban, só observa.
+        // Gestão de Usuários: exclusivo do admin de fato (supervisor não
+        // pode criar/editar/excluir usuários).
+        document.querySelectorAll("[data-users-only]").forEach((el) => {
+          el.style.display = isTrueAdmin ? "" : "none";
+        });
+        // Vendedor-only: admin/supervisor não atuam no kanban, só observam.
         document.querySelectorAll("[data-vendor-only]").forEach((el) => {
           el.style.display = isAdmin ? "none" : "";
         });
@@ -6927,7 +7323,7 @@
         ) {
           try {
             supabaseClient
-              .rpc(USER_RPC.LIST)
+              .rpc(USER_RPC.TEAM_LIST)
               .then(({ data }) => {
                 window.__castorUsersCache = data || [];
                 try {
@@ -6942,7 +7338,7 @@
         try {
           const tab = document.querySelector('.routes-tab[data-tab="myroute"]');
           if (tab) {
-            const txt = isAdmin ? "Gestão de Roteiros" : "Meu Roteiro";
+            const txt = isAdmin ? "Gestão de Roteiros" : "Meus Contatos";
             // mantém o ícone e o badge intactos; substitui o texto entre eles
             const icon = tab.querySelector("i[data-lucide]");
             const badge = tab.querySelector(".tab-count");
@@ -6972,17 +7368,78 @@
       }
 
       async function checkAuth() {
-        const {
-          data: { session },
-        } = await supabaseClient.auth.getSession();
-        await handleSession(session);
+        // Step 1: Try Supabase SDK (localStorage / built-in storage)
+        try {
+          const {
+            data: { session },
+          } = await supabaseClient.auth.getSession();
+          if (session) {
+            saveAuthData({
+              access_token: session.access_token,
+              refresh_token: session.refresh_token,
+              expires_at: session.expires_at,
+              expires_in: session.expires_in,
+              token_type: session.token_type,
+              user: session.user,
+            });
+            startTokenRefresh();
+            await handleSession(session);
+            return;
+          }
+        } catch (e) {
+          console.warn("[checkAuth] Supabase getSession failed:", e);
+        }
+
+        // Step 2: Try cookie fallback
+        var rtCookie = getRefreshTokenCookie();
+        if (rtCookie) {
+          var session2 = await refreshSession();
+          if (session2) {
+            startTokenRefresh();
+            await handleSession(session2);
+            return;
+          }
+        }
+
+        // Step 3: Try window.name fallback
+        var rtWinName = getRefreshTokenWinName();
+        if (rtWinName) {
+          var session3 = await refreshSession();
+          if (session3) {
+            startTokenRefresh();
+            await handleSession(session3);
+            return;
+          }
+        }
+
+        // Nothing found — show login
+        await handleSession(null);
       }
 
       supabaseClient.auth.onAuthStateChange(async (event, session) => {
         if (event === "SIGNED_OUT") {
+          stopTokenRefresh();
+          clearAuthData();
           toggleLogin(false);
         } else if (event === "SIGNED_IN" && session) {
+          saveAuthData({
+            access_token: session.access_token,
+            refresh_token: session.refresh_token,
+            expires_at: session.expires_at,
+            expires_in: session.expires_in,
+            token_type: session.token_type,
+            user: session.user,
+          });
           await handleSession(session);
+        } else if (event === "TOKEN_REFRESHED" && session) {
+          saveAuthData({
+            access_token: session.access_token,
+            refresh_token: session.refresh_token,
+            expires_at: session.expires_at,
+            expires_in: session.expires_in,
+            token_type: session.token_type,
+            user: session.user,
+          });
         }
       });
 
@@ -7020,6 +7477,15 @@
               }
               return;
             }
+            saveAuthData({
+              access_token: data.session.access_token,
+              refresh_token: data.session.refresh_token,
+              expires_at: data.session.expires_at,
+              expires_in: data.session.expires_in,
+              token_type: data.session.token_type,
+              user: data.session.user,
+            });
+            startTokenRefresh();
             await handleSession(data.session);
           } catch (err) {
             showLoginError(
@@ -7035,6 +7501,8 @@
       if (elements.logoutBtn) {
         elements.logoutBtn.addEventListener("click", async () => {
           await supabaseClient.auth.signOut();
+          stopTokenRefresh();
+          clearAuthData();
           toggleLogin(false);
           if (elements.emailInput) elements.emailInput.value = "";
           if (elements.passwordInput) elements.passwordInput.value = "";
@@ -8681,7 +9149,7 @@
 
         if (response !== "Geração cancelada.") {
           if (!messageDiv) {
-            renderMessage({ role: "assistant", content: response });
+            messageDiv = renderMessage({ role: "assistant", content: response });
           } else if (contentDiv) {
             contentDiv.innerHTML = marked.parse(response);
             contentDiv.querySelectorAll("a").forEach((link) => {
@@ -8699,6 +9167,30 @@
         }
 
         setLoading(false);
+
+        // Injetar botão "Ver no mapa" se era prompt de roteiro e a rota foi gerada
+        if (_pendingChatRoute && messageDiv) {
+          const _capturedDiv = messageDiv;
+          _pendingChatRoute.then((j) => {
+            _pendingChatRoute = null;
+            if (!j || !j.ok || !j.data) return;
+            const stops = (j.data.stops || []).filter(
+              (s) => s.lat != null && s.lng != null,
+            );
+            if (!stops.length) return;
+            const mapBtn = document.createElement("button");
+            mapBtn.type = "button";
+            mapBtn.className = "btn-chat-map-route";
+            mapBtn.innerHTML = '<i data-lucide="map-pin"></i> Ver no mapa';
+            mapBtn.addEventListener("click", () =>
+              openRouteMapFromChat(j.data),
+            );
+            const contentEl = _capturedDiv.querySelector(".message-content");
+            if (contentEl) contentEl.appendChild(mapBtn);
+            else _capturedDiv.appendChild(mapBtn);
+            lucide.createIcons();
+          });
+        }
 
         try {
           const latestHistory = await fetchHistory(currentSessionId);
@@ -8997,6 +9489,8 @@
       window.ProductsPanel = (() => {
         let loadedAt = 0;
         const TTL = 5 * 60 * 1000;
+        let _dateFrom = "";
+        let _dateTo = "";
         const fmtBRL = (v) =>
           "R$ " +
           (Number(v) || 0).toLocaleString("pt-BR", {
@@ -9084,6 +9578,64 @@
             })
             .join("");
         }
+        function _fmtPeriodLabel(from, to) {
+          if (!from && !to) return "";
+          const fmtDate = (s) => {
+            if (!s) return "";
+            const [y, m] = s.split("-");
+            const months = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+            return (months[parseInt(m, 10) - 1] || m) + "/" + (y || "").slice(2);
+          };
+          const f = fmtDate(from);
+          const t = fmtDate(to);
+          if (f && t) return "— " + f + " a " + t;
+          if (f) return "— a partir de " + f;
+          return "— até " + t;
+        }
+        function _updateActiveBtn() {
+          document.querySelectorAll(".prod-period-btn").forEach((b) => {
+            b.classList.remove("prod-period-active");
+          });
+          if (!_dateFrom && !_dateTo) return;
+          const from = _dateFrom ? new Date(_dateFrom + "T00:00:00") : null;
+          const to = _dateTo ? new Date(_dateTo + "T00:00:00") : new Date();
+          if (from) {
+            const diffMs = to.getTime() - from.getTime();
+            const diffMonths = Math.round(diffMs / (30.44 * 24 * 60 * 60 * 1000));
+            [3, 6, 12, 36].forEach((m) => {
+              if (Math.abs(diffMonths - m) <= 1) {
+                const btn = document.querySelector('.prod-period-btn[data-months="' + m + '"]');
+                if (btn) btn.classList.add("prod-period-active");
+              }
+            });
+          }
+        }
+        function _syncInputs() {
+          const fi = document.getElementById("prodDateFrom");
+          const ti = document.getElementById("prodDateTo");
+          const clr = document.getElementById("prodDateClear");
+          if (fi) fi.value = _dateFrom;
+          if (ti) ti.value = _dateTo;
+          if (clr) clr.style.display = (_dateFrom || _dateTo) ? "" : "none";
+          _updateActiveBtn();
+          const scope = document.getElementById("prodScopeLabel");
+          if (scope) {
+            const period = _fmtPeriodLabel(_dateFrom, _dateTo);
+            scope.textContent = period || (scope.textContent.includes("visão") ? scope.textContent : "");
+          }
+        }
+        function setDates(from, to) {
+          _dateFrom = from || "";
+          _dateTo = to || "";
+          _syncInputs();
+          load(true);
+        }
+        function clearDates() {
+          _dateFrom = "";
+          _dateTo = "";
+          _syncInputs();
+          load(true);
+        }
         async function load(force) {
           const status = document.getElementById("prodStatus");
           const now = Date.now();
@@ -9096,9 +9648,9 @@
                 : "";
             const p = new URLSearchParams();
             if (uid) p.set("userId", uid);
-            // ProductsPanel só precisa de analytics (top_products/top_groups/
-            // sales_trend) → usa a fatia leve `meta`, sem baixar clientes/leads.
             p.set("segment", "meta");
+            if (_dateFrom) p.set("dateFrom", _dateFrom);
+            if (_dateTo) p.set("dateTo", _dateTo);
             const url =
               PANEL_SNAPSHOT_URL + (p.toString() ? "?" + p.toString() : "");
             const res = await fetch(url, {
@@ -9126,9 +9678,13 @@
             );
             renderTrend(document.getElementById("prodTrend"), d.sales_trend);
             const scope = document.getElementById("prodScopeLabel");
-            if (scope)
-              scope.textContent =
-                d.role === "admin" ? "— visão global" : "— sua carteira";
+            if (scope) {
+              const period = _fmtPeriodLabel(_dateFrom, _dateTo);
+              const roleSuffix = d.role === "admin" ? "visão global" : "sua carteira";
+              scope.textContent = period
+                ? period + " · " + roleSuffix
+                : "— " + roleSuffix;
+            }
             if (status) status.textContent = "";
             loadedAt = now;
           } catch (e) {
@@ -9154,7 +9710,38 @@
         document
           .getElementById("prodRefreshBtn")
           ?.addEventListener("click", () => load(true));
-        return { show, hide, load };
+        document.querySelectorAll(".prod-period-btn").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const months = parseInt(btn.getAttribute("data-months"), 10);
+            if (!months) return;
+            const to = new Date();
+            const from = new Date();
+            from.setMonth(from.getMonth() - months);
+            const pad = (n) => String(n).padStart(2, "0");
+            setDates(
+              from.getFullYear() + "-" + pad(from.getMonth() + 1) + "-" + pad(from.getDate()),
+              to.getFullYear() + "-" + pad(to.getMonth() + 1) + "-" + pad(to.getDate()),
+            );
+          });
+        });
+        document
+          .getElementById("prodDateFrom")
+          ?.addEventListener("change", (e) => {
+            _dateFrom = e.target.value || "";
+            _syncInputs();
+            load(true);
+          });
+        document
+          .getElementById("prodDateTo")
+          ?.addEventListener("change", (e) => {
+            _dateTo = e.target.value || "";
+            _syncInputs();
+            load(true);
+          });
+        document
+          .getElementById("prodDateClear")
+          ?.addEventListener("click", clearDates);
+        return { show, hide, load, setDates, clearDates };
       })();
 
       // ===== Quick actions (welcome cards + chip strip) =====
@@ -9184,6 +9771,22 @@
         ev.preventDefault();
         const prompt = el.getAttribute("data-quick-prompt") || "";
         const autoSubmit = el.getAttribute("data-quick-submit") !== "false";
+        // Se é prompt de roteiro, pré-busca rota estruturada em paralelo com o chat
+        if (/roteiro/i.test(prompt)) {
+          _pendingChatRoute = fetch(PANEL_AI_ROUTE_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              user_id: currentUserId,
+              mode: "reactivation",
+              max_stops: 8,
+            }),
+          })
+            .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+            .catch(() => null);
+        } else {
+          _pendingChatRoute = null;
+        }
         triggerQuickPrompt(prompt, autoSubmit);
       });
 
@@ -9218,6 +9821,9 @@
       const CASTOR_PREFIX = "castor_";
       const USER_RPC = {
         LIST: CASTOR_PREFIX + "admin_list_users",
+        // Usado para dropdowns de vendedor / resolver nomes fora da tela de
+        // Usuários — acessível a admin E supervisor (ver 047_supervisor_role.sql).
+        TEAM_LIST: CASTOR_PREFIX + "team_directory",
         UPDATE: CASTOR_PREFIX + "admin_update_user",
         DELETE: CASTOR_PREFIX + "admin_delete_user",
         CONFIRM: CASTOR_PREFIX + "admin_confirm_user",
@@ -9737,10 +10343,11 @@
         return [...selectedCidades];
       }
 
+
       const formRoleSelect = document.getElementById("formRole");
       if (formRoleSelect) {
         formRoleSelect.addEventListener("change", async () => {
-          if (formRoleSelect.value === "admin") {
+          if (isAdminLevel(formRoleSelect.value)) {
             selectedEstados.length = 0;
             selectedEstados.push("TODOS");
             if (msEstados) {
@@ -10026,6 +10633,7 @@
         const state = {
           tab: "myroute",
           rows: [],
+          page: 0,
           selected: new Set(),
           loading: false,
           editingClient: null,
@@ -10053,6 +10661,13 @@
         const SNAPSHOT_TTL_MS = 5 * 60 * 1000;
 
         function getUserCtx() {
+          // Primary: use globals set by applySession()
+          if (currentUserId && currentUserRole) {
+            return {
+              id: currentUserId,
+              role: _normalizeCtxRole(currentUserRole),
+            };
+          }
           try {
             const u =
               (window.castorAuth &&
@@ -10062,7 +10677,9 @@
             if (u)
               return {
                 id: u.id,
-                role: (u.user_metadata && u.user_metadata.role) || "vendedor",
+                role: _normalizeCtxRole(
+                  (u.user_metadata && u.user_metadata.role) || "vendedor",
+                ),
               };
           } catch (e) {}
           // Fallback: try the localStorage payload
@@ -10074,8 +10691,9 @@
               if (uu)
                 return {
                   id: uu.id,
-                  role:
+                  role: _normalizeCtxRole(
                     (uu.user_metadata && uu.user_metadata.role) || "vendedor",
+                  ),
                 };
             }
           } catch (e) {}
@@ -10355,7 +10973,9 @@
             return `Nenhum cliente inativo elegível agora (de ${nc} clientes na base). Ajuste o filtro de UF ou desmarque 'Apenas elegı́veis hoje'.`;
           if (state.tab === "active")
             return `Nenhum cliente ativo bate com o filtro atual (de ${nc} clientes na base).`;
-          return `Nenhum lead bate com o filtro atual (de ${nl} leads na base).`;
+          return `Nenhum lead bate com o filtro atual (de ${
+            (snap.totals && snap.totals.leads != null ? snap.totals.leads : nl)
+          } leads na base).`;
         }
 
         function getMunicipiosIdx() {
@@ -10522,9 +11142,10 @@
                 if (porte && (r.porte_efetivo || "") !== porte) return false;
                 return true;
               }
-              if (uf && (r.za7_est || "") !== uf) return false;
+              // leads: UF filter não se aplica (za7_est é sempre NULL)
               return true;
             });
+            state.page = 0;
             state.rows = rows;
             render();
           } catch (e) {
@@ -10552,10 +11173,10 @@
             .trim()
             .toLowerCase();
           if (!q) return true;
-          const fields =
-            state.tab === "leads"
-              ? [r.za7_nome, r.za7_cnpj, r.za7_mun]
-              : [r.a1_nome, r.a1_nreduz, r.a1_cgc, r.cliente_codigo, r.a1_mun];
+            const fields =
+              state.tab === "leads"
+                ? [r.za7_nome, r.za7_id, r.za7_tel, r.za7_segmento]
+                : [r.a1_nome, r.a1_nreduz, r.a1_cgc, r.cliente_codigo, r.a1_mun];
           return fields.some((v) => v && String(v).toLowerCase().includes(q));
         }
 
@@ -10634,8 +11255,8 @@
           } else {
             thead.innerHTML = `
               <th style="width:30px"><input type="checkbox" id="selAll"/></th>
-              <th>Fila</th><th>Lead</th><th>CNPJ</th>
-              <th>UF</th><th>Município</th><th>Segmento</th><th>Status</th>`;
+              <th>Fila</th><th>Lead</th><th>Código</th>
+              <th>Contato</th><th>Últ. ligação</th><th>Segmento</th><th>Status</th>`;
           }
 
           const visible = state.rows.filter(clientFilterFront);
@@ -10644,11 +11265,21 @@
             const hint = document.getElementById("routesEmptyHint");
             if (hint) hint.innerHTML = describeEmptyHint();
             setEmpty(true);
+            const pgHide = document.getElementById("routesPagination");
+            if (pgHide) pgHide.style.display = "none";
             return;
           }
           setEmpty(false);
 
-          visible.forEach((r) => {
+          const TAB_PAGE_SIZE = 50;
+          const totalPages = Math.ceil(visible.length / TAB_PAGE_SIZE);
+          if (state.page >= totalPages) state.page = Math.max(0, totalPages - 1);
+          const pageRows = visible.slice(
+            state.page * TAB_PAGE_SIZE,
+            (state.page + 1) * TAB_PAGE_SIZE,
+          );
+
+          pageRows.forEach((r) => {
             const tr = document.createElement("tr");
             if (state.tab === "reactivation") {
               const code = r.cliente_codigo;
@@ -10683,18 +11314,58 @@
             } else {
               const code = r.za7_id || "LEAD:" + (r.za7_cnpj || "");
               const checked = state.selected.has(code) ? "checked" : "";
+              const callDate = r.za7_data
+                ? (window.castorDateBR
+                    ? window.castorDateBR(r.za7_data)
+                    : new Date(r.za7_data).toLocaleDateString("pt-BR"))
+                : "—";
               tr.innerHTML = `
                 <td><input type="checkbox" class="row-sel" data-code="${escapeHtml(code)}" ${checked}/></td>
                 <td>${rankBadge(r.fila_rank || 0)}</td>
                 <td><strong>${escapeHtml(r.za7_nome || "")}</strong></td>
-                <td><span style="font-family:Consolas,monospace;font-size:0.78rem">${escapeHtml(r.za7_cnpj || "")}</span></td>
-                <td>${escapeHtml(r.za7_est || "")}</td>
-                <td>${escapeHtml(r.za7_mun || "")}</td>
+                <td><span style="font-family:Consolas,monospace;font-size:0.78rem">${escapeHtml(r.za7_id || "")}</span></td>
+                <td>${escapeHtml(r.za7_tel || "")}</td>
+                <td>${callDate}</td>
                 <td>${escapeHtml(r.za7_segmento || "")}</td>
                 <td>${escapeHtml(r.za7_status || "")}</td>`;
             }
             tbody.appendChild(tr);
           });
+
+          // Atualiza barra de paginação
+          const pgBar = document.getElementById("routesPagination");
+          if (pgBar) {
+            if (visible.length > TAB_PAGE_SIZE) {
+              pgBar.style.display = "flex";
+              const pgStart = state.page * TAB_PAGE_SIZE + 1;
+              const pgEnd = Math.min(
+                (state.page + 1) * TAB_PAGE_SIZE,
+                visible.length,
+              );
+              const pgInfo = document.getElementById("routesPaginationInfo");
+              const pgPrev = document.getElementById("routesPaginationPrev");
+              const pgNext = document.getElementById("routesPaginationNext");
+              if (pgInfo)
+                pgInfo.textContent =
+                  pgStart + "–" + pgEnd + " de " + visible.length;
+              if (pgPrev) {
+                pgPrev.disabled = state.page === 0;
+                pgPrev.onclick = () => {
+                  state.page--;
+                  render();
+                };
+              }
+              if (pgNext) {
+                pgNext.disabled = state.page >= totalPages - 1;
+                pgNext.onclick = () => {
+                  state.page++;
+                  render();
+                };
+              }
+            } else {
+              pgBar.style.display = "none";
+            }
+          }
 
           lucide.createIcons();
           wireRowEvents();
@@ -10852,362 +11523,77 @@
         async function buildRoute() {
           const codes = Array.from(state.selected);
           if (!codes.length) return;
-          const source =
-            state.tab === "active"
-              ? "mixed"
-              : state.tab === "reactivation"
-                ? "reactivation"
-                : "prospect";
           const ctx = getUserCtx();
           if (ctx.role === "admin") {
             CastorUI.alert({
               kind: "warn",
-              title: "Admin não tem roteiro próprio",
+              title: "Admin n\u00e3o tem roteiro pr\u00f3prio",
               message:
-                'Apenas vendedores podem ter roteiros. Para encaminhar clientes, selecione e use "Lançar tarefa".',
+                'Apenas vendedores podem ter roteiros. Para encaminhar clientes, selecione e use "Lan\u00e7ar tarefa".',
             });
             return;
           }
-          let idx = getMunicipiosIdx();
           const byCode = Object.create(null);
           for (const c of (state.snapshot && state.snapshot.clientes) || [])
             byCode[c.cliente_codigo] = c;
           for (const c of (state.snapshot && state.snapshot.leads) || [])
             byCode[c.za7_id || "LEAD:" + c.za7_cnpj] = c;
 
-          setBuildBtnBusy(true, "Preparando paradas\u2026");
-          try {
-            // Primeira passada: separa quem tem coord no cache local e quem precisa de geocode.
-            const stops = [];
-            const skippedDetail = []; // [{code, name, reason}]
-            const needsCityGeocode = new Map(); // key="MUN|UF" -> { mun, est, codes:[{code,name}] }
-            const needsAddrGeocode = []; // [{code, name, uf, mun, cep, end}]
-            for (const code of codes) {
+          const clients = codes
+            .map((code) => {
               const r = byCode[code];
-              const name =
-                (r && (r.a1_nome || r.a1_nreduz || r.za7_nome)) || code;
-              if (!r) {
-                skippedDetail.push({
-                  code,
-                  name: code,
-                  reason: "registro nao encontrado",
-                });
-                continue;
-              }
-              const mun = (r.a1_mun || r.za7_mun || "").toUpperCase().trim();
-              const est = (r.a1_est || r.za7_est || "").toUpperCase().trim();
-              const cep = String(r.a1_cep || "").replace(/\D/g, "");
-              const end = (r.a1_end || "").trim();
-              // Caso 1: cidade+UF -> tenta cache local, depois geocode de municipio.
-              if (mun && est) {
-                const key = mun + "|" + est;
-                const m = idx[key];
-                if (m && m.lat != null && m.lng != null) {
-                  stops.push({
-                    cliente_codigo: code,
-                    lat: m.lat,
-                    lng: m.lng,
-                    name,
-                  });
-                } else {
-                  if (!needsCityGeocode.has(key))
-                    needsCityGeocode.set(key, { mun, est, codes: [] });
-                  needsCityGeocode.get(key).codes.push({ code, name });
-                }
-                continue;
-              }
-              // Caso 2: sem cidade, mas com endereco/CEP/UF -> geocode por endereco.
-              if (cep || end || est) {
-                needsAddrGeocode.push({ code, name, uf: est, mun, cep, end });
-                continue;
-              }
-              // Caso 3: nada -> skip definitivo.
-              skippedDetail.push({
-                code,
-                name,
-                reason: "sem endereco, cidade, UF ou CEP cadastrados",
-              });
-            }
+              return r ? { ...r, _code: code } : null;
+            })
+            .filter(Boolean);
 
-            // Geocode por municipio (lazy, em batch).
-            if (needsCityGeocode.size) {
-              setBuildBtnBusy(
-                true,
-                `Geocodificando ${needsCityGeocode.size} cidade(s)\u2026`,
-              );
-              try {
-                const items = Array.from(needsCityGeocode.values()).map(
-                  (g) => ({ uf: g.est, municipio: g.mun }),
-                );
-                const gr = await fetch(`${API_BASE}/castor-geocode-batch`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ scope: "municipio", items }),
-                });
-                const gj = await gr.json();
-                const gitems = (gj && gj.data && gj.data.items) || [];
-                const gmap = Object.create(null);
-                for (const it of gitems) {
-                  if (it && it.query_key && it.lat != null && it.lng != null)
-                    gmap[it.query_key] = it;
-                }
-                for (const [key, g] of needsCityGeocode.entries()) {
-                  const hit = gmap[key];
-                  if (hit) {
-                    state.municipiosIdx = state.municipiosIdx || {};
-                    state.municipiosIdx[key] = {
-                      mun: g.mun,
-                      est: g.est,
-                      lat: hit.lat,
-                      lng: hit.lng,
-                    };
-                    for (const c of g.codes)
-                      stops.push({
-                        cliente_codigo: c.code,
-                        lat: hit.lat,
-                        lng: hit.lng,
-                        name: c.name,
-                      });
-                  } else {
-                    // cidade nao geocodificada -> tenta cair pro fallback de endereco do cliente.
-                    for (const c of g.codes) {
-                      const r = byCode[c.code] || {};
-                      const cep = String(r.a1_cep || "").replace(/\D/g, "");
-                      const end = (r.a1_end || "").trim();
-                      if (cep || end)
-                        needsAddrGeocode.push({
-                          code: c.code,
-                          name: c.name,
-                          uf: g.est,
-                          mun: g.mun,
-                          cep,
-                          end,
-                        });
-                      else
-                        skippedDetail.push({
-                          code: c.code,
-                          name: c.name,
-                          reason: "cidade nao geocodificada e sem CEP/endereco",
-                        });
-                    }
-                  }
-                }
-              } catch (e) {
-                for (const g of needsCityGeocode.values()) {
-                  for (const c of g.codes) {
-                    const r = byCode[c.code] || {};
-                    const cep = String(r.a1_cep || "").replace(/\D/g, "");
-                    const end = (r.a1_end || "").trim();
-                    if (cep || end)
-                      needsAddrGeocode.push({
-                        code: c.code,
-                        name: c.name,
-                        uf: g.est,
-                        mun: g.mun,
-                        cep,
-                        end,
-                      });
-                    else
-                      skippedDetail.push({
-                        code: c.code,
-                        name: c.name,
-                        reason: "falha de geocode e sem CEP/endereco",
-                      });
-                  }
-                }
-              }
-            }
-
-            // Geocode por endereco (CEP/endereco), em batch.
-            if (needsAddrGeocode.length) {
-              setBuildBtnBusy(
-                true,
-                `Geocodificando ${needsAddrGeocode.length} endereco(s)\u2026`,
-              );
-              try {
-                const items = needsAddrGeocode.map((x) => ({
-                  uf: x.uf,
-                  municipio: x.mun,
-                  cep: x.cep,
-                  endereco: x.end,
-                }));
-                const gr2 = await fetch(`${API_BASE}/castor-geocode-batch`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ scope: "endereco", items }),
-                });
-                const gj2 = await gr2.json();
-                const gitems2 = (gj2 && gj2.data && gj2.data.items) || [];
-                for (let i = 0; i < needsAddrGeocode.length; i++) {
-                  const it = gitems2[i];
-                  const meta = needsAddrGeocode[i];
-                  if (it && it.lat != null && it.lng != null) {
-                    stops.push({
-                      cliente_codigo: meta.code,
-                      lat: it.lat,
-                      lng: it.lng,
-                      name: meta.name,
-                    });
-                  } else {
-                    skippedDetail.push({
-                      code: meta.code,
-                      name: meta.name,
-                      reason: "geocode por CEP/endereco falhou",
-                    });
-                  }
-                }
-              } catch (e) {
-                for (const meta of needsAddrGeocode)
-                  skippedDetail.push({
-                    code: meta.code,
-                    name: meta.name,
-                    reason: "erro de rede no geocode",
-                  });
-              }
-            }
-
-            if (!stops.length) {
-              // Em vez de alert nativo: abre o painel inline de "Pular sem endereço"
-              // listando TODOS os clientes ignorados, com edição de endereço inline.
-              // Após editar e salvar, o usuário clica "Tentar novamente" e re-roda buildRoute().
-              setBuildBtnBusy(false);
-              if (
-                window.CastorInteractions &&
-                window.CastorInteractions.askSkipped
-              ) {
-                const choice = await window.CastorInteractions.askSkipped(
-                  skippedDetail,
-                  0,
-                  byCode,
-                );
-                if (choice === "retry") {
-                  setTimeout(() => buildRoute(), 50);
-                  return;
-                }
-              } else {
-                toast(
-                  "Nenhum dos clientes selecionados tem endereço cadastrado.",
-                );
-              }
-              return;
-            }
-
-            if (skippedDetail.length) {
-              const choice = await (window.CastorInteractions &&
-              window.CastorInteractions.askSkipped
-                ? window.CastorInteractions.askSkipped(
-                    skippedDetail,
-                    stops.length,
-                    byCode,
-                  )
-                : CastorUI.confirm({
-                    title: "Clientes sem coordenadas",
-                    message: `${skippedDetail.length} cliente(s) sem coord serão ignorados.\n\nContinuar mesmo assim?`,
-                    okLabel: "Continuar",
-                    danger: false,
-                  }).then((ok) => (ok ? "proceed" : "cancel")));
-              if (choice === "cancel") return;
-              if (choice === "retry") {
-                setBuildBtnBusy(false);
-                setTimeout(() => buildRoute(), 50);
-                return;
-              }
-            }
-
-            setBuildBtnBusy(true, "Calculando rota\u2026");
-            const r = await fetch(PANEL_ROUTE_URL, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ user_id: ctx.id || "", stops, source }),
-            });
-            const j = await window.castorSafeJson(r);
-            if (!r.ok || !j || j.ok === false)
-              throw new Error((j && j.error) || "erro");
-            const d = j.data || {};
-            document.getElementById("routeSummary").innerHTML =
-              `<strong>${(d.stops || []).length}</strong> paradas \u00b7 <strong>${Number(d.total_km || 0).toFixed(1)} km</strong>` +
-              (skippedDetail.length
-                ? ` \u00b7 <span style="color:var(--text-secondary)" title="${skippedDetail
-                    .map((s) => s.code + ": " + s.reason)
-                    .join(" | ")
-                    .replace(
-                      /"/g,
-                      "&quot;",
-                    )}">${skippedDetail.length} sem coord ignorado(s)</span>`
-                : "");
-            const ol = document.getElementById("routeStops");
-            ol.innerHTML = "";
-            (d.stops || []).forEach((s) => {
-              const li = document.createElement("li");
-              li.textContent = `${s.cliente_codigo}${s.name ? " \u2014 " + s.name : ""} \u00b7 ${Number(s.leg_km || 0).toFixed(1)} km (acum. ${Number(s.cum_km || 0).toFixed(1)} km)`;
-              ol.appendChild(li);
-            });
-            const a = document.getElementById("routeMapsLink");
-            a.href = d.maps_url || "#";
-            document.getElementById("routeModal").style.display = "flex";
-            lucide.createIcons();
-
-            // Auto-save no banco para aparecer em "Roteiros salvos".
-            try {
-              const saveBody = {
-                user_id: ctx.id || "",
-                name: `Roteiro ${new Date().toLocaleString("pt-BR")}`,
-                source: source === "mixed" ? "manual" : source,
-                stops: (d.stops || []).map((s) => ({
-                  cliente_codigo: s.cliente_codigo,
-                  name: s.name,
-                  lat: s.lat,
-                  lng: s.lng,
-                  seq: s.seq,
-                  leg_km: s.leg_km,
-                  cum_km: s.cum_km,
-                })),
-                total_km: d.total_km,
-                maps_url: d.maps_url || null,
-              };
-              const sr = await fetch(PANEL_ROUTE_SAVE_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(saveBody),
-              });
-              const sj = await window.castorSafeJson(sr);
-              if (sr.ok && sj && sj.ok !== false) {
-                if (
-                  window.SavedRoutes &&
-                  typeof window.SavedRoutes.loadList === "function"
-                ) {
-                  window.SavedRoutes.loadList().catch(() => {});
-                }
-                try {
-                  window.RoutesSidebar &&
-                    window.RoutesSidebar.refresh &&
-                    window.RoutesSidebar.refresh();
-                } catch (e) {}
-                const sd = sj.data || {};
-                if (sd.appended) {
-                  if (typeof toast === "function")
-                    toast(
-                      `✓ ${sd.added_count || 0} cliente(s) adicionado(s) ao roteiro aberto.`,
-                    );
-                } else if (sd.route_id) {
-                  if (typeof toast === "function")
-                    toast("✓ Novo roteiro criado.");
-                }
-              } else {
-                console.warn("Falha ao salvar roteiro:", sj && sj.error);
-              }
-            } catch (e) {
-              console.warn("Erro ao salvar roteiro:", e);
-            }
-          } catch (e) {
-            CastorUI.alert({
-              kind: "err",
-              title: "Falha ao gerar roteiro",
-              message: e.message || String(e),
-            });
-          } finally {
-            setBuildBtnBusy(false);
+          if (!clients.length) {
+            toast("Nenhum dos clientes selecionados foi encontrado no snapshot.");
+            return;
           }
+
+          // Ordenar por UF \u2192 Munic\u00edpio \u2192 CEP
+          clients.sort((a, b) => {
+            const est = (a.a1_est || "").localeCompare(b.a1_est || "");
+            if (est !== 0) return est;
+            const mun = (a.a1_mun || "").localeCompare(b.a1_mun || "");
+            if (mun !== 0) return mun;
+            return (a.a1_cep || "").localeCompare(b.a1_cep || "");
+          });
+
+          document.getElementById("routeSummary").textContent =
+            clients.length + " cliente(s) \u00b7 ordenados por UF \u2192 Cidade \u2192 CEP";
+          const ol = document.getElementById("routeStops");
+          ol.innerHTML = "";
+          clients.forEach((c) => {
+            const li = document.createElement("li");
+            const loc =
+              [c.a1_mun, c.a1_est].filter(Boolean).join("/") +
+              (c.a1_cep ? " \u00b7 CEP " + c.a1_cep : "");
+            const end = (c.a1_end || "").trim();
+            li.textContent =
+              (c.a1_nreduz || c.a1_nome || c._code) +
+              (loc ? " \u2014 " + loc : "") +
+              (end ? " \u00b7 " + end : "");
+            ol.appendChild(li);
+          });
+
+          // Guarda para o bot\u00e3o "Ver no Mapa"
+          state._mapClients = clients.map((c) => ({
+            name: c.a1_nreduz || c.a1_nome || c._code,
+            // CEP + cidade + UF (mais confiavel para geocoding que endereco completo)
+            address: [
+              c.a1_cep ? String(c.a1_cep).trim() : "",
+              c.a1_mun ? String(c.a1_mun).trim() : "",
+              c.a1_est ? String(c.a1_est).trim() : "",
+              "Brasil",
+            ].filter(Boolean).join(", "),
+            subtitle:
+              [c.a1_mun, c.a1_est].filter(Boolean).join("/") +
+              (c.a1_cep ? " \u00b7 CEP " + c.a1_cep : ""),
+          }));
+
+          document.getElementById("routeModal").style.display = "flex";
+          lucide.createIcons();
         }
 
         function show() {
@@ -11247,12 +11633,10 @@
           if (myTb) myTb.style.display = isMyRoute ? "flex" : "none";
           if (myPanel) myPanel.style.display = isMyRoute ? "flex" : "none";
           // "Gerar roteiro" só faz sentido nas tabs Reativação / Ativos / Leads,
-          // onde o vendedor seleciona clientes da base. Admin não monta roteiro
-          // próprio (usa Lançar tarefa / Sugerir → Vendedor).
+          // onde o vendedor seleciona clientes da base. Admin/supervisor não
+          // montam roteiro próprio (usa Lançar tarefa / Sugerir → Vendedor).
           const _isAdmin =
-            typeof currentUserRole !== "undefined" &&
-            currentUserRole ===
-              (window.AUTH_CONFIG ? window.AUTH_CONFIG.ADMIN_ROLE : "admin");
+            typeof currentUserRole !== "undefined" && isAdminLevel(currentUserRole);
           const buildBtn = document.getElementById("buildRouteBtn");
           if (buildBtn)
             buildBtn.style.display =
@@ -11271,6 +11655,7 @@
                 .forEach((x) => x.classList.remove("active"));
               t.classList.add("active");
               state.tab = t.getAttribute("data-tab");
+              state.page = 0;
               _applyTabUI();
               if (state.tab === "myroute") {
                 if (window.MyRoutePage && window.MyRoutePage.load)
@@ -11369,6 +11754,109 @@
             .addEventListener("click", () => {
               document.getElementById("routeModal").style.display = "none";
             });
+          document
+            .getElementById("routeMapBtn")
+            ?.addEventListener("click", () => {
+              if (typeof window.openClientMap === "function")
+                window.openClientMap(state._mapClients || []);
+            });
+          // Mapa Geral: abre todos os clientes visíveis do snapshot (50 por página)
+          // Coordenadas das capitais estaduais — fallback quando Nominatim falha
+          const BR_STATE_COORDS = {
+            AC: [-9.97499, -67.8243], AL: [-9.66599, -35.735], AP: [0.03444, -51.0664],
+            AM: [-3.10194, -60.025], BA: [-12.9718, -38.5011], CE: [-3.71722, -38.5434],
+            DF: [-15.7801, -47.9292], ES: [-20.3155, -40.3128], GO: [-16.6864, -49.2643],
+            MA: [-2.52972, -44.3028], MT: [-15.601, -56.0974], MS: [-20.4428, -54.6462],
+            MG: [-19.9191, -43.9386], PA: [-1.45502, -48.5024], PB: [-7.11532, -34.861],
+            PR: [-25.4284, -49.2733], PE: [-8.05389, -34.8811], PI: [-5.08921, -42.8016],
+            RJ: [-22.9068, -43.1729], RN: [-5.79448, -35.2111], RS: [-30.0346, -51.2177],
+            RO: [-8.76077, -63.9039], RR: [2.81954, -60.6714], SC: [-27.5954, -48.548],
+            SP: [-23.5505, -46.6333], SE: [-10.9472, -37.0731], TO: [-10.2491, -48.3243],
+          };
+          document
+            .getElementById("allClientsMapBtn")
+            ?.addEventListener("click", async () => {
+              let all =
+                (state.snapshot && state.snapshot.clientes) || [];
+              // Segmentos reactivation/active ainda não carregados → busca agora
+              if (!all.length) {
+                if (typeof toast === "function")
+                  toast("Carregando clientes para o mapa…");
+                try {
+                  await ensureSegment("reactivation");
+                  await ensureSegment("active");
+                  all = (state.snapshot && state.snapshot.clientes) || [];
+                } catch (e) {
+                  if (typeof toast === "function")
+                    toast("Erro ao carregar clientes: " + (e.message || e));
+                  return;
+                }
+                if (!all.length) {
+                  if (typeof toast === "function")
+                    toast("Nenhum cliente encontrado no snapshot.");
+                  return;
+                }
+              }
+
+              // Agrupa por cidade (mun+est), ordena pelas top-50 cidades
+              // com mais clientes, passa clientes individuais ao openClientMap
+              // com cluster:true para desagrupar conforme o zoom.
+              const cityGroups = new Map();
+              for (const c of all) {
+                const mun = (c.a1_mun || "").trim();
+                const est = (c.a1_est || "").trim().toUpperCase().substring(0, 2);
+                const key = mun + "|" + est;
+                if (!cityGroups.has(key)) cityGroups.set(key, { mun, est, clients: [] });
+                cityGroups.get(key).clients.push(c);
+              }
+              // Top 50 cidades por contagem de clientes
+              const topCities = Array.from(cityGroups.values())
+                .sort((a, b) => b.clients.length - a.clients.length)
+                .slice(0, 50);
+
+              const mapAll = [];
+              for (const city of topCities) {
+                for (const c of city.clients) {
+                  mapAll.push({
+                    name: c.a1_nreduz || c.a1_nome || c.cliente_codigo || "?",
+                    lat: null,
+                    lng: null,
+                    // Geocoding por município + estado + CEP (sem endereço completo)
+                    address: [city.mun, city.est, c.a1_cep, "Brasil"]
+                      .filter(Boolean).join(", "),
+                    // Chave de cache compartilhada por cidade
+                    _cityKey: city.mun + "|" + city.est,
+                    _estFallback: city.est,
+                    subtitle: [city.mun, city.est].filter(Boolean).join("/"),
+                  });
+                }
+              }
+
+              if (!mapAll.length) {
+                if (typeof toast === "function")
+                  toast("Nenhum cliente com município cadastrado.");
+                return;
+              }
+
+              if (typeof window.openClientMap === "function") {
+                const _navLabel =
+                  topCities.length + " cidades · " + mapAll.length + " clientes";
+                // Exibe nav logo após o mapa abrir (openClientMap oculta no início,
+                // por isso aguardamos dois frames antes de reexibir)
+                window.openClientMap(mapAll, { cluster: true, brStateCoords: BR_STATE_COORDS })
+                  .catch(() => {});
+                // Delay para deixar o openClientMap esconder a nav e depois recolocar
+                await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+                const nav = document.getElementById("clientMapNav");
+                const info = document.getElementById("clientMapPageInfo");
+                const prevBtn2 = document.getElementById("clientMapPrev");
+                const nextBtn2 = document.getElementById("clientMapNext");
+                if (nav) nav.style.display = "flex";
+                if (info) info.textContent = _navLabel;
+                if (prevBtn2) prevBtn2.style.display = "none";
+                if (nextBtn2) nextBtn2.style.display = "none";
+              }
+            });
         }
 
         return {
@@ -11382,6 +11870,256 @@
       // initialize once the DOM is parsed (script é inline ao final do body)
       RoutesPanel.init();
       window.RoutesPanel = RoutesPanel;
+
+      // ============================================================
+      // openClientMap — Leaflet + OpenStreetMap
+      // Aceita [{name, address?, lat?, lng?, subtitle?, _cityKey?, _estFallback?}]
+      // options: { cluster: false }  — cluster usa markerClusterGroup + geocoding
+      //          { cluster: false }  — individual: marcadores diretos (rota/seleção)
+      // ============================================================
+
+      // Cache de geocoding persistente entre aberturas de mapa
+      window._castorGeoCache = window._castorGeoCache || {};
+
+      // Injeta CSS dos pins Leaflet uma única vez
+      (function () {
+        if (document.getElementById("castor-map-pin-css")) return;
+        const st = document.createElement("style");
+        st.id = "castor-map-pin-css";
+        st.textContent =
+          ".castor-map-pin{background:#0ea5e9;color:#fff;border-radius:8px;padding:6px 10px;" +
+          "font-size:12px;max-width:150px;box-shadow:0 2px 8px rgba(0,0,0,.3);" +
+          "cursor:pointer;border:2px solid rgba(255,255,255,.25);display:inline-block;}" +
+          ".castor-map-pin .pm-name{font-weight:700;white-space:nowrap;" +
+          "overflow:hidden;text-overflow:ellipsis;max-width:130px;}" +
+          ".castor-map-pin .pm-loc{font-size:10px;opacity:.85;margin-top:2px;white-space:nowrap;}" +
+          ".castor-leaflet-pin{background:transparent!important;border:none!important;box-shadow:none!important;}";
+        document.head.appendChild(st);
+      })();
+
+      window.openClientMap = async function (clients, options) {
+        const clusterMode = !!(options && options.cluster);
+        const brStateCoords = (options && options.brStateCoords) || {};
+
+        const modal = document.getElementById("clientMapModal");
+        const mapDiv = document.getElementById("clientMapDiv");
+        if (!modal || !mapDiv || !clients || !clients.length) return;
+        modal.style.display = "flex";
+
+        const _navBar = document.getElementById("clientMapNav");
+        if (_navBar) _navBar.style.display = "none";
+
+        if (window._castorLeafletMap) {
+          window._castorLeafletMap.remove();
+          window._castorLeafletMap = null;
+        }
+        mapDiv.innerHTML = "";
+
+        const esc = (s) =>
+          String(s || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+
+        await new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
+
+        if (typeof L === "undefined") {
+          mapDiv.innerHTML =
+            '<div style="padding:20px;color:#dc2626;font-size:14px;">Leaflet não carregou.</div>';
+          return;
+        }
+
+        const makePinIcon = (cli) =>
+          L.divIcon({
+            className: "castor-leaflet-pin",
+            html:
+              '<div class="castor-map-pin"><div class="pm-name">' +
+              esc(cli.name) +
+              "</div>" +
+              (cli.subtitle
+                ? '<div class="pm-loc">' + esc(cli.subtitle) + "</div>"
+                : "") +
+              "</div>",
+            iconSize: [150, 42],
+            iconAnchor: [0, 42],
+            popupAnchor: [75, -42],
+          });
+
+        const makePopup = (cli) =>
+          '<div style="min-width:160px;font-size:13px;line-height:1.6">' +
+          "<strong>" + esc(cli.name) + "</strong>" +
+          (cli.subtitle ? "<br><span>" + esc(cli.subtitle) + "</span>" : "") +
+          "</div>";
+
+        try {
+          const map = L.map(mapDiv, { zoomControl: true }).setView([-15.78, -47.93], 5);
+          window._castorLeafletMap = map;
+          L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution:
+              '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
+            maxZoom: 19,
+          }).addTo(map);
+
+          const geocodeCity = async (q) => {
+            try {
+              const r = await fetch(
+                "https://nominatim.openstreetmap.org/search?q=" +
+                  encodeURIComponent(q) +
+                  "&format=json&limit=1&countrycodes=br",
+                { headers: { "Accept-Language": "pt-BR,pt;q=0.9" } },
+              );
+              const d = await r.json();
+              if (d && d[0]) return { lat: +d[0].lat, lng: +d[0].lon };
+            } catch (_) {}
+            return null;
+          };
+
+          // ── MODO CLUSTER: desagrupa conforme zoom ────────────────────────────
+          if (clusterMode && typeof L.markerClusterGroup === "function") {
+            const mcg = L.markerClusterGroup({ chunkedLoading: true, maxClusterRadius: 80 });
+            map.addLayer(mcg);
+
+            // Agrupa clientes por _cityKey (pré-calculado no handler)
+            const cityBuckets = new Map();
+            for (const cli of clients) {
+              const key = cli._cityKey || (cli.subtitle || "?");
+              if (!cityBuckets.has(key)) cityBuckets.set(key, { cli0: cli, list: [] });
+              cityBuckets.get(key).list.push(cli);
+            }
+
+            const addClientsToCluster = (cityClients, pos) => {
+              const jBase = 0.003; // ~300m de jitter
+              cityClients.forEach((cli, i) => {
+                const jLat = i === 0 ? 0 : (Math.random() - 0.5) * jBase;
+                const jLng = i === 0 ? 0 : (Math.random() - 0.5) * jBase;
+                mcg.addLayer(
+                  L.marker([pos.lat + jLat, pos.lng + jLng], { icon: makePinIcon(cli) })
+                    .bindPopup(makePopup(cli)),
+                );
+              });
+            };
+
+            // 1ª passagem: usa cache existente (instantâneo)
+            const toGeo = [];
+            for (const [key, { cli0, list }] of cityBuckets) {
+              if (window._castorGeoCache[key]) {
+                addClientsToCluster(list, window._castorGeoCache[key]);
+              } else {
+                toGeo.push({ key, cli0, list });
+              }
+            }
+
+            // Ajusta bounds com o que já está no cluster
+            try {
+              const _b = mcg.getBounds();
+              if (_b && _b.isValid()) map.fitBounds(_b, { padding: [40, 40] });
+            } catch (_) {}
+
+            // 2ª passagem: geocodifica cidades não cacheadas (1/s, Nominatim)
+            for (const { key, cli0, list } of toGeo) {
+              const est = cli0._estFallback || "";
+              // Endereço de geocoding: municipio + estado + cep + Brasil
+              // (usa apenas os dados estruturados, não o endereço de rua)
+              const addr = (cli0.address || [cli0.subtitle, "Brasil"].filter(Boolean).join(", "));
+              let pos = await geocodeCity(addr);
+              // Fallback: capital do estado se Nominatim falhar
+              if (!pos && est && brStateCoords[est]) {
+                const c = brStateCoords[est];
+                pos = { lat: c[0], lng: c[1] };
+              }
+              if (pos) {
+                window._castorGeoCache[key] = pos;
+                addClientsToCluster(list, pos);
+                try {
+                  const _b = mcg.getBounds();
+                  if (_b && _b.isValid()) map.fitBounds(_b, { padding: [40, 40] });
+                } catch (_) {}
+              }
+              if (toGeo.length > 1)
+                await new Promise((res) => setTimeout(res, 1100));
+            }
+
+            if (mcg.getLayers().length === 0)
+              mapDiv.innerHTML =
+                '<div style="padding:20px;color:#64748b;font-size:14px;">Nenhuma localização encontrada.</div>';
+
+          // ── MODO INDIVIDUAL: marcadores diretos, sem agrupamento ─────────────
+          } else {
+            const bounds = L.latLngBounds();
+            let placed = 0;
+
+            const placeMarker = (cli, lat, lng) => {
+              L.marker([lat, lng], { icon: makePinIcon(cli) })
+                .addTo(map)
+                .bindPopup(makePopup(cli));
+              bounds.extend([lat, lng]);
+              placed++;
+              if (placed >= 2) map.fitBounds(bounds, { padding: [50, 50] });
+              else map.setView([lat, lng], 13);
+            };
+
+            // Clientes com coordenadas: colocados imediatamente
+            for (const cli of clients)
+              if (cli.lat != null && cli.lng != null)
+                placeMarker(cli, +cli.lat, +cli.lng);
+
+            // Geocoding sequencial para os sem coordenadas (1 req/s)
+            const toGeo = clients.filter((c) => c.lat == null && c.address);
+            for (const cli of toGeo) {
+              const pos = await geocodeCity(
+                cli.address.split(",").map((s) => s.trim()).filter(Boolean).join(", "),
+              );
+              if (pos) placeMarker(cli, pos.lat, pos.lng);
+              if (toGeo.length > 1)
+                await new Promise((res) => setTimeout(res, 1100));
+            }
+
+            if (placed === 0)
+              mapDiv.innerHTML =
+                '<div style="padding:20px;color:#64748b;font-size:14px;">Nenhum endereço localizado.</div>';
+          }
+        } catch (e) {
+          mapDiv.innerHTML =
+            '<div style="padding:20px;color:#dc2626;font-size:14px;">Erro ao carregar mapa: ' +
+            (e.message || e) + "</div>";
+        }
+      };
+
+      // openRouteMapFromChat — converte stops da rota gerada no chat para openClientMap
+      function openRouteMapFromChat(routeData) {
+        const stops = (routeData.stops || []).filter(
+          (s) => s.lat != null || s.address,
+        );
+        if (!stops.length) {
+          if (typeof toast === "function")
+            toast("Sem paradas geocodadas para exibir no mapa.");
+          return;
+        }
+        const clients = stops.map((s) => ({
+          name: s.name || s.cliente_codigo || "Cliente",
+          lat: s.lat != null ? +s.lat : null,
+          lng: s.lng != null ? +s.lng : null,
+          address: s.address || "",
+          subtitle:
+            [s.mun, s.est].filter(Boolean).join("/") +
+            (s.seq ? " — parada " + s.seq : ""),
+        }));
+        window.openClientMap(clients);
+      }
+
+      document
+        .getElementById("clientMapClose")
+        ?.addEventListener("click", () => {
+          document.getElementById("clientMapModal").style.display = "none";
+          const nav = document.getElementById("clientMapNav");
+          if (nav) nav.style.display = "none";
+          window._mapNavState = null;
+          // Destrói instância Leaflet ao fechar para liberar memória
+          if (window._castorLeafletMap) {
+            window._castorLeafletMap.remove();
+            window._castorLeafletMap = null;
+          }
+        });
 
       // ============================================================
       // Saved Routes module: lista, abre detalhe, marca paradas, IA gera
@@ -11414,7 +12152,7 @@
           }
         }
         function isAdmin() {
-          return currentUserRole === AUTH_CONFIG.ADMIN_ROLE;
+          return isAdminLevel(currentUserRole);
         }
         let _allRoutes = [];
         let _currentRouteId = null;
@@ -11605,7 +12343,9 @@
               const route = _allRoutes.find((x) => x.id === btn.dataset.id);
               if (!route) return;
               try {
-                const { data, error } = await supabaseClient.rpc(USER_RPC.LIST);
+                const { data, error } = await supabaseClient.rpc(
+                  USER_RPC.TEAM_LIST,
+                );
                 if (error) throw error;
                 const users = (data || []).filter((u) => {
                   const role =
@@ -11614,6 +12354,7 @@
                     "vendedor";
                   return (
                     role !== "admin" &&
+                    role !== "supervisor" &&
                     role !== "inactive" &&
                     (u.user_id || u.id) !== route.user_id
                   );
@@ -12058,7 +12799,7 @@
         async function suggestMore(n) {
           if (_suggestInFlight) return;
           if (!currentUserId) return;
-          if (currentUserRole === AUTH_CONFIG.ADMIN_ROLE) {
+          if (isAdminLevel(currentUserRole)) {
             CastorUI.alert({
               kind: "warn",
               title: "Admin não tem roteiro próprio",
@@ -12652,7 +13393,9 @@
           if (!_currentRouteId) return;
           // Lista usuários + opção de desatribuir o roteiro inteiro.
           try {
-            const { data, error } = await supabaseClient.rpc(USER_RPC.LIST);
+            const { data, error } = await supabaseClient.rpc(
+              USER_RPC.TEAM_LIST,
+            );
             if (error) throw error;
             const users = (data || []).filter((u) => {
               const role =
@@ -12661,6 +13404,7 @@
                 "vendedor";
               return (
                 role !== "admin" &&
+                role !== "supervisor" &&
                 role !== "inactive" &&
                 (u.user_id || u.id) !== _currentRouteOwner
               );
@@ -12975,13 +13719,16 @@
             if (u)
               return {
                 id: u.id,
-                role: (u.user_metadata && u.user_metadata.role) || "vendedor",
+                role: _normalizeCtxRole(
+                  (u.user_metadata && u.user_metadata.role) || "vendedor",
+                ),
               };
           } catch (e) {}
           // Fallback: usa getCurrentUserRole() global (definido em applySession)
-          const role =
+          const role = _normalizeCtxRole(
             (window.getCurrentUserRole && window.getCurrentUserRole()) ||
-            "vendedor";
+              "vendedor",
+          );
           return {
             id: (window.getCurrentUserId && window.getCurrentUserId()) || null,
             role,
@@ -12996,7 +13743,7 @@
           )
             return window.__castorUsersCache;
           try {
-            const { data } = await supabaseClient.rpc(USER_RPC.LIST);
+            const { data } = await supabaseClient.rpc(USER_RPC.TEAM_LIST);
             window.__castorUsersCache = data || [];
           } catch (e) {
             window.__castorUsersCache = [];
@@ -13010,12 +13757,12 @@
           if (!u) return false;
           const role =
             u.role || (u.user_metadata && u.user_metadata.role) || "vendedor";
-          return role === "admin";
+          return role === "admin" || role === "supervisor";
         }
 
         async function loadVendors() {
           const ctx = currentUserCtx();
-          if (ctx.role !== "admin") {
+          if (!isAdminLevel(ctx.role)) {
             const el = $("myRouteVendorFilter");
             if (el) el.style.display = "none";
             return;
@@ -13027,7 +13774,7 @@
                 u.role ||
                 (u.user_metadata && u.user_metadata.role) ||
                 "vendedor";
-              return role !== "admin" && role !== "inactive";
+              return role !== "admin" && role !== "supervisor" && role !== "inactive";
             });
             state.vendors = vendors;
             const sel = $("myRouteVendorFilter");
@@ -13829,22 +14576,9 @@
           render();
         }
 
-        function _haversineKm(a, b) {
-          const R = 6371;
-          const toR = (d) => (d * Math.PI) / 180;
-          const dLat = toR(b.lat - a.lat),
-            dLng = toR(b.lng - a.lng);
-          const s =
-            Math.sin(dLat / 2) ** 2 +
-            Math.cos(toR(a.lat)) *
-              Math.cos(toR(b.lat)) *
-              Math.sin(dLng / 2) ** 2;
-          return 2 * R * Math.asin(Math.sqrt(s));
-        }
-
         function generateRouteFromSelection() {
           const keys = Array.from(state.selected);
-          if (keys.length < 2) return;
+          if (keys.length < 1) return;
           const picked = [];
           keys.forEach((k) => {
             const sep = k.indexOf(":");
@@ -13855,70 +14589,32 @@
             );
             if (s) picked.push(s);
           });
+          if (!picked.length) return;
+
           const withCoord = picked.filter(
             (s) => Number.isFinite(+s.lat) && Number.isFinite(+s.lng),
           );
           const noCoord = picked.filter(
             (s) => !(Number.isFinite(+s.lat) && Number.isFinite(+s.lng)),
           );
-          if (withCoord.length < 2) {
-            toast(
-              "Pelo menos 2 das tarefas selecionadas precisam ter coordenadas. Edite o endereço primeiro.",
-            );
-            return;
-          }
-          const origin = { lat: -23.6884, lng: -46.6178 };
-          const order = [];
-          const left = withCoord.slice();
-          let cur = origin;
-          while (left.length) {
-            let bestIdx = 0,
-              bestD = Infinity;
-            for (let i = 0; i < left.length; i++) {
-              const d = _haversineKm(cur, {
-                lat: +left[i].lat,
-                lng: +left[i].lng,
-              });
-              if (d < bestD) {
-                bestD = d;
-                bestIdx = i;
-              }
-            }
-            order.push(left[bestIdx]);
-            cur = { lat: +left[bestIdx].lat, lng: +left[bestIdx].lng };
-            left.splice(bestIdx, 1);
-          }
-          let totalKm = 0;
-          let prev = origin;
-          const pts = [];
-          order.forEach((s) => {
-            const c2 = { lat: +s.lat, lng: +s.lng };
-            totalKm += _haversineKm(prev, c2);
-            pts.push(c2.lat.toFixed(5) + "," + c2.lng.toFixed(5));
-            prev = c2;
-          });
-          totalKm += _haversineKm(prev, origin);
-          const url =
-            "https://www.google.com/maps/dir/" +
-            origin.lat +
-            "," +
-            origin.lng +
-            "/" +
-            pts.join("/") +
-            "/" +
-            origin.lat +
-            "," +
-            origin.lng;
+
+          const mapClients = withCoord.map((s) => ({
+            name: s.name || s.cliente_codigo,
+            lat: +s.lat,
+            lng: +s.lng,
+            subtitle: s.cliente_codigo,
+          }));
+
           const html = `<div style="padding:14px;background:#fff;border:1px solid var(--border-color,#e5e5e5);border-radius:8px;margin-bottom:10px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-              <strong style="font-size:14px">🗺️ Roteiro gerado · ${order.length} paradas · ~${totalKm.toFixed(1)} km</strong>
+              <strong style="font-size:14px">\ud83d\udccd ${picked.length} parada(s) selecionada(s)</strong>
               <button id="myRouteGenCloseBtn" type="button" style="font-size:12px;padding:4px 10px;background:transparent;border:1px solid var(--border-color,#e5e5e5);border-radius:4px;cursor:pointer">Fechar</button>
             </div>
             <ol style="font-size:13px;margin:4px 0 8px 18px;padding:0">
-              ${order.map((s) => `<li>${esc(s.name || s.cliente_codigo)} <span style="color:var(--text-secondary)">(cod ${esc(s.cliente_codigo)})</span></li>`).join("")}
+              ${picked.map((s) => `<li>${esc(s.name || s.cliente_codigo)} <span style="color:var(--text-secondary)">(cod ${esc(s.cliente_codigo)})</span></li>`).join("")}
             </ol>
-            <a href="${url}" target="_blank" rel="noopener" style="display:inline-block;padding:8px 14px;background:#0ea5e9;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;font-size:13px">📍 Abrir no Google Maps</a>
-            ${noCoord.length ? `<div style="font-size:11px;color:#f59e0b;margin-top:8px">⚠️ ${noCoord.length} cliente(s) sem coordenadas ficaram de fora: ${noCoord.map((s) => esc(s.name || s.cliente_codigo)).join(", ")}</div>` : ""}
+            ${withCoord.length ? `<button id="myRouteMapBtn" style="display:inline-block;padding:8px 14px;background:#0ea5e9;color:#fff;border-radius:6px;font-weight:600;font-size:13px;border:none;cursor:pointer;">\ud83d\udccd Ver no Mapa</button>` : ""}
+            ${noCoord.length ? `<div style="font-size:11px;color:#f59e0b;margin-top:8px">\u26a0\ufe0f ${noCoord.length} cliente(s) sem coordenadas: ${noCoord.map((s) => esc(s.name || s.cliente_codigo)).join(", ")}</div>` : ""}
           </div>`;
           let host = $("myRouteGenResult");
           if (!host) {
@@ -13930,6 +14626,10 @@
           host.innerHTML = html;
           $("myRouteGenCloseBtn").addEventListener("click", () => {
             host.innerHTML = "";
+          });
+          $("myRouteMapBtn")?.addEventListener("click", () => {
+            if (typeof window.openClientMap === "function")
+              window.openClientMap(mapClients);
           });
           host.scrollIntoView({ behavior: "smooth", block: "nearest" });
         }
@@ -14863,70 +15563,47 @@
             all.indeterminate = picked > 0 && picked < visible;
           }
         }
-        // Roteiro rápido no Google Maps a partir da seleção. NÃO salva nada:
-        // só abre o link de direções (origem = localização atual quando permitida).
         function _generateFollowupsRoute() {
           const picked = _allFollowups.filter((f) =>
             _fuSelected.has(f.cliente_codigo),
           );
           if (!picked.length) return;
           const host = $("followupsRouteResult");
-          const addrOf = (f) =>
-            [f.endereco, f.municipio, f.uf, "Brasil"]
+
+          // Ordenar por UF \u2192 Munic\u00edpio
+          const ordered = [...picked].sort((a, b) => {
+            const uf = (a.uf || "").localeCompare(b.uf || "");
+            if (uf !== 0) return uf;
+            return (a.municipio || "").localeCompare(b.municipio || "");
+          });
+
+          const mapClients = ordered.map((f) => ({
+            name: f.cliente_nome || f.cliente_codigo,
+            address: [f.endereco, f.municipio, f.uf, "Brasil"]
               .filter(Boolean)
-              .join(", ");
-          const stops = picked
-            .map((f) => ({ f, addr: addrOf(f) }))
-            .filter((x) => x.addr && x.addr !== "Brasil");
-          if (stops.length < 1) {
-            if (host)
-              host.innerHTML =
-                '<div style="font-size:12px;color:#dc2626;padding:8px">Nenhuma empresa selecionada tem endereço/município para montar a rota.</div>';
-            return;
-          }
-          const buildAndShow = (origin) => {
-            const wp = stops.map((s) => encodeURIComponent(s.addr));
-            const dest = wp[wp.length - 1];
-            const mid = wp.slice(0, -1).join("|");
-            let url = "https://www.google.com/maps/dir/?api=1";
-            if (origin) url += "&origin=" + origin;
-            url += "&destination=" + dest;
-            if (mid) url += "&waypoints=" + mid;
-            url += "&travelmode=driving";
-            if (host) {
-              host.innerHTML = `<div style="padding:12px;background:var(--bg-secondary,#fafafa);border:1px solid var(--border-color,#e5e5e5);border-radius:8px;margin-bottom:10px">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-                  <strong style="font-size:13px">🗺️ Roteiro rápido · ${stops.length} parada${stops.length === 1 ? "" : "s"}${origin ? " · origem: sua localização" : ""}</strong>
-                  <button id="followupsRouteClose" type="button" style="font-size:11px;padding:3px 9px;background:transparent;border:1px solid var(--border-color,#e5e5e5);border-radius:4px;cursor:pointer">Fechar</button>
-                </div>
-                <ol style="font-size:12px;margin:4px 0 8px 18px;padding:0">
-                  ${stops.map((s) => `<li>${esc(s.f.cliente_nome || s.f.cliente_codigo)} <span style="color:var(--text-secondary)">(${esc(s.f.municipio || "")}/${esc(s.f.uf || "")})</span></li>`).join("")}
-                </ol>
-                <a href="${url}" target="_blank" rel="noopener" style="display:inline-block;padding:8px 14px;background:#0ea5e9;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;font-size:13px">📍 Abrir no Google Maps</a>
-                <div style="font-size:11px;color:var(--text-secondary);margin-top:8px">A rota não é salva — é só um link de navegação. O Google otimiza o trajeto a partir dos endereços.</div>
-              </div>`;
-              $("followupsRouteClose")?.addEventListener("click", () => {
-                host.innerHTML = "";
-              });
-              host.scrollIntoView({ behavior: "smooth", block: "nearest" });
-            }
-          };
-          if (host)
-            host.innerHTML =
-              '<div style="font-size:12px;color:var(--text-secondary);padding:8px">Obtendo sua localização…</div>';
-          if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-              (pos) =>
-                buildAndShow(
-                  pos.coords.latitude.toFixed(6) +
-                    "," +
-                    pos.coords.longitude.toFixed(6),
-                ),
-              () => buildAndShow(null), // permissão negada → sem origem (Maps usa a do app)
-              { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 },
-            );
-          } else {
-            buildAndShow(null);
+              .join(", "),
+            subtitle: [f.municipio, f.uf].filter(Boolean).join("/"),
+          }));
+
+          if (host) {
+            host.innerHTML = `<div style="padding:12px;background:var(--bg-secondary,#fafafa);border:1px solid var(--border-color,#e5e5e5);border-radius:8px;margin-bottom:10px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <strong style="font-size:13px">\ud83d\udccd ${ordered.length} follow-up(s) selecionado(s)</strong>
+                <button id="followupsRouteClose" type="button" style="font-size:11px;padding:3px 9px;background:transparent;border:1px solid var(--border-color,#e5e5e5);border-radius:4px;cursor:pointer">Fechar</button>
+              </div>
+              <ol style="font-size:12px;margin:4px 0 8px 18px;padding:0">
+                ${ordered.map((f) => `<li>${esc(f.cliente_nome || f.cliente_codigo)} <span style="color:var(--text-secondary)">(${esc(f.municipio || "")}/${esc(f.uf || "")})</span></li>`).join("")}
+              </ol>
+              <button id="followupsMapBtn" style="display:inline-block;padding:8px 14px;background:#0ea5e9;color:#fff;border-radius:6px;font-weight:600;font-size:13px;border:none;cursor:pointer;">\ud83d\udccd Ver no Mapa</button>
+            </div>`;
+            $("followupsRouteClose")?.addEventListener("click", () => {
+              host.innerHTML = "";
+            });
+            $("followupsMapBtn")?.addEventListener("click", () => {
+              if (typeof window.openClientMap === "function")
+                window.openClientMap(mapClients);
+            });
+            host.scrollIntoView({ behavior: "smooth", block: "nearest" });
           }
         }
         async function loadFollowupsBadge() {
@@ -14962,12 +15639,12 @@
           onSaved,
           defaults,
         ) {
-          // Admin não responde cards — apenas observa / atribui vendedores.
+          // Admin/supervisor não respondem cards — apenas observam / atribuem vendedores.
           try {
             const role =
               (window.getCurrentUserRole && window.getCurrentUserRole()) ||
               null;
-            if (role === "admin") {
+            if (isAdminLevel(role)) {
               if (window.toast)
                 toast(
                   "Admin não registra interações. Atribua um vendedor responsável.",
@@ -15396,9 +16073,7 @@
         function _isAdmin() {
           try {
             return (
-              typeof currentUserRole !== "undefined" &&
-              currentUserRole ===
-                (window.AUTH_CONFIG ? window.AUTH_CONFIG.ADMIN_ROLE : "admin")
+              typeof currentUserRole !== "undefined" && isAdminLevel(currentUserRole)
             );
           } catch (e) {
             return false;
@@ -15420,6 +16095,7 @@
                 "vendedor";
               return (
                 role !== "admin" &&
+                role !== "supervisor" &&
                 role !== "inactive" &&
                 (u.user_id || u.id) !== excludeId
               );
@@ -15887,9 +16563,8 @@
         }
         function _isAdmin() {
           try {
-            return (
-              (window.getCurrentUserRole && window.getCurrentUserRole()) ===
-              "admin"
+            return isAdminLevel(
+              window.getCurrentUserRole && window.getCurrentUserRole(),
             );
           } catch (e) {
             return false;
@@ -15943,7 +16618,7 @@
             return window.__castorUsersCache;
           try {
             const { data } = await window.supabaseClient.rpc(
-              "castor_admin_list_users",
+              "castor_team_directory",
             );
             window.__castorUsersCache = data || [];
           } catch (e) {
@@ -16150,7 +16825,7 @@
           if (window.__castorUsersCache && window.__castorUsersCache.length)
             return;
           try {
-            const { data } = await supabaseClient.rpc(USER_RPC.LIST);
+            const { data } = await supabaseClient.rpc(USER_RPC.TEAM_LIST);
             window.__castorUsersCache = data || [];
           } catch (e) {}
         }
@@ -16485,15 +17160,16 @@
           let users = window.__castorUsersCache;
           if (!users || !Array.isArray(users) || !users.length) {
             try {
-              if (typeof loadUsersPage === "function") await loadUsersPage();
-              users = window.__castorUsersCache || [];
+              const { data } = await supabaseClient.rpc(USER_RPC.TEAM_LIST);
+              users = data || [];
+              window.__castorUsersCache = users;
             } catch (e) {
               users = [];
             }
           }
           const vendors = (users || []).filter((u) => {
             const role = u.role || u.user_metadata?.role || "vendedor";
-            return role !== "admin" && role !== "inactive";
+            return role !== "admin" && role !== "supervisor" && role !== "inactive";
           });
           sel.innerHTML =
             '<option value="">— escolha um vendedor —</option>' +
@@ -16818,6 +17494,31 @@
                   return tail.length === 9 && tail.startsWith("9");
                 };
 
+                // Helper: fetch com timeout + retry + backoff exponencial
+                async function fetchCnpjApi(url, { maxRetries = 2, timeoutMs = 15000, name = "API" } = {}) {
+                  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+                    try {
+                      const ctrl = new AbortController();
+                      const tid = setTimeout(() => ctrl.abort(), timeoutMs);
+                      const resp = await fetch(url, { signal: ctrl.signal });
+                      clearTimeout(tid);
+                      if (resp.ok) return { ok: true, data: await resp.json() };
+                      if (resp.status === 404) return { ok: false, error: "404", msg: `${name}: CNPJ não encontrado` };
+                      if (resp.status === 429) {
+                        const wait = attempt < maxRetries ? Math.pow(2, attempt + 1) * 5000 : 0;
+                        if (wait) await new Promise((r) => setTimeout(r, wait));
+                        continue;
+                      }
+                      return { ok: false, error: String(resp.status), msg: `${name}: HTTP ${resp.status}` };
+                    } catch (e) {
+                      if (e.name === "AbortError") return { ok: false, error: "timeout", msg: `${name}: timeout ${timeoutMs / 1000}s` };
+                      if (attempt >= maxRetries) return { ok: false, error: "network", msg: `${name}: ${e.message || "rede"}` };
+                      await new Promise((r) => setTimeout(r, Math.pow(2, attempt) * 1000));
+                    }
+                  }
+                  return { ok: false, error: "exhausted", msg: `${name}: esgotado` };
+                }
+
                 // Coleta de fontes (ordem: BrasilAPI → cnpj.ws público)
                 const collected = {
                   razao: "",
@@ -16830,77 +17531,72 @@
                   uf: "",
                 };
 
-                try {
-                  const r1 = await fetch(
-                    `https://brasilapi.com.br/api/cnpj/v1/${cnpj}`,
-                  );
-                  if (r1.ok) {
-                    const d = await r1.json();
-                    collected.razao = d.razao_social || d.nome_fantasia || "";
-                    collected.endereco = [
-                      d.logradouro,
-                      d.numero,
-                      d.complemento,
-                      d.bairro,
-                    ]
-                      .filter((s) => s && String(s).trim())
-                      .join(", ");
-                    collected.cep = onlyDigits(d.cep);
-                    collected.tel = d.ddd_telefone_1 || "";
-                    collected.tel2 = d.ddd_telefone_2 || "";
-                    collected.email = d.email || "";
-                    collected.mun = d.municipio || "";
-                    collected.uf = d.uf || "";
-                  }
-                } catch (_) {
-                  /* tenta a fallback abaixo */
+                // BrasilAPI (primária)
+                const r1 = await fetchCnpjApi(
+                  `https://brasilapi.com.br/api/cnpj/v1/${cnpj}`,
+                  { name: "BrasilAPI" },
+                );
+                if (r1.ok) {
+                  const d = r1.data;
+                  collected.razao = d.razao_social || d.nome_fantasia || "";
+                  collected.endereco = [
+                    d.logradouro,
+                    d.numero,
+                    d.complemento,
+                    d.bairro,
+                  ]
+                    .filter((s) => s && String(s).trim())
+                    .join(", ");
+                  collected.cep = onlyDigits(d.cep);
+                  collected.tel = d.ddd_telefone_1 || "";
+                  collected.tel2 = d.ddd_telefone_2 || "";
+                  collected.email = d.email || "";
+                  collected.mun = d.municipio || "";
+                  collected.uf = d.uf || "";
                 }
 
-                // Se faltou contato (telefone bom OU email), tenta cnpj.ws (também CORS-friendly)
+                // CNPJ.ws (fallback se faltou contato ou endereço)
                 const needsContact =
                   isJunkPhone(collected.tel) &&
                   isJunkPhone(collected.tel2) &&
                   !collected.email;
+                let r2 = { ok: false, msg: "" };
                 if (needsContact || !collected.endereco) {
-                  try {
-                    const r2 = await fetch(
-                      `https://publica.cnpj.ws/cnpj/${cnpj}`,
-                    );
-                    if (r2.ok) {
-                      const j = await r2.json();
-                      const est = j.estabelecimento || {};
-                      if (!collected.razao)
-                        collected.razao =
-                          j.razao_social ||
-                          est.nome_fantasia ||
-                          collected.razao;
-                      if (!collected.endereco) {
-                        collected.endereco = [
-                          est.tipo_logradouro,
-                          est.logradouro,
-                          est.numero,
-                          est.complemento,
-                          est.bairro,
-                        ]
-                          .filter((s) => s && String(s).trim())
-                          .join(", ");
-                      }
-                      if (!collected.cep) collected.cep = onlyDigits(est.cep);
-                      // cnpj.ws separa ddd1+telefone1 e ddd2+telefone2
-                      const t1 = (est.ddd1 || "") + (est.telefone1 || "");
-                      const t2 = (est.ddd2 || "") + (est.telefone2 || "");
-                      if (isJunkPhone(collected.tel) && !isJunkPhone(t1))
-                        collected.tel = t1;
-                      if (isJunkPhone(collected.tel2) && !isJunkPhone(t2))
-                        collected.tel2 = t2;
-                      if (!collected.email && est.email)
-                        collected.email = est.email;
-                      if (!collected.mun)
-                        collected.mun = est.cidade?.nome || "";
-                      if (!collected.uf) collected.uf = est.estado?.sigla || "";
+                  r2 = await fetchCnpjApi(
+                    `https://publica.cnpj.ws/cnpj/${cnpj}`,
+                    { name: "CNPJ.ws" },
+                  );
+                  if (r2.ok) {
+                    const j = r2.data;
+                    const est = j.estabelecimento || {};
+                    if (!collected.razao)
+                      collected.razao =
+                        j.razao_social ||
+                        est.nome_fantasia ||
+                        collected.razao;
+                    if (!collected.endereco) {
+                      collected.endereco = [
+                        est.tipo_logradouro,
+                        est.logradouro,
+                        est.numero,
+                        est.complemento,
+                        est.bairro,
+                      ]
+                        .filter((s) => s && String(s).trim())
+                        .join(", ");
                     }
-                  } catch (_) {
-                    /* segue só com BrasilAPI */
+                    if (!collected.cep) collected.cep = onlyDigits(est.cep);
+                    const t1 = (est.ddd1 || "") + (est.telefone1 || "");
+                    const t2 = (est.ddd2 || "") + (est.telefone2 || "");
+                    if (isJunkPhone(collected.tel) && !isJunkPhone(t1))
+                      collected.tel = t1;
+                    if (isJunkPhone(collected.tel2) && !isJunkPhone(t2))
+                      collected.tel2 = t2;
+                    if (!collected.email && est.email)
+                      collected.email = est.email;
+                    if (!collected.mun)
+                      collected.mun = est.cidade?.nome || "";
+                    if (!collected.uf) collected.uf = est.estado?.sigla || "";
                   }
                 }
 
@@ -16929,8 +17625,13 @@
                 if (collected.endereco) bits.push("Endereço ✓");
                 if (mobile || fixed) bits.push("Tel ✓");
                 if (collected.email) bits.push("e-mail: " + collected.email);
-                if (!mobile && !fixed && !collected.email)
-                  bits.push("contato não disponível na Receita");
+
+                // Se não achou nada útil, mostra o erro da API
+                if (!collected.endereco && !mobile && !fixed && !collected.email) {
+                  const apiErr = !r1.ok ? r1.msg : !r2.ok ? r2.msg : "";
+                  bits.push(apiErr || "contato não disponível na Receita");
+                }
+
                 toast(
                   "CNPJ " +
                     cnpj +
@@ -16946,11 +17647,6 @@
 
                 btnL.disabled = false;
                 btnL.textContent = origL;
-                if (!collected.endereco && !mobile && !fixed) {
-                  toast(
-                    "CNPJ encontrado mas sem dados de contato/endereço úteis na Receita Federal.",
-                  );
-                }
               },
             );
           });
@@ -17187,15 +17883,16 @@
           let users = window.__castorUsersCache;
           if (!users || !Array.isArray(users) || !users.length) {
             try {
-              if (typeof loadUsersPage === "function") await loadUsersPage();
-              users = window.__castorUsersCache || [];
+              const { data } = await supabaseClient.rpc(USER_RPC.TEAM_LIST);
+              users = data || [];
+              window.__castorUsersCache = users;
             } catch (e) {
               users = [];
             }
           }
           const vendors = (users || []).filter((u) => {
             const role = u.role || u.user_metadata?.role || "vendedor";
-            return role !== "admin" && role !== "inactive";
+            return role !== "admin" && role !== "supervisor" && role !== "inactive";
           });
           sel.innerHTML =
             '<option value="">— escolha um vendedor —</option>' +
@@ -17343,7 +18040,7 @@
           let users = window.__castorUsersCache;
           if (!users || !users.length) {
             try {
-              const { data } = await supabaseClient.rpc(USER_RPC.LIST);
+              const { data } = await supabaseClient.rpc(USER_RPC.TEAM_LIST);
               users = data || [];
               window.__castorUsersCache = users;
             } catch (e) {
@@ -17353,7 +18050,7 @@
           const vendors = (users || []).filter((u) => {
             const role =
               u.role || (u.user_metadata && u.user_metadata.role) || "vendedor";
-            return role !== "admin" && role !== "inactive";
+            return role !== "admin" && role !== "supervisor" && role !== "inactive";
           });
           sel.innerHTML =
             '<option value="">— escolha um vendedor —</option>' +
@@ -17577,7 +18274,7 @@
           }
         }
         function render(data) {
-          const c = data.client || {};
+          const c = data.cliente || data.client || {};
           currentClient = c;
           const feedbacks = data.feedbacks || [];
           currentFeedbacks = feedbacks;
@@ -17988,6 +18685,7 @@
         editingUserId = u.user_id;
         document.getElementById("userFormTitle").textContent = "Editar Usuário";
         document.getElementById("emailField2").style.display = "none";
+        document.getElementById("formEmail").required = false;
         document.getElementById("passwordField2").style.display = "none";
         document.getElementById("formPassword").required = false;
         document.getElementById("formFullName").value = u.full_name || "";
@@ -18031,10 +18729,11 @@
         lucide.createIcons();
       }
 
-      function openCreateUser() {
+      async function openCreateUser() {
         editingUserId = null;
         document.getElementById("userFormTitle").textContent = "Novo Usuário";
         document.getElementById("emailField2").style.display = "";
+        document.getElementById("formEmail").required = true;
         document.getElementById("passwordField2").style.display = "";
         document.getElementById("formPassword").required = true;
         document.getElementById("userForm2").reset();
@@ -18042,6 +18741,12 @@
         roleSelect.disabled = false;
         roleSelect.title = "";
         document.getElementById("formError").style.display = "none";
+
+        // Garante que o multiselect de estados esteja inicializado
+        // (pode estar null se o usuário abrir o form antes do IBGE responder).
+        if (!msEstados || !allEstados.length) {
+          await initFormMultiSelects();
+        }
 
         selectedEstados.length = 0;
         selectedCidades.length = 0;
@@ -19618,18 +20323,15 @@
                 p_cidades: JSON.stringify(getSelectedCidadesArray()),
               });
               if (error) throw error;
-              // Vínculo Protheus (carteira) — best-effort, não bloqueia o save.
-              try {
-                const vc = (
-                  document.getElementById("formVendorCode")?.value || ""
-                ).trim();
-                await supabaseClient.rpc(USER_RPC.SET_VENDOR, {
-                  p_user_id: editingUserId,
-                  p_codigo: vc,
-                });
-              } catch (ve) {
-                /* warn suppressed */
-              }
+              // Vínculo Protheus (carteira).
+              const vc = (
+                document.getElementById("formVendorCode")?.value || ""
+              ).trim();
+              const { error: veError } = await supabaseClient.rpc(USER_RPC.SET_VENDOR, {
+                p_user_id: editingUserId,
+                p_codigo: vc,
+              });
+              if (veError) throw veError;
             } else {
               const email = document.getElementById("formEmail").value.trim();
               const password = document.getElementById("formPassword").value;

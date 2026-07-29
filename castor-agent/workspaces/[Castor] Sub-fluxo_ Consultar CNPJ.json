@@ -25,7 +25,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT * FROM castor_cnpj_cache WHERE cnpj = '{{ $json.cnpj }}' AND expires_at > NOW() LIMIT 1;",
-        "options": {}
+        "options": {
+          "alwaysOutputData": true
+        }
       },
       "id": "c0300600-0000-0000-0000-000000000003",
       "name": "Check cache",
@@ -65,26 +67,79 @@
     },
     {
       "parameters": {
+        "method": "GET",
         "url": "=https://brasilapi.com.br/api/cnpj/v1/{{ $('Normalize').item.json.cnpj }}",
-        "options": { "timeout": 10000 }
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
       },
       "id": "c0300600-0000-0000-0000-000000000005",
       "name": "Fetch BrasilAPI",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [800, -100],
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
-        "url": "=https://receitaws.com.br/v1/cnpj/{{ $('Normalize').item.json.cnpj }}",
-        "options": { "timeout": 10000 }
+        "jsCode": "// Verifica se a BrasilAPI retornou dados válidos\nconst j = $input.first().json || {};\n\n// HTTP Request com neverError retorna o body mesmo em erro\n// Erros da BrasilAPI: { message: '...', type: 'not_found' }\n// Sucesso: tem cnae_fiscal, razao_social, etc.\nconst isApiError = j.message || j.type || j.error;\nconst hasValidData = j.razao_social || j.cnae_fiscal;\n\nif (isApiError && !hasValidData) {\n  const msg = j.message || j.type || 'BrasilAPI sem dados';\n  return [{ json: { success: false, error: msg, source: 'BrasilAPI' } }];\n}\n\nreturn [{ json: { ...j, _source: 'brasilapi' } }];"
+      },
+      "id": "c0300600-0000-0000-0000-00000000000c",
+      "name": "Check BrasilAPI result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, -100]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://publica.cnpj.ws/cnpj/{{ $('Normalize').item.json.cnpj }}",
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
       },
       "id": "c0300600-0000-0000-0000-000000000006",
-      "name": "Fallback ReceitaWS",
+      "name": "Fallback CNPJ.ws",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1000, 0]
+      "position": [1200, 100],
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verifica se o CNPJ.ws retornou dados válidos\nconst j = $input.first().json || {};\n\n// CNPJ.ws erro: { status: 404, titulo: '...', detalhes: '...' }\n// CNPJ.ws sucesso: tem cnpj_raiz, razao_social, estabelecimento\nconst isApiError = j.status || j.titulo || j.detalhes;\nconst hasValidData = j.razao_social || j.cnpj_raiz;\n\nif (isApiError && !hasValidData) {\n  const msg = j.detalhes || j.titulo || 'CNPJ.ws sem dados';\n  return [{ json: { success: false, error: msg, source: 'CNPJ.ws' } }];\n}\n\nreturn [{ json: { ...j, _source: 'cnpjws' } }];"
+      },
+      "id": "c0300600-0000-0000-0000-00000000000d",
+      "name": "Check CNPJ.ws result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1400, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Unifica a resposta da BrasilAPI e cnpj.ws num objeto estruturado.\nconst j = $input.first().json || {};\nconst cnpj = $('Normalize').item.json.cnpj;\nconst source = j._source || 'unknown';\nconst onlyDigits = (s) => String(s || '').replace(/\\D/g, '');\nconst parseISO = (s) => { const d = String(s || '').slice(0, 10); return /^\\d{4}-\\d{2}-\\d{2}$/.test(d) ? d : null; };\nconst toNum = (v) => { if (v === null || v === undefined || v === '') return null; const n = parseFloat(String(v).replace(/\\./g, '').replace(',', '.')); return Number.isFinite(n) ? n : (Number.isFinite(parseFloat(v)) ? parseFloat(v) : null); };\nconst toBool = (v) => { if (typeof v === 'boolean') return v; if (v === 'Sim' || v === 'sim' || v === 'true') return true; if (v === 'Não' || v === 'Nao' || v === 'nao' || v === 'false') return false; return null; };\n\nconst isBrasilApi = (j.descricao_situacao_cadastral !== undefined) || (j.cnae_fiscal !== undefined);\nconst isCnpjWs = (j.cnpj_raiz !== undefined) || (j.estabelecimento !== undefined);\nlet o;\nif (isBrasilApi) {\n  o = {\n    razao_social: j.razao_social ?? null,\n    nome_fantasia: j.nome_fantasia || null,\n    porte_rf: j.porte ?? null,\n    cnae_principal: j.cnae_fiscal ? String(j.cnae_fiscal) : null,\n    cnae_descricao: j.cnae_fiscal_descricao ?? null,\n    cnaes_secundarios: Array.isArray(j.cnaes_secundarios) ? j.cnaes_secundarios.map((c) => ({ codigo: String(c.codigo), descricao: c.descricao })) : [],\n    natureza_juridica: j.natureza_juridica ?? null,\n    capital_social: toNum(j.capital_social),\n    data_abertura: parseISO(j.data_inicio_atividade),\n    idade_anos: j.data_inicio_atividade ? Math.floor((Date.now() - new Date(j.data_inicio_atividade).getTime()) / 31557600000) : null,\n    situacao_cadastral: j.descricao_situacao_cadastral ?? null,\n    data_situacao: parseISO(j.data_situacao_cadastral),\n    motivo_situacao: j.descricao_motivo_situacao_cadastral ?? null,\n    simples_optante: j.opcao_pelo_simples ?? null,\n    mei_optante: j.opcao_pelo_mei ?? null,\n    municipio: j.municipio ?? null,\n    uf: j.uf ?? null,\n    bairro: j.bairro ?? null,\n    cep: onlyDigits(j.cep),\n    logradouro: j.logradouro ?? null,\n    telefone: j.ddd_telefone_1 ?? null,\n    email: j.email ?? null,\n    socios: Array.isArray(j.qsa) ? j.qsa.map((s) => ({ nome: s.nome_socio, qualificacao: s.qualificacao_socio })) : [],\n    qtd_socios: Array.isArray(j.qsa) ? j.qsa.length : 0,\n    payload: j\n  };\n} else if (isCnpjWs) {\n  const est = j.estabelecimento || {};\n  const simples = j.simples || {};\n  o = {\n    razao_social: j.razao_social ?? null,\n    nome_fantasia: est.nome_fantasia || null,\n    porte_rf: j.porte?.texto ?? null,\n    cnae_principal: est.cnae_fiscal ? String(est.cnae_fiscal) : null,\n    cnae_descricao: est.cnae_fiscal_descricao?.texto ?? null,\n    cnaes_secundarios: Array.isArray(est.cnaes_secundarios) ? est.cnaes_secundarios.map((c) => ({ codigo: String(c.codigo), descricao: c.descricao?.texto })) : [],\n    natureza_juridica: j.natureza_juridica?.texto ?? null,\n    capital_social: toNum(j.capital_social),\n    data_abertura: parseISO(est.data_inicio_atividade),\n    idade_anos: est.data_inicio_atividade ? Math.floor((Date.now() - new Date(est.data_inicio_atividade).getTime()) / 31557600000) : null,\n    situacao_cadastral: est.situacao_cadastral?.texto ?? null,\n    data_situacao: parseISO(est.data_situacao_cadastral),\n    motivo_situacao: est.motivo_situacao_cadastral?.texto ?? null,\n    simples_optante: simples.opcao_pelo_simples ?? null,\n    mei_optante: simples.opcao_pelo_mei ?? null,\n    municipio: est.cidade?.nome ?? null,\n    uf: est.estado?.sigla ?? null,\n    bairro: est.bairro ?? null,\n    cep: onlyDigits(est.cep),\n    logradouro: est.logradouro ?? null,\n    telefone: est.telefone_1 ? `${est.ddd_telefone_1}${est.telefone_1}` : null,\n    email: est.email ?? null,\n    socios: Array.isArray(j.socios) ? j.socios.map((s) => ({ nome: s.nome, qualificacao: s.qualificacao?.texto })) : [],\n    qtd_socios: Array.isArray(j.socios) ? j.socios.length : 0,\n    payload: j\n  };\n} else {\n  o = {\n    razao_social: j.razao_social ?? j.nome ?? null,\n    nome_fantasia: j.nome_fantasia ?? null,\n    porte_rf: j.porte ?? null,\n    cnae_principal: j.cnae_fiscal ?? j.cnae_principal ?? null,\n    cnae_descricao: j.cnae_fiscal_descricao ?? j.descricao_cnae ?? null,\n    cnaes_secundarios: [],\n    natureza_juridica: j.natureza_juridica ?? null,\n    capital_social: toNum(j.capital_social),\n    data_abertura: parseISO(j.data_abertura ?? j.data_inicio_atividade),\n    idade_anos: null,\n    situacao_cadastral: j.situacao_cadastral ?? j.descricao_situacao_cadastral ?? null,\n    data_situacao: parseISO(j.data_situacao),\n    motivo_situacao: j.motivo_situacao ?? null,\n    simples_optante: toBool(j.opcao_pelo_simples),\n    mei_optante: toBool(j.opcao_pelo_mei),\n    municipio: j.municipio ?? null,\n    uf: j.uf ?? null,\n    bairro: j.bairro ?? null,\n    cep: onlyDigits(j.cep),\n    logradouro: j.logradouro ?? null,\n    telefone: j.telefone ?? null,\n    email: j.email ?? null,\n    socios: [],\n    qtd_socios: 0,\n    payload: j\n  };\n}\n\nreturn [{ json: o }];"
+      },
+      "id": "c0300600-0000-0000-0000-00000000000a",
+      "name": "Normalize RF",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1600, -100]
     },
     {
       "parameters": {
@@ -98,7 +153,7 @@
       "name": "Upsert cache",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [1400, 0],
+      "position": [1800, -100],
       "credentials": {
         "postgres": {
           "id": "__FILL_ME__POSTGRES_CRED_ID__",
@@ -114,7 +169,7 @@
       "name": "Envelope",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1600, 0]
+      "position": [2000, -100]
     },
     {
       "parameters": {
@@ -128,13 +183,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// Unifica a resposta da BrasilAPI e da ReceitaWS num objeto estruturado.\nconst j = $input.first().json || {};\nconst cnpj = $('Normalize').item.json.cnpj;\nconst onlyDigits = (s) => String(s || '').replace(/\\D/g, '');\nconst parseDateBR = (s) => { const m = String(s || '').match(/^(\\d{2})\\/(\\d{2})\\/(\\d{4})$/); return m ? `${m[3]}-${m[2]}-${m[1]}` : null; };\nconst parseISO = (s) => { const d = String(s || '').slice(0, 10); return /^\\d{4}-\\d{2}-\\d{2}$/.test(d) ? d : null; };\nconst toNum = (v) => { if (v === null || v === undefined || v === '') return null; const n = parseFloat(String(v).replace(/\\./g, '').replace(',', '.')); return Number.isFinite(n) ? n : (Number.isFinite(parseFloat(v)) ? parseFloat(v) : null); };\nconst PORTE_MAP = (p) => { const u = String(p || '').toUpperCase(); if (!u) return null; if (u.includes('MEI') || u.includes('MICRO')) return 'pequeno'; if (u.includes('PEQUEN') || u.includes('EPP')) return 'medio'; return 'grande'; };\nconst isBrasilApi = (j.descricao_situacao_cadastral !== undefined) || (j.cnae_fiscal !== undefined) || (j.razao_social !== undefined);\nlet o;\nif (isBrasilApi) {\n  o = {\n    razao_social: j.razao_social ?? null,\n    nome_fantasia: j.nome_fantasia || null,\n    porte_rf: j.porte ?? null,\n    cnae_principal: j.cnae_fiscal ? String(j.cnae_fiscal) : null,\n    cnae_descricao: j.cnae_fiscal_descricao ?? null,\n    cnaes_secundarios: Array.isArray(j.cnaes_secundarios) ? j.cnaes_secundarios.map((c) => ({ codigo: String(c.codigo), descricao: c.descricao })) : [],\n    natureza_juridica: j.natureza_juridica ?? null,\n    capital_social: toNum(j.capital_social),\n    data_abertura: parseISO(j.data_inicio_atividade),\n    situacao_cadastral: j.descricao_situacao_cadastral ?? null,\n    data_situacao: parseISO(j.data_situacao_cadastral),\n    motivo_situacao: j.descricao_motivo_situacao_cadastral || null,\n    simples_optante: (typeof j.opcao_pelo_simples === 'boolean') ? j.opcao_pelo_simples : null,\n    mei_optante: (typeof j.opcao_pelo_mei === 'boolean') ? j.opcao_pelo_mei : null,\n    municipio: j.municipio ?? null,\n    uf: j.uf ?? null,\n    bairro: j.bairro ?? null,\n    cep: j.cep ? onlyDigits(j.cep) : null,\n    logradouro: [j.descricao_tipo_de_logradouro, j.logradouro, j.numero].filter(Boolean).join(' ') || null,\n    telefone: j.ddd_telefone_1 ?? null,\n    email: j.email ?? null,\n    socios: Array.isArray(j.qsa) ? j.qsa.map((s) => ({ nome: s.nome_socio, qualificacao: s.qualificacao_socio, faixa_etaria: s.faixa_etaria ?? null })) : [],\n  };\n} else {\n  const ap = Array.isArray(j.atividade_principal) ? j.atividade_principal[0] : null;\n  o = {\n    razao_social: j.nome ?? null,\n    nome_fantasia: j.fantasia || null,\n    porte_rf: j.porte ?? null,\n    cnae_principal: ap ? onlyDigits(ap.code) : null,\n    cnae_descricao: ap ? ap.text : null,\n    cnaes_secundarios: Array.isArray(j.atividades_secundarias) ? j.atividades_secundarias.map((c) => ({ codigo: onlyDigits(c.code), descricao: c.text })) : [],\n    natureza_juridica: j.natureza_juridica ?? null,\n    capital_social: toNum(j.capital_social),\n    data_abertura: parseDateBR(j.abertura),\n    situacao_cadastral: j.situacao ?? null,\n    data_situacao: parseDateBR(j.data_situacao),\n    motivo_situacao: j.motivo_situacao || null,\n    simples_optante: (j.simples && typeof j.simples.optante === 'boolean') ? j.simples.optante : null,\n    mei_optante: (j.simei && typeof j.simei.optante === 'boolean') ? j.simei.optante : null,\n    municipio: j.municipio ?? null,\n    uf: j.uf ?? null,\n    bairro: j.bairro ?? null,\n    cep: j.cep ? onlyDigits(j.cep) : null,\n    logradouro: [j.logradouro, j.numero].filter(Boolean).join(' ') || null,\n    telefone: j.telefone ?? null,\n    email: j.email ?? null,\n    socios: Array.isArray(j.qsa) ? j.qsa.map((s) => ({ nome: s.nome, qualificacao: s.qual, faixa_etaria: s.faixa_etaria ?? null })) : [],\n  };\n}\nif (!o.razao_social && !o.cnae_principal) { return [{ json: { __cnpj_error: true, cnpj, payload: j } }]; }\no.cnpj = cnpj;\no.porte = PORTE_MAP(o.porte_rf);\no.qtd_socios = Array.isArray(o.socios) ? o.socios.length : 0;\no.idade_anos = o.data_abertura ? Math.max(0, Math.floor((Date.now() - new Date(o.data_abertura).getTime()) / (365.25 * 24 * 3600 * 1000))) : null;\no.payload = j;\nreturn [{ json: o }];"
+        "jsCode": "// Classifica a falha para dar uma mensagem acionável.\nconst input = $input.first().json || {};\nconst errText = String(input.error || input.message || '');\nconst source = input.source || 'desconhecida';\n\nconst is404 = /404|n[aã]o encontrad|not.found/i.test(errText);\nconst is429 = /429|too.many.requests|rate.limit/i.test(errText);\nconst isTimeout = /timeout|ETIMEDOUT|ECONNABORTED|ECONNREFUSED|ENOTFOUND|EAI_AGAIN/i.test(errText);\n\nlet msg;\nif (is404) {\n  msg = `CNPJ não encontrado na ${source}. Verifique se o número está correto.`;\n} else if (is429) {\n  msg = `Limite de consultas da ${source} atingido. Tente novamente em alguns minutos.`;\n} else if (isTimeout) {\n  msg = `Serviço da ${source} está lento ou indisponível. Tente novamente em instantes.`;\n} else {\n  msg = `Consulta via ${source} falhou: ${errText || 'API indisponível'}`;\n}\n\nreturn [{ json: { ok: false, data: null, error: msg, source } }];"
       },
-      "id": "c0300600-0000-0000-0000-00000000000a",
-      "name": "Normalize RF",
+      "id": "c0300600-0000-0000-0000-00000000000b",
+      "name": "Error Envelope",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1200, 0]
+      "position": [1600, 200]
     }
   ],
   "pinData": {},
@@ -156,12 +211,27 @@
     },
     "Fetch BrasilAPI": {
       "main": [
-        [{ "node": "Normalize RF", "type": "main", "index": 0 }],
-        [{ "node": "Fallback ReceitaWS", "type": "main", "index": 0 }]
+        [{ "node": "Check BrasilAPI result", "type": "main", "index": 0 }],
+        [{ "node": "Fallback CNPJ.ws", "type": "main", "index": 0 }]
       ]
     },
-    "Fallback ReceitaWS": {
-      "main": [[{ "node": "Normalize RF", "type": "main", "index": 0 }]]
+    "Check BrasilAPI result": {
+      "main": [
+        [{ "node": "Normalize RF", "type": "main", "index": 0 }],
+        [{ "node": "Fallback CNPJ.ws", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fallback CNPJ.ws": {
+      "main": [
+        [{ "node": "Check CNPJ.ws result", "type": "main", "index": 0 }],
+        [{ "node": "Error Envelope", "type": "main", "index": 0 }]
+      ]
+    },
+    "Check CNPJ.ws result": {
+      "main": [
+        [{ "node": "Normalize RF", "type": "main", "index": 0 }],
+        [{ "node": "Error Envelope", "type": "main", "index": 0 }]
+      ]
     },
     "Normalize RF": {
       "main": [[{ "node": "Upsert cache", "type": "main", "index": 0 }]]

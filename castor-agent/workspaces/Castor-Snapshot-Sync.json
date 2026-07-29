@@ -1,0 +1,2117 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 5
+            }
+          ]
+        }
+      },
+      "id": "96083110-c087-42c9-9047-007d7d3e1545",
+      "name": "Schedule Trigger2",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -5680,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Sync concluido: Final Merge recebeu saida de todos os 4 grupos.\n// Nao usa respondToWebhook (workflow disparado por Schedule, sem contexto de webhook).\nconst items = $input.all();\nreturn [{ json: { ok: true, synced_at: new Date().toISOString(), source: 'mssql_live', groups_done: items.length } }];"
+      },
+      "id": "8129dbb8-7beb-4ce8-af29-6b8a619adfa0",
+      "name": "Respond OK2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3872,
+        2000
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "numberInputs": 4,
+        "useDataOfInput": 4
+      },
+      "id": "d51ea31a-3026-4007-aadc-60b36defb5b3",
+      "name": "Final Merge1",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -4064,
+        2000
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "numberInputs": 3,
+        "useDataOfInput": 3
+      },
+      "id": "e8c020c6-4535-43aa-808c-59ce93f878a0",
+      "name": "Sub-Merge: G",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -4416,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "numberInputs": 3,
+        "useDataOfInput": 3
+      },
+      "id": "3278101d-b074-4b51-bc2b-969a0f410b28",
+      "name": "Sub-Merge: G5",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -4416,
+        1680
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "useDataOfInput": 2
+      },
+      "id": "568f189a-9f76-40f8-a784-e7e4a217647b",
+      "name": "Sub-Merge: G6",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -4416,
+        2048
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "numberInputs": 3,
+        "useDataOfInput": 3
+      },
+      "id": "bc514af5-56a4-4bb2-868a-1b81ff893a00",
+      "name": "Sub-Merge: G7",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -4416,
+        2640
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT A1_COD, A1_LOJA, A1_NOME, A1_NREDUZ, A1_PESSOA, A1_CGC,\n  A1_PRICOM, A1_ULTCOM, A1_VEND, A1_RISCO, A1_LC, A1_SATIV1,\n  A1_END, A1_CEP, A1_BAIRRO, A1_EST, A1_COD_MUN, A1_MUN, A1_MSBLQL\nFROM SA1010\nWHERE D_E_L_E_T_ = ''\n  AND A1_SATIV1 NOT IN ('000134', '000116')\n "
+      },
+      "id": "772612ae-2db4-4c5c-b20e-a3724a66c87f",
+      "name": "Query Protheus SA",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        -5680,
+        912
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "microsoftSql": {
+          "id": "5tLHk3XOaTL32faz",
+          "name": "Microsoft SQL account 2"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Catch: intercepta erros do Query MSSQL (continueOnFail) e propaga _skip\nconst items = $input.all();\nif (!items || items.length === 0)\n  return [{ json: { _skip: true, _table: 'sa1010', _reason: 'no_data' } }];\nconst first = items[0].json;\nconst isErr = first && (first.error || first.$error || (first.code && first.message));\nif (isErr) {\n  const msg = first.error?.message ?? first.message ?? String(first.error ?? first.$error ?? 'query failed');\n  console.error('[Catch sa1010] ' + msg);\n  return [{ json: { _skip: true, _table: 'sa1010', _error: msg, _ts: new Date().toISOString() } }];\n}\nreturn items;"
+      },
+      "id": "a20f20d5-ef21-49a2-bf5a-483d745b2bd2",
+      "name": "Catch: sa",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5488,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\n// Mapeia SA1010 → schema castor_client_snapshot\n// A1_MSBLQL: 1=Inativo, 2=Ativo (SX3 SA1;B5)\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  const cod  = String(r.A1_COD  || '').trim();\n  const loja = String(r.A1_LOJA || '').trim().padStart(2, '0');\n  const blql = String(r.A1_MSBLQL || '').trim();\n  const fmtD = v => (v && String(v).trim().length === 8) ? String(v).trim().slice(0,4)+'-'+String(v).trim().slice(4,6)+'-'+String(v).trim().slice(6,8) : null;\n  out.push({ json: {\n    a1_codcli_raw:   cod + loja,\n    a1_nome:         r.A1_NOME   || null,\n    a1_nreduz:       r.A1_NREDUZ || null,\n    a1_pessoa:       r.A1_PESSOA || null,\n    a1_cgc:          r.A1_CGC    || null,\n    a1_pricom:       fmtD(r.A1_PRICOM),\n    a1_ultcom:       fmtD(r.A1_ULTCOM),\n    a1_vend:         r.A1_VEND   || null,\n    a1_risco:        r.A1_RISCO  || null,\n    a1_lc:           r.A1_LC != null ? Number(r.A1_LC) : null,\n    a1_sativ1:       r.A1_SATIV1 || null,\n    a1_end:          r.A1_END    || null,\n    a1_cep:          r.A1_CEP    || null,\n    a1_bairro:       r.A1_BAIRRO || null,\n    a1_est:          r.A1_EST    || null,\n    a1_cod_mun:      r.A1_COD_MUN || null,\n    a1_mun:          r.A1_MUN    || null,\n    a1_ativo_raw:    blql === '2' ? '1' : '0',\n    a1_inativo_raw:  blql === '1' ? '1' : '0',\n    cliente_codigo:  cod + loja,\n    a1_cod:          r.A1_COD    || null,\n    a1_loja:         r.A1_LOJA   || null,\n    a1_ativo:        blql === '2',\n    a1_inativo:      blql === '1'\n  }});\n}\nreturn out;"
+      },
+      "id": "dd42a0a5-9177-47d6-b6b3-701c8e0e78b4",
+      "name": "Map to castor_src_sa1010 columns1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5280,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = [\"a1_codcli_raw\",\"a1_nome\",\"a1_nreduz\",\"a1_pessoa\",\"a1_cgc\",\"a1_pricom\",\"a1_ultcom\",\"a1_vend\",\"a1_risco\",\"a1_lc\",\"a1_sativ1\",\"a1_end\",\"a1_cep\",\"a1_bairro\",\"a1_est\",\"a1_cod_mun\",\"a1_mun\",\"a1_ativo_raw\",\"a1_inativo_raw\",\"cliente_codigo\",\"a1_cod\",\"a1_loja\",\"a1_ativo\",\"a1_inativo\"];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const upd = cols.filter(c => c !== 'a1_codcli_raw').map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_client_snapshot (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (a1_codcli_raw) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
+      },
+      "id": "efdf752a-9d58-4dfe-95e5-0e8701aa3f3b",
+      "name": "Code: sa1010-batches1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5088,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "53ce6bdb-1108-4d57-a10e-3d85ba4f84ef",
+      "name": "Supabase: upsert-sa",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -4880,
+        912
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "jFjeYH6Nt3aRNkoM",
+          "name": "Supabase_database"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT CC2_EST, CC2_CODMUN, CC2_MUN FROM CC2010 WHERE D_E_L_E_T_ = ''"
+      },
+      "id": "f995c34f-5e7a-4ae0-941d-6d21b206cf90",
+      "name": "Query Protheus CC",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        -5680,
+        1088
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "microsoftSql": {
+          "id": "5tLHk3XOaTL32faz",
+          "name": "Microsoft SQL account 2"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Catch: intercepta erros do Query MSSQL (continueOnFail) e propaga _skip\nconst items = $input.all();\nif (!items || items.length === 0)\n  return [{ json: { _skip: true, _table: 'cc2010', _reason: 'no_data' } }];\nconst first = items[0].json;\nconst isErr = first && (first.error || first.$error || (first.code && first.message));\nif (isErr) {\n  const msg = first.error?.message ?? first.message ?? String(first.error ?? first.$error ?? 'query failed');\n  console.error('[Catch cc2010] ' + msg);\n  return [{ json: { _skip: true, _table: 'cc2010', _error: msg, _ts: new Date().toISOString() } }];\n}\nreturn items;"
+      },
+      "id": "e5cb5459-9a9f-457f-a3f5-61060fbd37a7",
+      "name": "Catch: cc",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5488,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\nconst str = v => { const x = String(v == null ? '' : v).trim(); return x === '' ? null : x; };\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  out.push({ json: {\n    cc2_est: str(r.CC2_EST),\n    cc2_codmun: str(r.CC2_CODMUN),\n    cc2_mun: str(r.CC2_MUN)\n  }});\n}\nreturn out;"
+      },
+      "id": "54016ec7-cd32-4f5c-b691-56fa41c4e60d",
+      "name": "Map: cc",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5280,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['cc2_est', 'cc2_codmun', 'cc2_mun'];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"cc2_est\",\"cc2_codmun\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_cc2010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (cc2_est, cc2_codmun) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
+      },
+      "id": "a6710a0c-804f-485d-90e3-47e73b9cc810",
+      "name": "Code: cc2010-batches1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5088,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "c4e02186-0ff7-461b-b220-c9d272a83c77",
+      "name": "Supabase: upsert-cc",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -4880,
+        1088
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "jFjeYH6Nt3aRNkoM",
+          "name": "Supabase_database"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT A3_COD, A3_NOME, A3_NREDUZ FROM SA3010 WHERE D_E_L_E_T_ = ''"
+      },
+      "id": "7f751070-4b2c-4f25-8bb0-a9716f0f624e",
+      "name": "Query Protheus SA3011",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        -5680,
+        1280
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "microsoftSql": {
+          "id": "5tLHk3XOaTL32faz",
+          "name": "Microsoft SQL account 2"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Catch: intercepta erros do Query MSSQL (continueOnFail) e propaga _skip\nconst items = $input.all();\nif (!items || items.length === 0)\n  return [{ json: { _skip: true, _table: 'sa3010', _reason: 'no_data' } }];\nconst first = items[0].json;\nconst isErr = first && (first.error || first.$error || (first.code && first.message));\nif (isErr) {\n  const msg = first.error?.message ?? first.message ?? String(first.error ?? first.$error ?? 'query failed');\n  console.error('[Catch sa3010] ' + msg);\n  return [{ json: { _skip: true, _table: 'sa3010', _error: msg, _ts: new Date().toISOString() } }];\n}\nreturn items;"
+      },
+      "id": "0f8feff4-a422-4c14-a5db-cca60d0d4fe1",
+      "name": "Catch: sa3011",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5488,
+        1280
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\nconst str = v => { const x = String(v == null ? '' : v).trim(); return x === '' ? null : x; };\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  out.push({ json: {\n    a3_cod: str(r.A3_COD),\n    a3_nome: str(r.A3_NOME),\n    a3_nreduz: str(r.A3_NREDUZ)\n  }});\n}\nreturn out;"
+      },
+      "id": "b7dd6933-af30-4b1c-8eb3-9d2afacd21ee",
+      "name": "Map: sa",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5280,
+        1280
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['a3_cod', 'a3_nome', 'a3_nreduz'];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"a3_cod\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sa3010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (a3_cod) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
+      },
+      "id": "5095a0a5-5b87-4360-a8a9-1cd5e2b705c5",
+      "name": "Code: sa3010-batches1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5088,
+        1280
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "a137b3fa-9756-45cb-970b-6e18cef1424e",
+      "name": "Supabase: upsert-sa3011",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -4880,
+        1280
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "jFjeYH6Nt3aRNkoM",
+          "name": "Supabase_database"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT B1_COD, B1_DESC, B1_TIPO, B1_UM, B1_GRUPO, B1_PRV1 FROM SB1010 WHERE D_E_L_E_T_ = ''"
+      },
+      "id": "8cbca578-bd37-40cb-881c-aa333bb54b5b",
+      "name": "Query Protheus SB",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        -5680,
+        1488
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "microsoftSql": {
+          "id": "5tLHk3XOaTL32faz",
+          "name": "Microsoft SQL account 2"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Catch: intercepta erros do Query MSSQL (continueOnFail) e propaga _skip\nconst items = $input.all();\nif (!items || items.length === 0)\n  return [{ json: { _skip: true, _table: 'sb1010', _reason: 'no_data' } }];\nconst first = items[0].json;\nconst isErr = first && (first.error || first.$error || (first.code && first.message));\nif (isErr) {\n  const msg = first.error?.message ?? first.message ?? String(first.error ?? first.$error ?? 'query failed');\n  console.error('[Catch sb1010] ' + msg);\n  return [{ json: { _skip: true, _table: 'sb1010', _error: msg, _ts: new Date().toISOString() } }];\n}\nreturn items;"
+      },
+      "id": "a4ce2e5e-772d-4cc1-8d5e-d5ed657e7d13",
+      "name": "Catch: sb",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5488,
+        1488
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\nconst str = v => { const x = String(v == null ? '' : v).trim(); return x === '' ? null : x; };\nfunction toDate(v) {\n  if (!v) return null;\n  const s = String(v).trim();\n  if (s.length === 8 && /^\\d{8}$/.test(s)) return s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8);\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return s;\n  return null;\n}\nconst num = v => { const n = parseFloat(String(v == null ? '' : v).trim().replace(',','.')); return isNaN(n) ? null : n; };\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  out.push({ json: {\n    b1_cod: str(r.B1_COD),\n    b1_desc: str(r.B1_DESC),\n    b1_tipo: str(r.B1_TIPO),\n    b1_um: str(r.B1_UM),\n    b1_grupo: str(r.B1_GRUPO),\n    b1_prv1: num(r.B1_PRV1)\n  }});\n}\nreturn out;"
+      },
+      "id": "891bb940-f046-4f3b-9905-97bb397c8732",
+      "name": "Map: sb",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5280,
+        1488
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['b1_cod', 'b1_desc', 'b1_tipo', 'b1_um', 'b1_grupo', 'b1_prv1'];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"b1_cod\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sb1010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (b1_cod) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
+      },
+      "id": "1c5d5b3b-1cca-4d2c-852e-891876932521",
+      "name": "Code: sb1010-batches1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5088,
+        1488
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "6285f5ff-6d17-4cf8-80e8-13dad8026336",
+      "name": "Supabase: upsert-sb",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -4880,
+        1488
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "jFjeYH6Nt3aRNkoM",
+          "name": "Supabase_database"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT BM_GRUPO, BM_DESC FROM SBM010 WHERE D_E_L_E_T_ = ''"
+      },
+      "id": "c800eaf2-861e-4c80-9599-5d5874efb6c9",
+      "name": "Query Protheus SBM",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        -5680,
+        1680
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "microsoftSql": {
+          "id": "5tLHk3XOaTL32faz",
+          "name": "Microsoft SQL account 2"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Catch: intercepta erros do Query MSSQL (continueOnFail) e propaga _skip\nconst items = $input.all();\nif (!items || items.length === 0)\n  return [{ json: { _skip: true, _table: 'sbm010', _reason: 'no_data' } }];\nconst first = items[0].json;\nconst isErr = first && (first.error || first.$error || (first.code && first.message));\nif (isErr) {\n  const msg = first.error?.message ?? first.message ?? String(first.error ?? first.$error ?? 'query failed');\n  console.error('[Catch sbm010] ' + msg);\n  return [{ json: { _skip: true, _table: 'sbm010', _error: msg, _ts: new Date().toISOString() } }];\n}\nreturn items;"
+      },
+      "id": "862ad6a0-d67e-441f-9a06-06279bfa71df",
+      "name": "Catch: sbm",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5488,
+        1680
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\nconst str = v => { const x = String(v == null ? '' : v).trim(); return x === '' ? null : x; };\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  out.push({ json: {\n    bm_grupo: str(r.BM_GRUPO),\n    bm_desc: str(r.BM_DESC)\n  }});\n}\nreturn out;"
+      },
+      "id": "950768b6-c2e5-465f-ac1b-02836fc2e69c",
+      "name": "Map: sbm",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5280,
+        1680
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['bm_grupo', 'bm_desc'];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"bm_grupo\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sbm010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (bm_grupo) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
+      },
+      "id": "96ba1a8a-5401-4e73-ae45-e3c7611688c7",
+      "name": "Code: sbm010-batches1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5088,
+        1680
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "ec0111a0-90cb-46fb-8b9e-65e8f6bbff2c",
+      "name": "Supabase: upsert-sbm",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -4880,
+        1680
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "jFjeYH6Nt3aRNkoM",
+          "name": "Supabase_database"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT C5_NUM, C5_CLIENTE, C5_LOJACLI, C5_YNOMEC, C5_VEND1, C5_EMISSAO\nFROM SC5010\nWHERE D_E_L_E_T_ = ''\n  AND C5_EMISSAO >= CONVERT(varchar(8), DATEADD(day, -180, GETDATE()), 112)"
+      },
+      "id": "5e3b2904-3f27-4f12-8149-657be2a681b7",
+      "name": "Query Protheus SC",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        -5680,
+        1888
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "microsoftSql": {
+          "id": "5tLHk3XOaTL32faz",
+          "name": "Microsoft SQL account 2"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Catch: intercepta erros do Query MSSQL (continueOnFail) e propaga _skip\nconst items = $input.all();\nif (!items || items.length === 0)\n  return [{ json: { _skip: true, _table: 'sc5010', _reason: 'no_data' } }];\nconst first = items[0].json;\nconst isErr = first && (first.error || first.$error || (first.code && first.message));\nif (isErr) {\n  const msg = first.error?.message ?? first.message ?? String(first.error ?? first.$error ?? 'query failed');\n  console.error('[Catch sc5010] ' + msg);\n  return [{ json: { _skip: true, _table: 'sc5010', _error: msg, _ts: new Date().toISOString() } }];\n}\nreturn items;"
+      },
+      "id": "734cbabb-097d-4d60-aaaf-c950c81ed81d",
+      "name": "Catch: sc",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5488,
+        1888
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\nconst str = v => { const x = String(v == null ? '' : v).trim(); return x === '' ? null : x; };\nfunction toDate(v) {\n  if (!v) return null;\n  const s = String(v).trim();\n  if (s.length === 8 && /^\\d{8}$/.test(s)) return s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8);\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return s;\n  return null;\n}\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  out.push({ json: {\n    c5_num: str(r.C5_NUM),\n    c5_cliente: str(r.C5_CLIENTE),\n    c5_loja: str(r.C5_LOJACLI),\n    c5_nome: str(r.C5_YNOMEC),\n    c5_vend: str(r.C5_VEND1),\n    c5_emissao: toDate(r.C5_EMISSAO)\n  }});\n}\nreturn out;"
+      },
+      "id": "76b32d91-0163-443f-903e-16877bb3cd6c",
+      "name": "Map: sc",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5280,
+        1888
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['c5_num', 'c5_cliente', 'c5_loja', 'c5_nome', 'c5_vend', 'c5_emissao'];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"c5_num\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sc5010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (c5_num) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
+      },
+      "id": "0f15ff80-2bed-4c51-aaa9-ae013e694b39",
+      "name": "Code: sc5010-batches1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5088,
+        1888
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "bf4de25a-37df-438a-b317-85c04db49ddf",
+      "name": "Supabase: upsert-sc",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -4880,
+        1888
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "jFjeYH6Nt3aRNkoM",
+          "name": "Supabase_database"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT F2_DOC, F2_SERIE, F2_CLIENTE, F2_LOJA, F2_EMISSAO, F2_VALBRUT\nFROM SF2010\nWHERE D_E_L_E_T_ = ''\n  AND F2_EMISSAO >= CONVERT(varchar(8), DATEADD(day, -365, GETDATE()), 112)"
+      },
+      "id": "5cce3366-432a-4317-adbe-78c04a3144c4",
+      "name": "Query Protheus SF",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        -5680,
+        2048
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "microsoftSql": {
+          "id": "5tLHk3XOaTL32faz",
+          "name": "Microsoft SQL account 2"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Catch: intercepta erros do Query MSSQL (continueOnFail) e propaga _skip\nconst items = $input.all();\nif (!items || items.length === 0)\n  return [{ json: { _skip: true, _table: 'sf2010', _reason: 'no_data' } }];\nconst first = items[0].json;\nconst isErr = first && (first.error || first.$error || (first.code && first.message));\nif (isErr) {\n  const msg = first.error?.message ?? first.message ?? String(first.error ?? first.$error ?? 'query failed');\n  console.error('[Catch sf2010] ' + msg);\n  return [{ json: { _skip: true, _table: 'sf2010', _error: msg, _ts: new Date().toISOString() } }];\n}\nreturn items;"
+      },
+      "id": "45eca427-93ff-4955-af23-4a67cdfce739",
+      "name": "Catch: sf",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5488,
+        2048
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\nconst str = v => { const x = String(v == null ? '' : v).trim(); return x === '' ? null : x; };\nfunction toDate(v) {\n  if (!v) return null;\n  const s = String(v).trim();\n  if (s.length === 8 && /^\\d{8}$/.test(s)) return s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8);\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return s;\n  return null;\n}\nconst num = v => { const n = parseFloat(String(v == null ? '' : v).trim().replace(',','.')); return isNaN(n) ? null : n; };\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  out.push({ json: {\n    f2_doc: str(r.F2_DOC),\n    f2_serie: str(r.F2_SERIE),\n    f2_cliente: str(r.F2_CLIENTE),\n    f2_loja: str(r.F2_LOJA),\n    f2_emissao: toDate(r.F2_EMISSAO),\n    f2_valor: num(r.F2_VALBRUT)\n  }});\n}\nreturn out;"
+      },
+      "id": "95812cda-a3d5-46d3-8d49-7adcb1a4c30c",
+      "name": "Map: sf",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5280,
+        2048
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['f2_doc', 'f2_serie', 'f2_cliente', 'f2_loja', 'f2_emissao', 'f2_valor'];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"f2_doc\",\"f2_serie\",\"f2_cliente\",\"f2_loja\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sf2010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (f2_doc, f2_serie, f2_cliente, f2_loja) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
+      },
+      "id": "1507c041-9360-406a-8930-7627ddf74d2c",
+      "name": "Code: sf2010-batches1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5088,
+        2048
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "dcd79ca5-2ed4-4815-b8ae-fb9924a29e45",
+      "name": "Supabase: upsert-sf",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -4880,
+        2048
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "jFjeYH6Nt3aRNkoM",
+          "name": "Supabase_database"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT F4_CODIGO, F4_TIPO, F4_CF, F4_TEXTO FROM SF4010 WHERE D_E_L_E_T_ = ''"
+      },
+      "id": "648c0b6a-7dbf-445f-9540-44a5a013eafc",
+      "name": "Query Protheus SF4011",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        -5680,
+        2240
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "microsoftSql": {
+          "id": "5tLHk3XOaTL32faz",
+          "name": "Microsoft SQL account 2"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Catch: intercepta erros do Query MSSQL (continueOnFail) e propaga _skip\nconst items = $input.all();\nif (!items || items.length === 0)\n  return [{ json: { _skip: true, _table: 'sf4010', _reason: 'no_data' } }];\nconst first = items[0].json;\nconst isErr = first && (first.error || first.$error || (first.code && first.message));\nif (isErr) {\n  const msg = first.error?.message ?? first.message ?? String(first.error ?? first.$error ?? 'query failed');\n  console.error('[Catch sf4010] ' + msg);\n  return [{ json: { _skip: true, _table: 'sf4010', _error: msg, _ts: new Date().toISOString() } }];\n}\nreturn items;"
+      },
+      "id": "bae07a95-9980-4a96-ba1f-ae397987ba4f",
+      "name": "Catch: sf4011",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5488,
+        2240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\nconst str = v => { const x = String(v == null ? '' : v).trim(); return x === '' ? null : x; };\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  out.push({ json: {\n    f4_codigo: str(r.F4_CODIGO),\n    f4_tipo: str(r.F4_TIPO),\n    f4_cf: str(r.F4_CF),\n    f4_texto: str(r.F4_TEXTO)\n  }});\n}\nreturn out;"
+      },
+      "id": "0b378153-75d1-4f0e-888a-3a4b819771ad",
+      "name": "Map: sf4011",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5280,
+        2240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['f4_codigo', 'f4_tipo', 'f4_cf', 'f4_texto'];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"f4_codigo\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sf4010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (f4_codigo) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
+      },
+      "id": "8186cfe3-0ceb-4a2c-87ca-18f8cfa32099",
+      "name": "Code: sf4010-batches1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5088,
+        2240
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "befa326d-3072-40c3-8947-37b6df4de370",
+      "name": "Supabase: upsert-sf4011",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -4880,
+        2240
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "jFjeYH6Nt3aRNkoM",
+          "name": "Supabase_database"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT X5_TABELA, X5_CHAVE, X5_DESCRI FROM SX5010 WHERE D_E_L_E_T_ = ''"
+      },
+      "id": "93942148-1620-4494-8977-bcaff143fda5",
+      "name": "Query Protheus SX",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        -5680,
+        2448
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "microsoftSql": {
+          "id": "5tLHk3XOaTL32faz",
+          "name": "Microsoft SQL account 2"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Catch: intercepta erros do Query MSSQL (continueOnFail) e propaga _skip\nconst items = $input.all();\nif (!items || items.length === 0)\n  return [{ json: { _skip: true, _table: 'sx5010', _reason: 'no_data' } }];\nconst first = items[0].json;\nconst isErr = first && (first.error || first.$error || (first.code && first.message));\nif (isErr) {\n  const msg = first.error?.message ?? first.message ?? String(first.error ?? first.$error ?? 'query failed');\n  console.error('[Catch sx5010] ' + msg);\n  return [{ json: { _skip: true, _table: 'sx5010', _error: msg, _ts: new Date().toISOString() } }];\n}\nreturn items;"
+      },
+      "id": "e7c7bc71-4093-4cde-aa35-f814a0660b5a",
+      "name": "Catch: sx",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5488,
+        2448
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\nconst str = v => { const x = String(v == null ? '' : v).trim(); return x === '' ? null : x; };\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  out.push({ json: {\n    x5_tabela: str(r.X5_TABELA),\n    x5_chave: str(r.X5_CHAVE),\n    x5_descri: str(r.X5_DESCRI)\n  }});\n}\nreturn out;"
+      },
+      "id": "d7abfd26-e7b6-478c-bcff-7244cedd86fa",
+      "name": "Map: sx",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5280,
+        2448
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['x5_tabela', 'x5_chave', 'x5_descri'];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"x5_tabela\",\"x5_chave\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sx5010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (x5_tabela, x5_chave) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
+      },
+      "id": "37189e3f-86fa-4eb1-b5d7-b867c23182bf",
+      "name": "Code: sx5010-batches1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5088,
+        2448
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "a7c0004d-3755-4568-ad27-4a7a320408a2",
+      "name": "Supabase: upsert-sx",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -4880,
+        2448
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "jFjeYH6Nt3aRNkoM",
+          "name": "Supabase_database"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT Z1_COD, Z1_CLICOD, Z1_LOJA, Z1_STATUA, Z1_STATUD,\n  Z1_RISCOA, Z1_RISCOD, Z1_TPALT, Z1_PEDIDO, Z1_USUNOM, Z1_DATA, Z1_HORA\nFROM SZ1010\nWHERE D_E_L_E_T_ = ''\n  AND Z1_DATA >= CONVERT(varchar(8), DATEADD(day, -365, GETDATE()), 112)"
+      },
+      "id": "6ed984a8-e8e6-44d7-8bcf-a88de47dc31c",
+      "name": "Query Protheus SZ",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        -5680,
+        2640
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "microsoftSql": {
+          "id": "5tLHk3XOaTL32faz",
+          "name": "Microsoft SQL account 2"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Catch: intercepta erros do Query MSSQL (continueOnFail) e propaga _skip\nconst items = $input.all();\nif (!items || items.length === 0)\n  return [{ json: { _skip: true, _table: 'sz1010', _reason: 'no_data' } }];\nconst first = items[0].json;\nconst isErr = first && (first.error || first.$error || (first.code && first.message));\nif (isErr) {\n  const msg = first.error?.message ?? first.message ?? String(first.error ?? first.$error ?? 'query failed');\n  console.error('[Catch sz1010] ' + msg);\n  return [{ json: { _skip: true, _table: 'sz1010', _error: msg, _ts: new Date().toISOString() } }];\n}\nreturn items;"
+      },
+      "id": "b325123e-088c-43f5-8159-642e3a874ad3",
+      "name": "Catch: sz",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5488,
+        2640
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\nconst str = v => { const x = String(v == null ? '' : v).trim(); return x === '' ? null : x; };\nfunction toDate(v) {\n  if (!v) return null;\n  const s = String(v).trim();\n  if (s.length === 8 && /^\\d{8}$/.test(s)) return s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8);\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return s;\n  return null;\n}\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  out.push({ json: {\n    z1_cod: str(r.Z1_COD),\n    z1_clicod: str(r.Z1_CLICOD),\n    z1_loja: str(r.Z1_LOJA),\n    z1_statua: str(r.Z1_STATUA),\n    z1_statud: str(r.Z1_STATUD),\n    z1_riscoa: str(r.Z1_RISCOA),\n    z1_riscod: str(r.Z1_RISCOD),\n    z1_tpalt: str(r.Z1_TPALT),\n    z1_pedido: str(r.Z1_PEDIDO),\n    z1_usunom: str(r.Z1_USUNOM),\n    z1_hora: str(r.Z1_HORA),\n    z1_data: toDate(r.Z1_DATA)\n  }});\n}\nreturn out;"
+      },
+      "id": "3db0230c-9502-4ee7-be82-f132ba15d63a",
+      "name": "Map: sz",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5280,
+        2640
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['z1_cod', 'z1_clicod', 'z1_loja', 'z1_statua', 'z1_statud', 'z1_riscoa', 'z1_riscod', 'z1_tpalt', 'z1_pedido', 'z1_usunom', 'z1_data', 'z1_hora'];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"z1_cod\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sz1010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (z1_cod) WHERE z1_cod IS NOT NULL DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
+      },
+      "id": "6b4d02ef-1f32-4c15-9d65-41bacd455136",
+      "name": "Code: sz1010-batches1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5088,
+        2640
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "c374b7ba-54ff-4ac5-8889-2dd7d462d866",
+      "name": "Supabase: upsert-sz",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -4880,
+        2640
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "jFjeYH6Nt3aRNkoM",
+          "name": "Supabase_database"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT ZA7_DATA, ZA7_HORA, ZA7_OPERAD, ZA7_NOMEOP, ZA7_ASSUNTO,\n  ZA7_CONTATO, ZA7_CLIENTE, ZA7_DESCLI, ZA7_VEND, ZA7_COMPLE\nFROM ZA7010\nWHERE D_E_L_E_T_ = ''\n  AND ZA7_DATA >= CONVERT(varchar(8), DATEADD(day, -180, GETDATE()), 112)\n  AND ZA7_DATA <> '        '"
+      },
+      "id": "8c0a05db-9521-4c3c-bb7f-b5fca61aa29c",
+      "name": "Query Protheus ZA",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        -5680,
+        2848
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "microsoftSql": {
+          "id": "5tLHk3XOaTL32faz",
+          "name": "Microsoft SQL account 2"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Catch: intercepta erros do Query MSSQL (continueOnFail) e propaga _skip\nconst items = $input.all();\nif (!items || items.length === 0)\n  return [{ json: { _skip: true, _table: 'za7010', _reason: 'no_data' } }];\nconst first = items[0].json;\nconst isErr = first && (first.error || first.$error || (first.code && first.message));\nif (isErr) {\n  const msg = first.error?.message ?? first.message ?? String(first.error ?? first.$error ?? 'query failed');\n  console.error('[Catch za7010] ' + msg);\n  return [{ json: { _skip: true, _table: 'za7010', _error: msg, _ts: new Date().toISOString() } }];\n}\nreturn items;"
+      },
+      "id": "05d3b439-5235-45e3-a9cf-1ad5a91139aa",
+      "name": "Catch: za",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5488,
+        2848
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\nconst str = v => { const x = String(v == null ? '' : v).trim(); return x === '' ? null : x; };\nfunction toDate(v) {\n  if (!v) return null;\n  const s = String(v).trim();\n  if (s.length === 8 && /^\\d{8}$/.test(s)) return s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8);\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return s;\n  return null;\n}\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  out.push({ json: {\n    za7_hora: str(r.ZA7_HORA),\n    za7_operad: str(r.ZA7_OPERAD),\n    za7_nomeop: str(r.ZA7_NOMEOP),\n    za7_assunto: str(r.ZA7_ASSUNTO),\n    za7_contato: str(r.ZA7_CONTATO),\n    za7_cliente: str(r.ZA7_CLIENTE),\n    za7_nome_cli: str(r.ZA7_DESCLI),\n    za7_vend: str(r.ZA7_VEND),\n    za7_compl: str(r.ZA7_COMPLE),\n    za7_data: toDate(r.ZA7_DATA)\n  }});\n}\nreturn out;"
+      },
+      "id": "2e2388d3-1ad9-41ed-9148-9b0cdccb5ca0",
+      "name": "Map: za",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5280,
+        2848
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['za7_data', 'za7_hora', 'za7_operad', 'za7_nomeop', 'za7_assunto', 'za7_contato', 'za7_cliente', 'za7_nome_cli', 'za7_vend', 'za7_compl'];\nconst batchSize = 2000;\n// 1a instrucao: DELETE incremental da janela de sync (historico fora da janela preservado)\nconst batches = [{ json: { sql: 'DELETE FROM castor_src_za7010 WHERE za7_data >= (CURRENT_DATE - INTERVAL \\'180 days\\')::date OR za7_data IS NULL', rowCount: 0 } }];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_za7010 (${cols.join(',')},ingested_at) VALUES ${values}`,\n    rowCount: chunk.length\n  }});\n}\nreturn batches;"
+      },
+      "id": "f9ac1a0f-dbf4-423c-9d3a-ffebc4941ed6",
+      "name": "Code: za7010-batches1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5088,
+        2848
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "7b982985-ab6c-4290-acbb-8bf339b14f2c",
+      "name": "Supabase: upsert-za",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -4880,
+        2848
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "jFjeYH6Nt3aRNkoM",
+          "name": "Supabase_database"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -6320,
+        3280
+      ],
+      "id": "b2436a6e-665b-46bb-a4ee-b04b6f634c28",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "jsCode": "const totalDays = 1095;\nconst chunkDays = 365;\nconst chunks = [];\nconst today = new Date();\nfor (let i = 0; i < totalDays; i += chunkDays) {\n  const end = new Date(today);\n  end.setDate(end.getDate() - i);\n  const start = new Date(end);\n  start.setDate(start.getDate() - chunkDays);\n  const fmt = d => d.toISOString().slice(0,10).replace(/-/g,'');\n  chunks.push({ json: {\n    chunkIndex: Math.floor(i / chunkDays),\n    totalChunks: Math.ceil(totalDays / chunkDays),\n    startDate: start.toISOString().slice(0,10),\n    endDate: end.toISOString().slice(0,10),\n    startFmt: fmt(start),\n    endFmt: fmt(end)\n  }});\n}\nreturn chunks;\n"
+      },
+      "id": "a838d251-daa2-4385-8a5b-e49d27d3f912",
+      "name": "Code: sd2010-chunks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -6064,
+        3152
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM castor_src_sd2010 WHERE d2_emissao >= (CURRENT_DATE - INTERVAL '1095 days')::date OR d2_emissao IS NULL",
+        "options": {}
+      },
+      "id": "50a8bf69-d45f-4587-9252-bf8e58931546",
+      "name": "Delete: sd2010",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -5872,
+        3152
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "jFjeYH6Nt3aRNkoM",
+          "name": "Supabase_database"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "batchSize": 365,
+        "options": {}
+      },
+      "id": "13bc0206-208c-4dd5-bebf-541b2ac37d5e",
+      "name": "Split In Batches: sd2010",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -5664,
+        3152
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ `SELECT D2_ITEM, D2_COD, D2_QUANT, D2_PRCVEN, D2_TOTAL, D2_DESCON, D2_TES, D2_CF, D2_PEDIDO, D2_CLIENTE, D2_LOJA, D2_DOC, D2_SERIE, D2_GRUPO, D2_EMISSAO FROM SD2010 WHERE D_E_L_E_T_ = '' AND D2_EMISSAO >= '${$json.startFmt}' AND D2_EMISSAO <= '${$json.endFmt}'` }}"
+      },
+      "id": "6bf5b80f-5128-4321-a9c9-70514462269d",
+      "name": "Query Protheus SD2010 (chunk)",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        -5520,
+        3056
+      ],
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "microsoftSql": {
+          "id": "5tLHk3XOaTL32faz",
+          "name": "Microsoft SQL account 2"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all(); if (!items || items.length === 0) return [{ json: { _skip: true, _table: 'sd2010', _reason: 'no_data' } }]; const first = items[0].json; const isErr = first && (first.error || first.$error || (first.code && first.message)); if (isErr) { const msg = first.error?.message ?? first.message ?? String(first.error ?? first.$error ?? 'query failed'); return [{ json: { _skip: true, _table: 'sd2010', _error: msg, _ts: new Date().toISOString() } }]; } return items;\n"
+      },
+      "id": "40007ba3-0cf8-4cde-8842-39355112e262",
+      "name": "Catch: sd2010 (chunk)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5360,
+        3056
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { sql: 'SELECT castor_refresh_metrics_sd2();', rowCount: 0 } }];"
+      },
+      "id": "5de5c6aa-8789-485d-8aa1-e1f751b52ff3",
+      "name": "Code: sd2010-refresh",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4736,
+        3152
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "7f62f6c2-8244-415f-bfd3-a18348fdb854",
+      "name": "Supabase: refresh-sd2010",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -4576,
+        3152
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "jFjeYH6Nt3aRNkoM",
+          "name": "Supabase_database"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\nconst str = v => { const x = String(v == null ? '' : v).trim(); return x === '' ? null : x; };\nfunction toDate(v) {\n  if (!v) return null;\n  const s = String(v).trim();\n  if (s.length === 8 && /^\\d{8}$/.test(s)) return s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8);\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return s;\n  return null;\n}\nconst num = v => { const n = parseFloat(String(v == null ? '' : v).trim().replace(',','.')); return isNaN(n) ? null : n; };\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  out.push({ json: {\n    d2_item: str(r.D2_ITEM),\n    d2_cod: str(r.D2_COD),\n    d2_tes: str(r.D2_TES),\n    d2_cf: str(r.D2_CF),\n    d2_pedido: str(r.D2_PEDIDO),\n    d2_cliente: str(r.D2_CLIENTE),\n    d2_loja: str(r.D2_LOJA),\n    d2_doc: str(r.D2_DOC),\n    d2_serie: str(r.D2_SERIE),\n    d2_grupo: str(r.D2_GRUPO),\n    d2_emissao: toDate(r.D2_EMISSAO),\n    d2_quant: num(r.D2_QUANT),\n    d2_prcven: num(r.D2_PRCVEN),\n    d2_total: num(r.D2_TOTAL),\n    d2_descon: num(r.D2_DESCON)\n  }});\n}\nreturn out;"
+      },
+      "id": "7729dc36-0bcb-45aa-ad89-01b402786232",
+      "name": "Map: sd",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5216,
+        3056
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['d2_item', 'd2_cod', 'd2_quant', 'd2_prcven', 'd2_total', 'd2_descon', 'd2_tes', 'd2_cf', 'd2_pedido', 'd2_cliente', 'd2_loja', 'd2_doc', 'd2_serie', 'd2_grupo', 'd2_emissao'];\nconst validRows = rows.filter(item => cols.some(c => { const v = item.json[c]; return v !== null && v !== undefined && String(v).trim() !== ''; }));\nif (!validRows.length) return [{ json: { sql: 'SELECT 1', rowCount: 0 } }];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < validRows.length; i += batchSize) {\n  const chunk = validRows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sd2010 (${cols.join(',')},ingested_at) VALUES ${values}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;\n"
+      },
+      "id": "1b298223-c753-4c7e-9d78-8c790c844775",
+      "name": "Code: sd2010-batches1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5072,
+        3056
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "d4079c55-622d-41f1-986a-0adfbe90b1c9",
+      "name": "Supabase: upsert-sd",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -4928,
+        3296
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "jFjeYH6Nt3aRNkoM",
+          "name": "Supabase_database"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 3
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -6320,
+        3088
+      ],
+      "id": "a12758d2-9f76-407f-8d7c-1dd3dd30b00e",
+      "name": "Schedule Trigger"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger2": {
+      "main": [
+        [
+          {
+            "node": "Query Protheus SA",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Protheus CC",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Protheus SA3011",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Protheus SB",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Protheus SBM",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Protheus SC",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Protheus SF",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Protheus SF4011",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Protheus SX",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Protheus SZ",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Protheus ZA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Merge1": {
+      "main": [
+        [
+          {
+            "node": "Respond OK2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sub-Merge: G": {
+      "main": [
+        [
+          {
+            "node": "Final Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sub-Merge: G5": {
+      "main": [
+        [
+          {
+            "node": "Final Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Sub-Merge: G6": {
+      "main": [
+        [
+          {
+            "node": "Final Merge1",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Sub-Merge: G7": {
+      "main": [
+        [
+          {
+            "node": "Final Merge1",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Query Protheus SA": {
+      "main": [
+        [
+          {
+            "node": "Catch: sa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Catch: sa": {
+      "main": [
+        [
+          {
+            "node": "Map to castor_src_sa1010 columns1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map to castor_src_sa1010 columns1": {
+      "main": [
+        [
+          {
+            "node": "Code: sa1010-batches1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: sa1010-batches1": {
+      "main": [
+        [
+          {
+            "node": "Supabase: upsert-sa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: upsert-sa": {
+      "main": [
+        [
+          {
+            "node": "Sub-Merge: G",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Protheus CC": {
+      "main": [
+        [
+          {
+            "node": "Catch: cc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Catch: cc": {
+      "main": [
+        [
+          {
+            "node": "Map: cc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map: cc": {
+      "main": [
+        [
+          {
+            "node": "Code: cc2010-batches1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: cc2010-batches1": {
+      "main": [
+        [
+          {
+            "node": "Supabase: upsert-cc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: upsert-cc": {
+      "main": [
+        [
+          {
+            "node": "Sub-Merge: G",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Query Protheus SA3011": {
+      "main": [
+        [
+          {
+            "node": "Catch: sa3011",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Catch: sa3011": {
+      "main": [
+        [
+          {
+            "node": "Map: sa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map: sa": {
+      "main": [
+        [
+          {
+            "node": "Code: sa3010-batches1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: sa3010-batches1": {
+      "main": [
+        [
+          {
+            "node": "Supabase: upsert-sa3011",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: upsert-sa3011": {
+      "main": [
+        [
+          {
+            "node": "Sub-Merge: G",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Query Protheus SB": {
+      "main": [
+        [
+          {
+            "node": "Catch: sb",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Catch: sb": {
+      "main": [
+        [
+          {
+            "node": "Map: sb",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map: sb": {
+      "main": [
+        [
+          {
+            "node": "Code: sb1010-batches1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: sb1010-batches1": {
+      "main": [
+        [
+          {
+            "node": "Supabase: upsert-sb",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: upsert-sb": {
+      "main": [
+        [
+          {
+            "node": "Sub-Merge: G5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Protheus SBM": {
+      "main": [
+        [
+          {
+            "node": "Catch: sbm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Catch: sbm": {
+      "main": [
+        [
+          {
+            "node": "Map: sbm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map: sbm": {
+      "main": [
+        [
+          {
+            "node": "Code: sbm010-batches1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: sbm010-batches1": {
+      "main": [
+        [
+          {
+            "node": "Supabase: upsert-sbm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: upsert-sbm": {
+      "main": [
+        [
+          {
+            "node": "Sub-Merge: G5",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Query Protheus SC": {
+      "main": [
+        [
+          {
+            "node": "Catch: sc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Catch: sc": {
+      "main": [
+        [
+          {
+            "node": "Map: sc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map: sc": {
+      "main": [
+        [
+          {
+            "node": "Code: sc5010-batches1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: sc5010-batches1": {
+      "main": [
+        [
+          {
+            "node": "Supabase: upsert-sc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: upsert-sc": {
+      "main": [
+        [
+          {
+            "node": "Sub-Merge: G5",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Query Protheus SF": {
+      "main": [
+        [
+          {
+            "node": "Catch: sf",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Catch: sf": {
+      "main": [
+        [
+          {
+            "node": "Map: sf",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map: sf": {
+      "main": [
+        [
+          {
+            "node": "Code: sf2010-batches1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: sf2010-batches1": {
+      "main": [
+        [
+          {
+            "node": "Supabase: upsert-sf",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: upsert-sf": {
+      "main": [
+        [
+          {
+            "node": "Sub-Merge: G6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Protheus SF4011": {
+      "main": [
+        [
+          {
+            "node": "Catch: sf4011",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Catch: sf4011": {
+      "main": [
+        [
+          {
+            "node": "Map: sf4011",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map: sf4011": {
+      "main": [
+        [
+          {
+            "node": "Code: sf4010-batches1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: sf4010-batches1": {
+      "main": [
+        [
+          {
+            "node": "Supabase: upsert-sf4011",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: upsert-sf4011": {
+      "main": [
+        [
+          {
+            "node": "Sub-Merge: G6",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Query Protheus SX": {
+      "main": [
+        [
+          {
+            "node": "Catch: sx",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Catch: sx": {
+      "main": [
+        [
+          {
+            "node": "Map: sx",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map: sx": {
+      "main": [
+        [
+          {
+            "node": "Code: sx5010-batches1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: sx5010-batches1": {
+      "main": [
+        [
+          {
+            "node": "Supabase: upsert-sx",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: upsert-sx": {
+      "main": [
+        [
+          {
+            "node": "Sub-Merge: G7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Protheus SZ": {
+      "main": [
+        [
+          {
+            "node": "Catch: sz",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Catch: sz": {
+      "main": [
+        [
+          {
+            "node": "Map: sz",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map: sz": {
+      "main": [
+        [
+          {
+            "node": "Code: sz1010-batches1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: sz1010-batches1": {
+      "main": [
+        [
+          {
+            "node": "Supabase: upsert-sz",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: upsert-sz": {
+      "main": [
+        [
+          {
+            "node": "Sub-Merge: G7",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Query Protheus ZA": {
+      "main": [
+        [
+          {
+            "node": "Catch: za",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Catch: za": {
+      "main": [
+        [
+          {
+            "node": "Map: za",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map: za": {
+      "main": [
+        [
+          {
+            "node": "Code: za7010-batches1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: za7010-batches1": {
+      "main": [
+        [
+          {
+            "node": "Supabase: upsert-za",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: upsert-za": {
+      "main": [
+        [
+          {
+            "node": "Sub-Merge: G7",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Delete: sd2010",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: sd2010-chunks": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches: sd2010",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete: sd2010": {
+      "main": [
+        [
+          {
+            "node": "Code: sd2010-chunks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In Batches: sd2010": {
+      "main": [
+        [
+          {
+            "node": "Query Protheus SD2010 (chunk)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code: sd2010-refresh",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Protheus SD2010 (chunk)": {
+      "main": [
+        [
+          {
+            "node": "Catch: sd2010 (chunk)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Catch: sd2010 (chunk)": {
+      "main": [
+        [
+          {
+            "node": "Map: sd",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: sd2010-refresh": {
+      "main": [
+        [
+          {
+            "node": "Supabase: refresh-sd2010",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map: sd": {
+      "main": [
+        [
+          {
+            "node": "Code: sd2010-batches1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: sd2010-batches1": {
+      "main": [
+        [
+          {
+            "node": "Supabase: upsert-sd",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase: upsert-sd": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches: sd2010",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Delete: sd2010",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "03d32a206f2d8840fce482e6c587726f18775bd9177e9401c00ca76d3086ad41"
+  }
+}

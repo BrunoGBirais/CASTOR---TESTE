@@ -895,7 +895,7 @@
     },
     {
       "parameters": {
-        "content": "curl -X POST \"https://exotickoala-n8n.cloudfy.live/webhook-test/index-drive\" \\\n     -H \"Content-Type: multipart/form-data\" \\\n     -F \"data=@\\\"PROPOSTA PSI.PDF\\\"\" \\\n     -F \"tipo=proposta\"",
+        "content": "curl -X POST \"https://longflatworm-n8n.cloudfy.live/webhook-test/index-drive\" \\\n     -H \"Content-Type: multipart/form-data\" \\\n     -F \"data=@\\\"PROPOSTA PSI.PDF\\\"\" \\\n     -F \"tipo=proposta\"",
         "height": 224,
         "width": 304
       },
@@ -907,7 +907,7 @@
     },
     {
       "parameters": {
-        "content": "curl -X POST \"https://exotickoala-n8n.cloudfy.live/webhook-test/index-drive\" -F \"data=@\\\"C:\\Users\\admin\\Downloads\\PROPOSTA PSI.PDF\\\"\" -F \"sessionId=sessao-do-giovani-123\" -F \"tipo=proposta\"",
+        "content": "curl -X POST \"https://longflatworm-n8n.cloudfy.live/webhook-test/index-drive\" -F \"data=@\\\"C:\\Users\\admin\\Downloads\\PROPOSTA PSI.PDF\\\"\" -F \"sessionId=sessao-do-giovani-123\" -F \"tipo=proposta\"",
         "height": 208,
         "width": 320
       },

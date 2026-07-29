@@ -1,4 +1,4 @@
-{
+﻿{
   "nodes": [
     {
       "parameters": {
@@ -10,18 +10,24 @@
       "name": "Webhook - Snapshot",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [15472, -2496],
+      "position": [
+        15472,
+        -2496
+      ],
       "webhookId": "castor-panel-snapshot"
     },
     {
       "parameters": {
-        "jsCode": "const now = Date.now();\nconst TTL = 5 * 60 * 1000;\nconst MAX_ENTRIES = 12; // limita o tamanho do staticData (carregado INTEIRO na RAM a cada execucao)\nconst staticData = $getWorkflowStaticData('global');\nconst q = ($json && $json.query) || {};\nconst userId = q.userId ? String(q.userId) : '';\n// Segmentacao: cada fatia tem cache proprio para nao carregar tudo de uma vez.\n// segment ausente = 'full' (compat com o agente/consumidores antigos).\nconst VALID = ['full','reactivation','active','leads','meta'];\nlet segment = String(q.segment || 'full').toLowerCase();\nif (!VALID.includes(segment)) segment = 'full';\nconst cacheKey = 'snapshot_' + (userId || 'anon') + '_' + segment;\n// --- Eviction (anti-OOM): o staticData e carregado INTEIRO na memoria a cada\n// execucao. Snapshots (sobretudo 'full') sao enormes e NUNCA expiravam do store\n// -> acumulavam por usuario/segmento ate estourar a RAM do n8n (OOM neste node).\n// Remove expirados e mantem apenas os MAX_ENTRIES mais recentes.\ntry {\n  const live = [];\n  for (const k of Object.keys(staticData)) {\n    if (k.indexOf('snapshot_') !== 0 || /_at$/.test(k)) continue;\n    const at = staticData[k + '_at'] || 0;\n    if (!at || (now - at) >= TTL) {\n      delete staticData[k];\n      delete staticData[k + '_at'];\n    } else {\n      live.push({ k, at });\n    }\n  }\n  if (live.length > MAX_ENTRIES) {\n    live.sort((a, b) => a.at - b.at); // mais antigos primeiro\n    const drop = live.length - MAX_ENTRIES;\n    for (let i = 0; i < drop; i++) {\n      delete staticData[live[i].k];\n      delete staticData[live[i].k + '_at'];\n    }\n  }\n} catch (e) {}\nconst hit = staticData && staticData[cacheKey] && staticData[cacheKey + '_at'] && (now - staticData[cacheKey + '_at'] < TTL);\nreturn [{ json: { cache_hit: !!hit, cached: hit ? staticData[cacheKey] : null, user_id: userId, segment, cache_key: cacheKey } }];"
+        "jsCode": "const q = ($json && $json.query) || {};\nconst userId = q.userId ? String(q.userId) : 'anon';\nconst VALID = ['full','reactivation','active','leads','meta'];\nlet segment = String(q.segment || 'full').toLowerCase();\nif (!VALID.includes(segment)) segment = 'full';\nconst dateFrom = q.dateFrom ? String(q.dateFrom) : '';\nconst dateTo = q.dateTo ? String(q.dateTo) : '';\nconst segment_for_cache = segment + (dateFrom ? '|' + dateFrom : '') + (dateTo ? '|' + dateTo : '');\nreturn [{ json: { cache_hit: false, cached: null, user_id: userId, segment, segment_for_cache, dateFrom, dateTo, cache_key: userId + '_' + segment + '_' + dateFrom + '_' + dateTo } }];"
       },
       "id": "7be03994-9e45-497f-8bf9-888e795b3959",
       "name": "Cache check",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [15696, -2496]
+      "position": [
+        15696,
+        -2496
+      ]
     },
     {
       "parameters": {
@@ -52,7 +58,10 @@
       "name": "Cache hit?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [15920, -2496]
+      "position": [
+        15920,
+        -2496
+      ]
     },
     {
       "parameters": {
@@ -73,7 +82,10 @@
       "name": "Respond from cache",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [16128, -2624]
+      "position": [
+        16128,
+        -2624
+      ]
     },
     {
       "parameters": {
@@ -85,7 +97,10 @@
       "name": "PG: user role",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [16128, -2384],
+      "position": [
+        16128,
+        -2384
+      ],
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -96,25 +111,31 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = ($input.first() && $input.first().json && ($input.first().json.row || $input.first().json)) || {};\nconst role = String(row.role || 'vendedor') || 'vendedor';\nconst vendor_code = row.vendor_code || null;\nfunction arrLit(a){\n  if (!Array.isArray(a) || a.length === 0) return 'NULL';\n  return 'ARRAY[' + a.map(s => \"'\" + String(s).replace(/'/g,\"''\") + \"'\").join(',') + ']::TEXT[]';\n}\nconst estados = Array.isArray(row.estados) ? row.estados : null;\nconst cidades = Array.isArray(row.cidades) ? row.cidades : null;\n// --- Segmentacao: decide quais fatias o SQL deve materializar nesta chamada ---\nconst seg = String(($('Cache check').first().json.segment) || 'full').toLowerCase();\nconst wantClientes   = (seg === 'full' || seg === 'reactivation' || seg === 'active');\nconst wantLeads      = (seg === 'full' || seg === 'leads');\nconst wantMunicipios = (seg === 'full' || seg === 'reactivation' || seg === 'active');\nconst wantMeta       = (seg === 'full' || seg === 'meta');\nlet clientes_where = '';\nif (seg === 'reactivation') clientes_where = 'm.elegivel_reativacao IS TRUE AND';\nelse if (seg === 'active')  clientes_where = '(m.elegivel_reativacao IS NOT TRUE) AND';\n// Sub-selects do agg pre-montados (CTE nao referenciada nao executa no Postgres).\nconst agg_clientes   = wantClientes   ? '(SELECT jsonb_agg(to_jsonb(c.*)) FROM clientes c)'   : 'NULL';\nconst agg_leads      = wantLeads      ? '(SELECT jsonb_agg(to_jsonb(l.*)) FROM leads l)'      : 'NULL';\nconst agg_municipios = wantMunicipios ? '(SELECT jsonb_agg(to_jsonb(m.*)) FROM municipios m)' : 'NULL';\nconst agg_top_prod   = wantMeta ? '(SELECT CASE WHEN uid IS NULL THEN NULL ELSE castor_top_products(uid, 20, NULL) END FROM u)' : 'NULL';\nconst agg_top_grp    = wantMeta ? '(SELECT CASE WHEN uid IS NULL THEN NULL ELSE castor_top_groups(uid, 20) END FROM u)' : 'NULL';\nconst agg_trend      = wantMeta ? '(SELECT CASE WHEN uid IS NULL THEN NULL ELSE castor_monthly_trend(uid, NULL, 24) END FROM u)' : 'NULL';\nconst agg_total_cli  = wantMeta ? '(SELECT COUNT(*) FROM cnt)' : 'NULL';\nconst agg_total_inat = wantMeta ? '(SELECT COUNT(*) FROM cnt WHERE elegivel_reativacao IS TRUE)' : 'NULL';\nconst agg_total_ativ = wantMeta ? '(SELECT COUNT(*) FROM cnt WHERE elegivel_reativacao IS NOT TRUE)' : 'NULL';\nconst agg_total_leads = wantMeta ? '(SELECT COUNT(*) FROM leads)' : 'NULL';\nreturn [{ json: { role, vendor_code, estados, cidades, estados_sql: arrLit(estados), cidades_sql: arrLit(cidades), seg, clientes_where, agg_clientes, agg_leads, agg_municipios, agg_top_prod, agg_top_grp, agg_trend, agg_total_cli, agg_total_inat, agg_total_ativ, agg_total_leads } }];"
+        "jsCode": "const row = ($input.first() && $input.first().json && ($input.first().json.row || $input.first().json)) || {};\nconst role = String(row.role || 'vendedor') || 'vendedor';\nconst vendor_code = row.vendor_code || null;\nfunction arrLit(a){\n  if (!Array.isArray(a) || a.length === 0) return 'NULL';\n  return 'ARRAY[' + a.map(s => \"'\" + String(s).replace(/'/g,\"''\") + \"'\").join(',') + ']::TEXT[]';\n}\nconst estados = Array.isArray(row.estados) ? row.estados : null;\nconst cidades = Array.isArray(row.cidades) ? row.cidades : null;\n// --- Segmentacao: decide quais fatias o SQL deve materializar nesta chamada ---\nconst seg = String(($('Cache check').first().json.segment) || 'full').toLowerCase();\nconst wantClientes   = (seg === 'full' || seg === 'reactivation' || seg === 'active');\nconst wantLeads      = (seg === 'full' || seg === 'leads');\nconst wantMunicipios = (seg === 'full' || seg === 'reactivation' || seg === 'active');\nconst wantMeta       = (seg === 'full' || seg === 'meta');\nlet clientes_where = '';\nif (seg === 'reactivation') clientes_where = 'm.elegivel_reativacao IS TRUE AND';\nelse if (seg === 'active')  clientes_where = '(m.elegivel_reativacao IS NOT TRUE) AND';\n// Sub-selects do agg pre-montados (CTE nao referenciada nao executa no Postgres).\nconst agg_clientes   = wantClientes   ? '(SELECT jsonb_agg(to_jsonb(c.*)) FROM clientes c)'   : 'NULL';\nconst agg_leads      = wantLeads      ? '(SELECT jsonb_agg(to_jsonb(l.*)) FROM leads l)'      : 'NULL';\nconst agg_municipios = wantMunicipios ? '(SELECT jsonb_agg(to_jsonb(m.*)) FROM municipios m)' : 'NULL';\nconst _df = $('Cache check').first().json.dateFrom || '';\nconst _dt = $('Cache check').first().json.dateTo || '';\nconst _dateFromSql = _df ? \"'\" + _df + \"'::DATE\" : 'NULL';\nconst _dateToSql   = _dt ? \"'\" + _dt + \"'::DATE\" : 'NULL';\nconst agg_top_prod   = wantMeta ? '(SELECT CASE WHEN uid IS NULL THEN NULL ELSE castor_top_products(uid, 20, NULL, ' + _dateFromSql + ', ' + _dateToSql + ') END FROM u)' : 'NULL';\nconst agg_top_grp    = wantMeta ? '(SELECT CASE WHEN uid IS NULL THEN NULL ELSE castor_top_groups(uid, 20, ' + _dateFromSql + ', ' + _dateToSql + ') END FROM u)' : 'NULL';\nconst agg_trend      = wantMeta ? '(SELECT CASE WHEN uid IS NULL THEN NULL ELSE castor_monthly_trend(uid, NULL, 24, ' + _dateFromSql + ', ' + _dateToSql + ') END FROM u)' : 'NULL';\nconst agg_total_cli  = wantMeta ? '(SELECT COUNT(*) FROM cnt)' : 'NULL';\nconst agg_total_inat = wantMeta ? '(SELECT COUNT(*) FROM cnt WHERE elegivel_reativacao IS TRUE)' : 'NULL';\nconst agg_total_ativ = wantMeta ? '(SELECT COUNT(*) FROM cnt WHERE elegivel_reativacao IS NOT TRUE)' : 'NULL';\nconst agg_total_leads = wantMeta ? '(SELECT COUNT(*) FROM leads)' : 'NULL';\nreturn [{ json: { role, vendor_code, estados, cidades, estados_sql: arrLit(estados), cidades_sql: arrLit(cidades), seg, clientes_where, agg_clientes, agg_leads, agg_municipios, agg_top_prod, agg_top_grp, agg_trend, agg_total_cli, agg_total_inat, agg_total_ativ, agg_total_leads } }];"
       },
       "id": "2611f700-625b-4ec4-919c-a453a715b515",
       "name": "Carry role",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [16352, -2384]
+      "position": [
+        16352,
+        -2384
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH u AS (\n  SELECT NULLIF('{{ $('Cache check').first().json.user_id }}','')::uuid AS uid\n),\nscope AS (\n  SELECT\n    '{{ $('Carry role').first().json.role }}'::TEXT AS role,\n    NULLIF('{{ $('Carry role').first().json.vendor_code || '' }}','')::TEXT AS vendor_code,\n    {{ $('Carry role').first().json.estados_sql }} AS estados,\n    {{ $('Carry role').first().json.cidades_sql }} AS cidades\n),\nlast_fb AS (\n  SELECT DISTINCT ON (cliente_codigo)\n    cliente_codigo, outcome, visited_at, next_contact_at, notes\n  FROM castor_visita_feedback\n  ORDER BY cliente_codigo, visited_at DESC\n),\nclientes AS (\n  -- Escopo do vendedor: por TERRITÃ“RIO (estados/cidades em raw_user_meta_data),\n  -- nÃ£o por a1_vend. O vendedor enxerga TODOS os clientes da(s) UF(s)/cidade(s)\n  -- a que tem acesso, esteja ele atribuÃ­do ou nÃ£o no Protheus. Fallback para\n  -- vendor_code apenas quando o usuÃ¡rio ainda nÃ£o tem territÃ³rio cadastrado\n  -- (legado / prÃ©-onboarding). Admin sempre vÃª tudo.\n  SELECT\n    m.cliente_codigo,\n    m.a1_cod, m.a1_loja, m.a1_nome,\n    NULL::text AS a1_nreduz, m.a1_cgc,\n    m.a1_end, NULL::text AS a1_bairro,\n    m.a1_mun, m.a1_est, m.a1_cep,\n    NULL::text AS a1_ddd, NULL::text AS a1_tel, NULL::text AS a1_email,\n    m.a1_vend, m.vendedor_nome,\n    CASE\n      WHEN m.elegivel_reativacao THEN '2'\n      WHEN m.is_ativo_cadastro THEN '1'\n      WHEN m.status_real = 'ATIVO' THEN '1'\n      WHEN m.status_real = 'EM_RISCO' THEN '3'\n      WHEN m.status_real IN ('REATIVAR','INATIVO','DORMENTE') THEN '2'\n      ELSE '1'\n    END AS a1_ustatus,\n    m.status_real,\n    m.status_cadastral,\n    m.elegivel_reativacao,\n    m.is_ativo_cadastro,\n    m.ramo_codigo, m.ramo_desc,\n    m.status_real AS status_inferido,\n    m.faturamento_12m, m.pedidos_12m, m.ticket_medio_12m,\n    m.faturamento_alltime, m.pedidos_alltime, m.ticket_medio_alltime,\n    m.ultima_nota, m.ultimo_pedido, m.ultima_atividade,\n    m.dias_sem_pedido, m.dias_sem_atividade,\n    m.porte_efetivo, m.porte_origem, m.urgencia_score,\n    to_jsonb(f.*) AS last_feedback\n  FROM castor_client_metrics_v2 m\n  CROSS JOIN scope s\n  LEFT JOIN last_fb f ON f.cliente_codigo = m.cliente_codigo\n  WHERE {{ $('Carry role').first().json.clientes_where }} (\n    TRUE -- escopo removido: vendedor e admin veem a base inteira (identica)\n    OR s.role = 'admin'\n    OR (\n      -- Tem territÃ³rio cadastrado â†’ usa SOMENTE territÃ³rio.\n      (s.estados IS NOT NULL OR s.cidades IS NOT NULL)\n      AND (s.estados IS NULL OR upper(coalesce(m.a1_est,'')) = ANY(s.estados))\n      AND (s.cidades IS NULL OR upper(coalesce(m.a1_mun,'')) = ANY(s.cidades))\n    )\n    OR (\n      -- Sem territÃ³rio MAS com vendor_code â†’ fallback legado por a1_vend.\n      s.estados IS NULL AND s.cidades IS NULL\n      AND s.vendor_code IS NOT NULL AND m.a1_vend = s.vendor_code\n    )\n    OR (\n      -- Sem territÃ³rio E sem vendor_code â†’ vendedor SEM escopo configurado:\n      -- mostra tudo (mesma polÃ­tica dos leads, que jÃ¡ liberam quando vendor_code Ã© NULL,\n      -- e do fallback C do castor_admin_suggest_pool). Admin precisa cadastrar\n      -- estados/cidades no metadata para restringir.\n      s.estados IS NULL AND s.cidades IS NULL AND s.vendor_code IS NULL\n    )\n  )\n),\nleads AS (\n  SELECT\n    z.za7_cliente AS za7_id,\n    NULL::text AS za7_cnpj,\n    z.za7_nome_cli AS za7_nome,\n    z.za7_contato AS za7_tel,\n    NULL::text AS za7_email,\n    NULL::text AS za7_mun,\n    NULL::text AS za7_est,\n    z.za7_assunto AS za7_segmento,\n    'lead' AS za7_status,\n    z.za7_data, z.za7_vend\n  FROM castor_src_za7010 z\n  CROSS JOIN scope s\n  WHERE z.za7_cliente IS NOT NULL AND z.za7_cliente <> ''\n    AND NOT EXISTS (\n      SELECT 1 FROM castor_src_sa1010 sa\n       WHERE sa.a1_cod = z.za7_cliente OR sa.cliente_codigo LIKE z.za7_cliente || '%'\n    )\n    AND NOT EXISTS (\n      SELECT 1 FROM castor_metrics_alltime ma\n       WHERE ma.cliente_codigo LIKE z.za7_cliente || '%'\n    )\n    AND (TRUE OR s.role = 'admin' OR s.vendor_code IS NULL OR z.za7_vend = s.vendor_code)\n),\nmunicipios AS (\n  SELECT DISTINCT\n    c.cc2_mun AS mun, c.cc2_est AS est,\n    g.lat, g.lng\n  FROM castor_src_cc2010 c\n  LEFT JOIN castor_geocode_cache g\n    ON g.scope = 'municipio'\n   AND g.query_key = upper(c.cc2_mun) || '|' || upper(c.cc2_est)\n   AND g.ok\n),\ncnt AS (\n  -- Contagens leves p/ os badges (segmento meta). Mesmo escopo dos clientes,\n  -- mas sem to_jsonb pesado. CTE nao referenciada nao executa no Postgres.\n  SELECT m.elegivel_reativacao\n  FROM castor_client_metrics_v2 m\n  CROSS JOIN scope s\n  WHERE\n    TRUE -- escopo removido: contagem identica p/ vendedor e admin\n    OR s.role = 'admin'\n    OR (\n      (s.estados IS NOT NULL OR s.cidades IS NOT NULL)\n      AND (s.estados IS NULL OR upper(coalesce(m.a1_est,'')) = ANY(s.estados))\n      AND (s.cidades IS NULL OR upper(coalesce(m.a1_mun,'')) = ANY(s.cidades))\n    )\n    OR (\n      s.estados IS NULL AND s.cidades IS NULL\n      AND s.vendor_code IS NOT NULL AND m.a1_vend = s.vendor_code\n    )\n    OR (\n      s.estados IS NULL AND s.cidades IS NULL AND s.vendor_code IS NULL\n    )\n),\nagg AS (\n  SELECT\n    {{ $('Carry role').first().json.agg_clientes }}   AS clientes,\n    {{ $('Carry role').first().json.agg_leads }}      AS leads,\n    {{ $('Carry role').first().json.agg_municipios }} AS municipios,\n    {{ $('Carry role').first().json.agg_top_prod }} AS top_products,\n    {{ $('Carry role').first().json.agg_top_grp }} AS top_groups,\n    {{ $('Carry role').first().json.agg_trend }} AS sales_trend,\n    {{ $('Carry role').first().json.agg_total_cli }} AS total_clientes,\n    {{ $('Carry role').first().json.agg_total_inat }} AS total_inativos,\n    {{ $('Carry role').first().json.agg_total_ativ }} AS total_ativos,\n    {{ $('Carry role').first().json.agg_total_leads }} AS total_leads\n)\nSELECT to_jsonb(agg.*) AS row FROM agg;",
+        "query": "WITH u AS (\n  SELECT NULLIF('{{ $('Cache check').first().json.user_id }}','')::uuid AS uid\n),\nscope AS (\n  SELECT\n    '{{ $('Carry role').first().json.role }}'::TEXT AS role,\n    NULLIF('{{ $('Carry role').first().json.vendor_code || '' }}','')::TEXT AS vendor_code,\n    {{ $('Carry role').first().json.estados_sql }} AS estados,\n    {{ $('Carry role').first().json.cidades_sql }} AS cidades\n),\nlast_fb AS (\n  SELECT DISTINCT ON (cliente_codigo)\n    cliente_codigo, outcome, visited_at, next_contact_at, notes\n  FROM castor_visita_feedback\n  ORDER BY cliente_codigo, visited_at DESC\n),\nclientes AS (\n  -- Escopo do vendedor: por CARTEIRA (a1_vend = vendor_code).\n  -- Admin ve tudo. Sem vendor_code com territorio: fallback por estados/cidades.\n  SELECT\n    m.cliente_codigo,\n    m.a1_cod, m.a1_loja, m.a1_nome,\n    NULL::text AS a1_nreduz, m.a1_cgc,\n    m.a1_end, NULL::text AS a1_bairro,\n    m.a1_mun, m.a1_est, m.a1_cep,\n    NULL::text AS a1_ddd, NULL::text AS a1_tel, NULL::text AS a1_email,\n    m.a1_vend, m.vendedor_nome,\n    CASE\n      WHEN m.elegivel_reativacao THEN '2'\n      WHEN m.is_ativo_cadastro THEN '1'\n      WHEN m.status_real = 'ATIVO' THEN '1'\n      WHEN m.status_real = 'EM_RISCO' THEN '3'\n      WHEN m.status_real IN ('REATIVAR','INATIVO','DORMENTE') THEN '2'\n      ELSE '1'\n    END AS a1_ustatus,\n    m.status_real,\n    m.status_cadastral,\n    m.elegivel_reativacao,\n    m.is_ativo_cadastro,\n    m.ramo_codigo, m.ramo_desc,\n    m.status_real AS status_inferido,\n    m.faturamento_12m, m.pedidos_12m, m.ticket_medio_12m,\n    m.faturamento_alltime, m.pedidos_alltime, m.ticket_medio_alltime,\n    m.ultima_nota, m.ultimo_pedido, m.ultima_atividade,\n    m.dias_sem_pedido, m.dias_sem_atividade,\n    m.porte_efetivo, m.porte_origem, m.urgencia_score,\n    to_jsonb(f.*) AS last_feedback\n  FROM castor_client_metrics_v2 m\n  CROSS JOIN scope s\n  LEFT JOIN last_fb f ON f.cliente_codigo = m.cliente_codigo\n  WHERE {{ $('Carry role').first().json.clientes_where }} (\n    s.role = 'admin'\n    OR (\n      -- Tem vendor_code: filtra por carteira (a1_vend). Territorio ignorado.\n      s.vendor_code IS NOT NULL AND m.a1_vend = s.vendor_code\n    )\n    OR (\n      -- Sem vendor_code MAS com territorio: fallback legado.\n      s.vendor_code IS NULL\n      AND (s.estados IS NOT NULL OR s.cidades IS NOT NULL)\n      AND (s.estados IS NULL OR upper(coalesce(m.a1_est,'')) = ANY(s.estados))\n      AND (s.cidades IS NULL OR upper(coalesce(m.a1_mun,'')) = ANY(s.cidades))\n    )\n    -- Sem vendor_code E sem territorio: nenhum cliente (seguro).\n  )\n),\nleads AS (\n  SELECT DISTINCT ON (z.za7_cliente)\n    z.za7_cliente AS za7_id,\n    NULL::text AS za7_cnpj,\n    z.za7_nome_cli AS za7_nome,\n    z.za7_contato AS za7_tel,\n    NULL::text AS za7_email,\n    NULL::text AS za7_mun,\n    NULL::text AS za7_est,\n    z.za7_assunto AS za7_segmento,\n    'lead' AS za7_status,\n    z.za7_data, z.za7_vend\n  FROM castor_src_za7010 z\n  CROSS JOIN scope s\n  WHERE z.za7_cliente IS NOT NULL AND z.za7_cliente <> ''\n    AND NOT EXISTS (\n      SELECT 1 FROM castor_src_sa1010 sa\n       WHERE sa.a1_cod = z.za7_cliente OR sa.cliente_codigo LIKE z.za7_cliente || '%'\n    )\n    AND (s.role = 'admin' OR s.vendor_code IS NULL OR z.za7_vend = s.vendor_code)\n  ORDER BY z.za7_cliente, z.za7_data DESC\n),\nmunicipios AS (\n  SELECT DISTINCT\n    c.cc2_mun AS mun, c.cc2_est AS est,\n    g.lat, g.lng\n  FROM castor_src_cc2010 c\n  LEFT JOIN castor_geocode_cache g\n    ON g.scope = 'municipio'\n   AND g.query_key = upper(c.cc2_mun) || '|' || upper(c.cc2_est)\n   AND g.ok\n),\ncnt AS (\n  -- Contagens leves p/ os badges (segmento meta). Mesmo escopo dos clientes,\n  -- mas sem to_jsonb pesado. CTE nao referenciada nao executa no Postgres.\n  SELECT m.elegivel_reativacao\n  FROM castor_client_metrics_v2 m\n  CROSS JOIN scope s\n  WHERE\n    s.role = 'admin'\n    OR (\n      s.vendor_code IS NOT NULL AND m.a1_vend = s.vendor_code\n    )\n    OR (\n      s.vendor_code IS NULL\n      AND (s.estados IS NOT NULL OR s.cidades IS NOT NULL)\n      AND (s.estados IS NULL OR upper(coalesce(m.a1_est,'')) = ANY(s.estados))\n      AND (s.cidades IS NULL OR upper(coalesce(m.a1_mun,'')) = ANY(s.cidades))\n    )\n    -- Sem vendor_code e sem territorio: contagem zero (seguro).\n),\nagg AS (\n  SELECT\n    {{ $('Carry role').first().json.agg_clientes }}   AS clientes,\n    {{ $('Carry role').first().json.agg_leads }}      AS leads,\n    {{ $('Carry role').first().json.agg_municipios }} AS municipios,\n    {{ $('Carry role').first().json.agg_top_prod }} AS top_products,\n    {{ $('Carry role').first().json.agg_top_grp }} AS top_groups,\n    {{ $('Carry role').first().json.agg_trend }} AS sales_trend,\n    {{ $('Carry role').first().json.agg_total_cli }} AS total_clientes,\n    {{ $('Carry role').first().json.agg_total_inat }} AS total_inativos,\n    {{ $('Carry role').first().json.agg_total_ativ }} AS total_ativos,\n    {{ $('Carry role').first().json.agg_total_leads }} AS total_leads\n)\nSELECT to_jsonb(agg.*) AS row FROM agg;",
         "options": {}
       },
       "id": "f84e17e8-53a9-4dad-bac2-b96fe3493a53",
       "name": "PG: snapshot",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [16576, -2384],
+      "position": [
+        16576,
+        -2384
+      ],
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -125,18 +146,21 @@
     },
     {
       "parameters": {
-        "jsCode": "const r = ($input.first() && $input.first().json && ($input.first().json.row || $input.first().json)) || {};\nconst ctx = $('Cache check').first().json;\nconst rl  = $('Carry role').first().json;\nconst snapshot = {\n  generated_at: new Date().toISOString(),\n  role: rl.role,\n  vendor_code: rl.vendor_code,\n  totals: { clientes: +(r.total_clientes||0), ativos: +(r.total_ativos||0), inativos: +(r.total_inativos||0), leads: +(r.total_leads||0) },\n  clientes:  r.clientes  || [],\n  leads:     r.leads     || [],\n  municipios:r.municipios || [],\n  top_products: (r.top_products && r.top_products.produtos) || [],\n  top_groups: (r.top_groups && r.top_groups.grupos) || [],\n  sales_trend: (r.sales_trend && r.sales_trend.serie) || []\n};\ntry { const sd = $getWorkflowStaticData('global'); sd[ctx.cache_key] = snapshot; sd[ctx.cache_key + '_at'] = Date.now(); } catch (e) {}\nreturn [{ json: { ok: true, data: snapshot, error: null, cached: false } }];"
+        "jsCode": "const r = ($input.first() && $input.first().json && ($input.first().json.row || $input.first().json)) || {};\nconst ctx = $('Cache check').first().json;\nconst rl  = $('Carry role').first().json;\nconst snapshot = {\n  generated_at: new Date().toISOString(),\n  role: rl.role,\n  vendor_code: rl.vendor_code,\n  totals: { clientes: +(r.total_clientes||0), ativos: +(r.total_ativos||0), inativos: +(r.total_inativos||0), leads: +(r.total_leads||0) },\n  clientes:  r.clientes  || [],\n  leads:     r.leads     || [],\n  municipios:r.municipios || [],\n  top_products: (r.top_products && r.top_products.produtos) || [],\n  top_groups: (r.top_groups && r.top_groups.grupos) || [],\n  sales_trend: (r.sales_trend && r.sales_trend.serie) || []\n};\nreturn [{ json: { ok: true, data: snapshot, error: null, cached: false } }];"
       },
       "id": "c45351c5-189e-4e1f-9916-09b718bab53f",
       "name": "Build snapshot",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [16800, -2384]
+      "position": [
+        16800,
+        -2384
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ $json }}",
+        "responseBody": "={{ $('Build snapshot').first().json }}",
         "options": {
           "responseHeaders": {
             "entries": [
@@ -152,7 +176,10 @@
       "name": "Respond Snapshot",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [17008, -2384]
+      "position": [
+        17008,
+        -2384
+      ]
     },
     {
       "parameters": {
@@ -165,7 +192,10 @@
       "name": "Webhook - Client Detail",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [16144, -1296],
+      "position": [
+        16144,
+        -1296
+      ],
       "webhookId": "castor-panel-client-detail"
     },
     {
@@ -176,7 +206,10 @@
       "name": "Validate Client Detail",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [16368, -1296]
+      "position": [
+        16368,
+        -1296
+      ]
     },
     {
       "parameters": {
@@ -207,7 +240,10 @@
       "name": "Client Detail valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [16592, -1296]
+      "position": [
+        16592,
+        -1296
+      ]
     },
     {
       "parameters": {
@@ -219,7 +255,10 @@
       "name": "PG: client detail",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [16800, -1376],
+      "position": [
+        16800,
+        -1376
+      ],
       "credentials": {
         "postgres": {
           "id": "jFjeYH6Nt3aRNkoM",
@@ -229,13 +268,16 @@
     },
     {
       "parameters": {
-        "jsCode": "const r = ($input.first() && $input.first().json && $input.first().json.row) || null;\nif (!r) return [{ json: { ok:false, data:null, error:'sem retorno' } }];\nif (r.ok === false) return [{ json: { ok:false, data:null, error: r.error || 'erro' } }];\nreturn [{ json: { ok:true, data: r, error:null } }];"
+        "jsCode": "const r = ($input.first() && $input.first().json && $input.first().json.row) || null;\nif (!r) return [{ json: { ok:false, data:null, error:'sem retorno' } }];\nif (r.ok === false) return [{ json: { ok:false, data:null, error: r.error || 'erro' } }];\nconst d = r.data || r;\nreturn [{ json: { ok:true, data: d, error:null } }];"
       },
       "id": "91b4969a-1b2e-4134-9a44-52c4d3cdfcc2",
       "name": "Wrap Client Detail",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [17024, -1376]
+      "position": [
+        17024,
+        -1376
+      ]
     },
     {
       "parameters": {
@@ -256,7 +298,10 @@
       "name": "Respond Client Detail OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [17248, -1376]
+      "position": [
+        17248,
+        -1376
+      ]
     },
     {
       "parameters": {
@@ -278,7 +323,10 @@
       "name": "Respond Client Detail Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [17184, -1168]
+      "position": [
+        17184,
+        -1168
+      ]
     },
     {
       "parameters": {
@@ -291,7 +339,10 @@
       "name": "Webhook - addr-override",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [15488, -1744],
+      "position": [
+        15488,
+        -1744
+      ],
       "webhookId": "d238df77-55b6-4042-a743-66d9ad86e269"
     },
     {
@@ -302,7 +353,10 @@
       "name": "Validate addr-override",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [15712, -1744]
+      "position": [
+        15712,
+        -1744
+      ]
     },
     {
       "parameters": {
@@ -333,7 +387,10 @@
       "name": "addr-override valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [15936, -1744]
+      "position": [
+        15936,
+        -1744
+      ]
     },
     {
       "parameters": {
@@ -345,7 +402,10 @@
       "name": "PG: addr-override",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [16144, -1824],
+      "position": [
+        16144,
+        -1824
+      ],
       "credentials": {
         "postgres": {
           "id": "jFjeYH6Nt3aRNkoM",
@@ -361,7 +421,10 @@
       "name": "Wrap addr-override",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [16336, -1824]
+      "position": [
+        16336,
+        -1824
+      ]
     },
     {
       "parameters": {
@@ -382,7 +445,10 @@
       "name": "Respond addr-override OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [16544, -1824]
+      "position": [
+        16544,
+        -1824
+      ]
     },
     {
       "parameters": {
@@ -404,7 +470,10 @@
       "name": "Respond addr-override Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [16144, -1584]
+      "position": [
+        16144,
+        -1584
+      ]
     },
     {
       "parameters": {
@@ -417,7 +486,10 @@
       "name": "Webhook - client-status",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [16144, -1296],
+      "position": [
+        16144,
+        -1296
+      ],
       "webhookId": "f191beb4-9446-487c-b317-c8e5947faf63"
     },
     {
@@ -428,7 +500,10 @@
       "name": "Validate client-status",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [16368, -1296]
+      "position": [
+        16368,
+        -1296
+      ]
     },
     {
       "parameters": {
@@ -459,7 +534,10 @@
       "name": "client-status valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [16592, -1296]
+      "position": [
+        16592,
+        -1296
+      ]
     },
     {
       "parameters": {
@@ -471,7 +549,10 @@
       "name": "PG: client-status",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [16800, -1376],
+      "position": [
+        16800,
+        -1376
+      ],
       "credentials": {
         "postgres": {
           "id": "jFjeYH6Nt3aRNkoM",
@@ -487,7 +568,10 @@
       "name": "Wrap client-status",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [17024, -1376]
+      "position": [
+        17024,
+        -1376
+      ]
     },
     {
       "parameters": {
@@ -508,7 +592,10 @@
       "name": "Respond client-status OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [17248, -1376]
+      "position": [
+        17248,
+        -1376
+      ]
     },
     {
       "parameters": {
@@ -530,7 +617,10 @@
       "name": "Respond client-status Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [16800, -1152]
+      "position": [
+        16800,
+        -1152
+      ]
     },
     {
       "parameters": {
@@ -543,7 +633,10 @@
       "name": "Webhook - recent-changes",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [15648, -208],
+      "position": [
+        15648,
+        -208
+      ],
       "webhookId": "5b423d34-a75e-4b39-8b27-03b4863fe8fd"
     },
     {
@@ -554,7 +647,10 @@
       "name": "Validate recent-changes",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [15872, -208]
+      "position": [
+        15872,
+        -208
+      ]
     },
     {
       "parameters": {
@@ -585,7 +681,10 @@
       "name": "recent-changes valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [16096, -208]
+      "position": [
+        16096,
+        -208
+      ]
     },
     {
       "parameters": {
@@ -597,7 +696,10 @@
       "name": "PG: recent-changes",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [16304, -400],
+      "position": [
+        16304,
+        -400
+      ],
       "credentials": {
         "postgres": {
           "id": "jFjeYH6Nt3aRNkoM",
@@ -613,7 +715,10 @@
       "name": "Wrap recent-changes",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [16528, -400]
+      "position": [
+        16528,
+        -400
+      ]
     },
     {
       "parameters": {
@@ -634,7 +739,10 @@
       "name": "Respond recent-changes OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [16752, -400]
+      "position": [
+        16752,
+        -400
+      ]
     },
     {
       "parameters": {
@@ -656,7 +764,10 @@
       "name": "Respond recent-changes Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [16352, 32]
+      "position": [
+        16352,
+        32
+      ]
     },
     {
       "parameters": {
@@ -669,7 +780,132 @@
       "name": "Sticky — Castor-Panel-Clients",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [15040, -3200]
+      "position": [
+        15040,
+        -3200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT castor_snapshot_cache_get('{{ $json.user_id }}', '{{ $json.segment_for_cache }}', 5) AS cached_data",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-4001-8001-000000000001",
+      "name": "PG: cache check",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        15808,
+        -2496
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "jFjeYH6Nt3aRNkoM",
+          "name": "Supabase_database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const pg = $json || {};\nconst prev = $('Cache check').first().json;\nconst cached = pg.cached_data || null;\nreturn [{ json: { ...prev, cache_hit: !!cached, cached: cached } }];"
+      },
+      "id": "a1b2c3d4-0001-4001-8001-000000000002",
+      "name": "Merge cache result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16032,
+        -2496
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT castor_snapshot_cache_set($1::text, $2::text, $3::jsonb) AS saved",
+        "options": {
+          "queryReplacement": "={{ [$('Cache check').first().json.user_id || 'anon', $('Cache check').first().json.segment_for_cache || 'full', JSON.stringify($json.data)] }}"
+        }
+      },
+      "id": "a1b2c3d4-0001-4001-8001-000000000003",
+      "name": "PG: save cache",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        16912,
+        -2384
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "jFjeYH6Nt3aRNkoM",
+          "name": "Supabase_database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT castor_snapshot_cache_get('{{ $json.user_id }}', '{{ $json.segment_for_cache }}', 5) AS cached_data",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-4001-8001-000000000001",
+      "name": "PG: cache check",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        15808,
+        -2496
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "jFjeYH6Nt3aRNkoM",
+          "name": "Supabase_database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const pg = $json || {};\nconst prev = $('Cache check').first().json;\nconst cached = pg.cached_data || null;\nreturn [{ json: { ...prev, cache_hit: !!cached, cached: cached } }];"
+      },
+      "id": "a1b2c3d4-0001-4001-8001-000000000002",
+      "name": "Merge cache result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16032,
+        -2496
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT castor_snapshot_cache_set($1::text, $2::text, $3::jsonb) AS saved",
+        "options": {
+          "queryReplacement": "={{ [$('Cache check').first().json.user_id || 'anon', $('Cache check').first().json.segment_for_cache || 'full', JSON.stringify($json.data)] }}"
+        }
+      },
+      "id": "a1b2c3d4-0001-4001-8001-000000000003",
+      "name": "PG: save cache",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        16912,
+        -2384
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "jFjeYH6Nt3aRNkoM",
+          "name": "Supabase_database"
+        }
+      }
     }
   ],
   "connections": {
@@ -688,7 +924,7 @@
       "main": [
         [
           {
-            "node": "Cache hit?",
+            "node": "PG: cache check",
             "type": "main",
             "index": 0
           }
@@ -750,7 +986,7 @@
       "main": [
         [
           {
-            "node": "Respond Snapshot",
+            "node": "PG: save cache",
             "type": "main",
             "index": 0
           }
@@ -999,6 +1235,39 @@
         [
           {
             "node": "Respond recent-changes OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG: cache check": {
+      "main": [
+        [
+          {
+            "node": "Merge cache result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge cache result": {
+      "main": [
+        [
+          {
+            "node": "Cache hit?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG: save cache": {
+      "main": [
+        [
+          {
+            "node": "Respond Snapshot",
             "type": "main",
             "index": 0
           }

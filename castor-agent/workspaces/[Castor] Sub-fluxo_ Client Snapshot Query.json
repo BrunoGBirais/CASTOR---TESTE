@@ -1,0 +1,86 @@
+{
+  "name": "[Castor] Sub-fluxo_ Client Snapshot Query",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "jsonSchema",
+        "jsonSchema": "{\"type\":\"object\",\"required\":[\"source_table\"],\"properties\":{\"source_table\":{\"type\":\"string\",\"description\":\"Nome da tabela ERP a consultar (ex: SA1010, SC5010)\"},\"filters\":{\"type\":\"object\",\"description\":\"Filtros key/value opcionais aplicados via JSONB containment (@>)\"},\"limit\":{\"type\":\"integer\",\"default\":50,\"minimum\":1,\"maximum\":500,\"description\":\"N\u00famero m\u00e1ximo de registros\"}}}"
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000001",
+      "name": "When called",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const log = { tool: 'client_snapshot', input: $json, ts: new Date().toISOString() };\nconsole.log(JSON.stringify(log));\nreturn $input.all();"
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000002",
+      "name": "Log input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [200, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json || {};\nconst source_table = String(input.source_table || '').trim();\nif (!source_table) throw new Error('source_table \u00e9 obrigat\u00f3rio');\nconst limit = Math.max(1, Math.min(500, +(input.limit) || 50));\nconst filters = input.filters && Object.keys(input.filters).length > 0 ? input.filters : null;\nreturn [{ json: { source_table, limit, filters } }];"
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000003",
+      "name": "Prepare params",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT row_to_json(r.*) AS record FROM castor_snapshot_query($1::text, $2::int, $3::jsonb) AS r",
+        "options": {
+          "queryReplacement": "={{ [$json.source_table, $json.limit, $json.filters ? JSON.stringify($json.filters) : null] }}"
+        }
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000004",
+      "name": "Query snapshot",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [600, 0],
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "jFjeYH6Nt3aRNkoM",
+          "name": "Supabase_database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const params = $('Prepare params').first().json;\nconst rows = $input.all();\nconst firstErr = rows[0] && rows[0].json && rows[0].json.error;\nif (firstErr) {\n  return [{ json: { ok: false, data: null, error: String(firstErr.message || firstErr) } }];\n}\nconst data = rows\n  .map(r => r.json && r.json.record ? r.json.record : null)\n  .filter(Boolean);\nreturn [{ json: { ok: true, source_table: params.source_table, count: data.length, data, error: null } }];"
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000005",
+      "name": "Envelope",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 0]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When called": {
+      "main": [[{ "node": "Log input", "type": "main", "index": 0 }]]
+    },
+    "Log input": {
+      "main": [[{ "node": "Prepare params", "type": "main", "index": 0 }]]
+    },
+    "Prepare params": {
+      "main": [[{ "node": "Query snapshot", "type": "main", "index": 0 }]]
+    },
+    "Query snapshot": {
+      "main": [[{ "node": "Envelope", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "Castor" }]
+}

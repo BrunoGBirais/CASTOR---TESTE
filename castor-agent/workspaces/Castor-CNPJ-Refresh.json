@@ -26,6 +26,17 @@
     },
     {
       "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "c0220000-0000-0000-0000-000000000004",
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [400, 0]
+    },
+    {
+      "parameters": {
         "workflowId": { "__rl": true, "value": "__FILL_ME__SUBFLOW_ID_CONSULTAR_CNPJ__", "mode": "list", "cachedResultName": "[Castor] Sub-fluxo_ Consultar CNPJ" },
         "options": { "waitForSubWorkflow": true }
       },
@@ -33,13 +44,34 @@
       "name": "Refresh each CNPJ",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [400, 0]
+      "position": [600, 100]
+    },
+    {
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 1.5,
+        "unit": "seconds"
+      },
+      "id": "c0220000-0000-0000-0000-000000000005",
+      "name": "Throttle Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [800, 100],
+      "webhookId": "c0220000-0000-0000-0000-000000000006"
     }
   ],
   "pinData": {},
   "connections": {
     "Weekly Schedule": { "main": [[{ "node": "Find expired", "type": "main", "index": 0 }]] },
-    "Find expired": { "main": [[{ "node": "Refresh each CNPJ", "type": "main", "index": 0 }]] }
+    "Find expired": { "main": [[{ "node": "Loop Over Items", "type": "main", "index": 0 }]] },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [{ "node": "Refresh each CNPJ", "type": "main", "index": 0 }]
+      ]
+    },
+    "Refresh each CNPJ": { "main": [[{ "node": "Throttle Wait", "type": "main", "index": 0 }]] },
+    "Throttle Wait": { "main": [[{ "node": "Loop Over Items", "type": "main", "index": 0 }]] }
   },
   "active": false,
   "settings": { "executionOrder": "v1" },
