@@ -1,0 +1,148 @@
+# ================================================================
+#  deploy.yml
+#  Deploy ao push no main. A action não tem lógica própria:
+#  tudo que roda aqui roda igual local via `node deploy/run.mjs`.
+# ================================================================
+#
+#  Etapas (deploy/README.md tem o detalhe de cada uma):
+#    clean    verifica que nenhum JSON carrega id de credencial
+#    migrate  aplica as migrations no Supabase (controle no banco)
+#    front    build do front → HTML único → workflow de static server
+#    n8n      resolve credenciais por nome e sobe os workflows
+#
+#  Secrets obrigatórios (5):
+#    N8N_URL, N8N_API_KEY
+#    SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY
+#
+#  Não há secret VITE_*: o build do front deriva tudo do que está acima
+#    VITE_API_BASE          = N8N_URL + "/webhook"
+#    VITE_SUPABASE_URL      = SUPABASE_URL
+#    VITE_SUPABASE_ANON_KEY = SUPABASE_ANON_KEY
+#
+#  Secrets opcionais:
+#    N8N_EMAIL + N8N_PASSWORD    → listar credenciais e criar/mover pastas
+#    N8N_CREDENTIAL_IDS          → mapa nome→id, alternativa ao login
+#    N8N_COOKIE + N8N_BROWSER_ID → cookie n8n-auth já pronto
+#    N8N_PROJECT_ID              → default "personal"
+#    API_BASE                    → sobrescreve N8N_URL + "/webhook"
+#    SUPABASE_DB_URL             → fallback psql para as migrations
+#
+#  Variáveis de caminho (só se o projeto fugir do padrão):
+#    FRONT_DIR, STATIC_WORKFLOW, MIGRATIONS_DIR, MIGRATIONS_TABLE
+# ================================================================
+
+name: Deploy
+
+on:
+  push:
+    branches: [main-deploy]
+    paths:
+      - "workflows/**"
+      - "migrations/**"
+      - "deploy/**"
+      - ".scripts/**"
+      - "front-react/**"
+      - "frontend/**"
+      - "front/**"
+      - "web/**"
+      - "client/**"
+  workflow_dispatch:
+    inputs:
+      steps:
+        description: "Etapas (separadas por espaço): clean migrate front n8n — vazio = todas"
+        required: false
+        default: ""
+      dry_run:
+        description: "Dry-run (não escreve no Supabase nem no n8n)"
+        type: boolean
+        required: false
+        default: false
+
+concurrency:
+  group: ${{ github.repository }}-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: "Deploy"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # commit do Static-Server regenerado
+    env:
+      # ── n8n ──
+      N8N_URL: ${{ secrets.N8N_URL }}
+      N8N_API_KEY: ${{ secrets.N8N_API_KEY }}
+      N8N_EMAIL: ${{ secrets.N8N_EMAIL }}
+      N8N_PASSWORD: ${{ secrets.N8N_PASSWORD }}
+      N8N_COOKIE: ${{ secrets.N8N_COOKIE }}
+      N8N_BROWSER_ID: ${{ secrets.N8N_BROWSER_ID }}
+      N8N_PROJECT_ID: ${{ secrets.N8N_PROJECT_ID }}
+      N8N_CREDENTIAL_IDS: ${{ secrets.N8N_CREDENTIAL_IDS }}
+      # ── Supabase ──
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }} # migrations
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }} # front (pública)
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }} # opcional, fallback psql
+      # ── Front ── (as VITE_* saem daqui em deploy/build-front.mjs)
+      API_BASE: ${{ secrets.API_BASE }} # opcional; default = N8N_URL + /webhook
+      # ── Caminhos ── (Repository variables, não secrets; vazio = detectar)
+      FRONT_DIR: ${{ vars.FRONT_DIR }}
+      STATIC_WORKFLOW: ${{ vars.STATIC_WORKFLOW }}
+      MIGRATIONS_DIR: ${{ vars.MIGRATIONS_DIR }}
+      MIGRATIONS_TABLE: ${{ vars.MIGRATIONS_TABLE }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Conferir secrets obrigatórios
+        run: |
+          missing=""
+          for v in N8N_URL N8N_API_KEY SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY SUPABASE_ANON_KEY; do
+            if [ -z "${!v}" ]; then missing="$missing $v"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "✖ secrets faltando:$missing"
+            exit 1
+          fi
+          echo "✓ secrets obrigatórios presentes"
+
+      - name: Deploy
+        run: |
+          node deploy/run.mjs ${{ inputs.steps }} ${{ inputs.dry_run && '--dry-run' || '' }}
+
+      # O build do front regenera o static server; devolve ao Git para que o
+      # repositório continue sendo o retrato do que está publicado.
+      - name: Commit do static server regenerado
+        if: success() && inputs.dry_run != true
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "ci: regenerar workflow de static server [skip ci]"
+          file_pattern: "workflows/*[Ss]tatic*[Ss]erver*.json"
+          skip_fetch: true
+          skip_checkout: true
+
+      - name: Resumo
+        if: always()
+        run: |
+          {
+            echo "## Deploy"
+            echo ""
+            echo "| Item | Valor |"
+            echo "|------|-------|"
+            echo "| Etapas | \`${{ inputs.steps || 'clean migrate front n8n' }}\` |"
+            echo "| Dry-run | \`${{ inputs.dry_run || false }}\` |"
+            echo "| Status | ${{ job.status }} |"
+            echo ""
+            echo "Para reproduzir local: \`node deploy/run.mjs\` (veja \`deploy/README.md\`)."
+          } >> $GITHUB_STEP_SUMMARY

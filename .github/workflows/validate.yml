@@ -1,0 +1,149 @@
+# ================================================================
+#  validate.yml
+#  Validação em Pull Request. Não toca em nada remoto: sem secrets.
+# ================================================================
+#
+#    1. JSON dos workflows válido e coerente (nós, conexões, nomes)
+#    2. Nenhum id de credencial / identidade de instância versionado
+#    3. Build do front passa
+#
+# ================================================================
+
+name: Validar
+
+on:
+  pull_request:
+    paths:
+      - "workflows/**"
+      - "migrations/**"
+      - "deploy/**"
+      - ".scripts/**"
+      - "front-react/**"
+      - "frontend/**"
+      - "front/**"
+      - "web/**"
+      - "client/**"
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: ${{ github.repository }}-validate-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: "Detectar mudanças"
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      workflows: ${{ steps.filter.outputs.workflows }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'front-react/**'
+              - 'frontend/**'
+              - 'front/**'
+              - 'web/**'
+              - 'client/**'
+            workflows:
+              - 'workflows/**'
+              - '.scripts/**'
+              - 'deploy/**'
+
+  validate-workflows:
+    name: "Workflows JSON + credenciais"
+    needs: [changes]
+    if: needs.changes.outputs.workflows == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Estrutura dos workflows
+        run: |
+          ERRORS=0
+          NAMES=()
+
+          for f in workflows/*.json; do
+            case "$f" in *credentials*) continue ;; esac
+            echo -n "  $(basename "$f") → "
+
+            if ! node -e "
+              const wf = JSON.parse(require('fs').readFileSync(process.argv[1], 'utf-8'));
+              if (!Array.isArray(wf.nodes)) throw new Error('nodes ausente ou não é array');
+              if (!wf.connections || typeof wf.connections !== 'object') throw new Error('connections ausente');
+              for (const node of wf.nodes) {
+                if (!node.name) throw new Error('nó sem name');
+                if (!node.type) throw new Error('nó sem type: ' + node.name);
+                if (!node.parameters) throw new Error('nó sem parameters: ' + node.name);
+                if (!Array.isArray(node.position)) throw new Error('nó sem position: ' + node.name);
+              }
+              const known = new Set(wf.nodes.map(n => n.name));
+              for (const [src, conn] of Object.entries(wf.connections)) {
+                if (!known.has(src)) throw new Error('conexão de nó inexistente: ' + src);
+                for (const outputs of (conn.main || [])) {
+                  for (const link of outputs || []) {
+                    if (!known.has(link.node)) throw new Error('conexão para nó inexistente: ' + link.node);
+                  }
+                }
+              }
+              console.log(wf.name || '');
+            " "$f" 2>/tmp/err; then
+              echo "✖ $(cat /tmp/err)"
+              ERRORS=$((ERRORS + 1))
+            else
+              NAME=$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf-8')).name || '')" "$f")
+              [ -n "$NAME" ] && NAMES+=("$NAME")
+              echo "✓ ${NAME}"
+            fi
+          done
+
+          DUPES=$(printf '%s\n' "${NAMES[@]}" | sort | uniq -d)
+          if [ -n "$DUPES" ]; then
+            echo "✖ nomes duplicados:"; echo "$DUPES" | sed 's/^/    /'
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          [ $ERRORS -gt 0 ] && exit 1
+          echo "✓ workflows válidos"
+
+      # Falha se algum JSON voltar a carregar id de credencial, meta.instanceId,
+      # versionId etc. Correção: node deploy/clean-credentials.mjs
+      - name: Sem identidade de instância
+        run: node deploy/clean-credentials.mjs --check
+
+  build-frontend:
+    name: "Build do front"
+    needs: [changes]
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      # Sem secrets: valida a compilação, com os defaults de src/config.
+      - name: Build
+        run: node deploy/build-front.mjs
+
+      - name: Static server gerado
+        run: |
+          node -e "
+            const fs = require('fs');
+            const dir = 'workflows';
+            const file = fs.readdirSync(dir).find(f => /static.?server.*\.json\$/i.test(f));
+            if (!file) throw new Error('nenhum workflow de static server em ' + dir);
+            const wf = JSON.parse(fs.readFileSync(dir + '/' + file, 'utf-8'));
+            const html = wf.nodes.find(n => n.name === 'HTML')?.parameters?.html || '';
+            if (html.length < 10000) throw new Error('HTML do nó parece vazio: ' + html.length + ' bytes');
+            console.log('✓ ' + file + ' — nó HTML com ' + (html.length / 1024).toFixed(0) + ' KB');
+          "

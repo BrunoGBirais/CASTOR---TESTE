@@ -26,3 +26,5 @@ node_modules/
 
 # ===== Skills internos (Copilot) =====
 #.github/skills/
+
+!.env.example
