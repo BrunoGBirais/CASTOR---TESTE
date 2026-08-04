@@ -112,10 +112,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\n// Mapeia SA1010 → schema castor_client_snapshot\n// A1_MSBLQL: 1=Inativo, 2=Ativo (SX3 SA1;B5)\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  const cod  = String(r.A1_COD  || '').trim();\n  const loja = String(r.A1_LOJA || '').trim().padStart(2, '0');\n  const blql = String(r.A1_MSBLQL || '').trim();\n  const fmtD = v => (v && String(v).trim().length === 8) ? String(v).trim().slice(0,4)+'-'+String(v).trim().slice(4,6)+'-'+String(v).trim().slice(6,8) : null;\n  out.push({ json: {\n    a1_codcli_raw:   cod + loja,\n    a1_nome:         r.A1_NOME   || null,\n    a1_nreduz:       r.A1_NREDUZ || null,\n    a1_pessoa:       r.A1_PESSOA || null,\n    a1_cgc:          r.A1_CGC    || null,\n    a1_pricom:       fmtD(r.A1_PRICOM),\n    a1_ultcom:       fmtD(r.A1_ULTCOM),\n    a1_vend:         r.A1_VEND   || null,\n    a1_risco:        r.A1_RISCO  || null,\n    a1_lc:           r.A1_LC != null ? Number(r.A1_LC) : null,\n    a1_sativ1:       r.A1_SATIV1 || null,\n    a1_end:          r.A1_END    || null,\n    a1_cep:          r.A1_CEP    || null,\n    a1_bairro:       r.A1_BAIRRO || null,\n    a1_est:          r.A1_EST    || null,\n    a1_cod_mun:      r.A1_COD_MUN || null,\n    a1_mun:          r.A1_MUN    || null,\n    a1_ativo_raw:    blql === '2' ? '1' : '0',\n    a1_inativo_raw:  blql === '1' ? '1' : '0',\n    cliente_codigo:  cod + loja,\n    a1_cod:          r.A1_COD    || null,\n    a1_loja:         r.A1_LOJA   || null,\n    a1_ativo:        blql === '2',\n    a1_inativo:      blql === '1'\n  }});\n}\nreturn out;"
+        "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\n// Mapeia SA1010 → schema castor_client_snapshot\n// A1_MSBLQL: 1=Inativo, 2=Ativo (SX3 SA1;B5)\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  const cod  = String(r.A1_COD  || '').trim();\n  const loja = String(r.A1_LOJA || '').trim().padStart(2, '0');\n  const blql = String(r.A1_MSBLQL || '').trim();\n  const fmtD = v => (v && String(v).trim().length === 8) ? String(v).trim().slice(0,4)+'-'+String(v).trim().slice(4,6)+'-'+String(v).trim().slice(6,8) : null;\n  out.push({ json: {\n    a1_codcli_raw:   cod + loja,\n    record_id:       cod + loja,\n    a1_msblql:       blql || null,\n    a1_nome:         r.A1_NOME   || null,\n    a1_nreduz:       r.A1_NREDUZ || null,\n    a1_pessoa:       r.A1_PESSOA || null,\n    a1_cgc:          r.A1_CGC    || null,\n    a1_pricom:       fmtD(r.A1_PRICOM),\n    a1_ultcom:       fmtD(r.A1_ULTCOM),\n    a1_vend:         r.A1_VEND   || null,\n    a1_risco:        r.A1_RISCO  || null,\n    a1_lc:           r.A1_LC != null ? Number(r.A1_LC) : null,\n    a1_sativ1:       r.A1_SATIV1 || null,\n    a1_end:          r.A1_END    || null,\n    a1_cep:          r.A1_CEP    || null,\n    a1_bairro:       r.A1_BAIRRO || null,\n    a1_est:          r.A1_EST    || null,\n    a1_cod_mun:      r.A1_COD_MUN || null,\n    a1_mun:          r.A1_MUN    || null,\n    a1_ativo_raw:    blql === '2' ? '1' : '0',\n    a1_inativo_raw:  blql === '1' ? '1' : '0',\n    cliente_codigo:  cod + loja,\n    a1_cod:          r.A1_COD    || null,\n    a1_loja:         r.A1_LOJA   || null,\n    a1_ativo:        blql === '2',\n    a1_inativo:      blql === '1'\n  }});\n}\nreturn out;"
       },
       "id": "2e54a829-79c3-40b8-a4e5-7385277f8a66",
-      "name": "Map to castor_src_sa1010 columns1",
+      "name": "Map to castor_client_snapshot columns",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -125,7 +125,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = [\"a1_codcli_raw\",\"a1_nome\",\"a1_nreduz\",\"a1_pessoa\",\"a1_cgc\",\"a1_pricom\",\"a1_ultcom\",\"a1_vend\",\"a1_risco\",\"a1_lc\",\"a1_sativ1\",\"a1_end\",\"a1_cep\",\"a1_bairro\",\"a1_est\",\"a1_cod_mun\",\"a1_mun\",\"a1_ativo_raw\",\"a1_inativo_raw\",\"cliente_codigo\",\"a1_cod\",\"a1_loja\",\"a1_ativo\",\"a1_inativo\"];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const upd = cols.filter(c => c !== 'a1_codcli_raw').map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_client_snapshot (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (a1_codcli_raw) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
+        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = [\"record_id\",\"a1_codcli_raw\",\"a1_nome\",\"a1_nreduz\",\"a1_pessoa\",\"a1_cgc\",\"a1_pricom\",\"a1_ultcom\",\"a1_vend\",\"a1_risco\",\"a1_lc\",\"a1_sativ1\",\"a1_end\",\"a1_cep\",\"a1_bairro\",\"a1_est\",\"a1_cod_mun\",\"a1_mun\",\"a1_msblql\",\"a1_ativo_raw\",\"a1_inativo_raw\",\"cliente_codigo\",\"a1_cod\",\"a1_loja\",\"a1_ativo\",\"a1_inativo\"];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const upd = cols.filter(c => c !== 'record_id').map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_client_snapshot (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (record_id) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
       },
       "id": "22437d5b-94af-4b46-aa0f-ee4aad5a6cf1",
       "name": "Code: sa1010-batches1",
@@ -140,7 +140,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "={{ $json.sql }}",
-        "options": {}
+        "options": {
+          "queryBatching": "transaction"
+        }
       },
       "id": "389557cb-757b-4584-ab2e-9dfa602c81c8",
       "name": "Supabase: upsert-sa",
@@ -155,8 +157,7 @@
           "id": "jFjeYH6Nt3aRNkoM",
           "name": "Supabase_database"
         }
-      },
-      "continueOnFail": true
+      }
     },
     {
       "parameters": {
@@ -226,7 +227,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "={{ $json.sql }}",
-        "options": {}
+        "options": {
+          "queryBatching": "transaction"
+        }
       },
       "id": "63ae4feb-0aef-46a3-9b7b-826ebb32f66a",
       "name": "Supabase: upsert-cc",
@@ -241,8 +244,7 @@
           "id": "jFjeYH6Nt3aRNkoM",
           "name": "Supabase_database"
         }
-      },
-      "continueOnFail": true
+      }
     },
     {
       "parameters": {
@@ -312,7 +314,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "={{ $json.sql }}",
-        "options": {}
+        "options": {
+          "queryBatching": "transaction"
+        }
       },
       "id": "b92de823-1837-4df4-955e-510b041c6190",
       "name": "Supabase: upsert-sa3011",
@@ -327,8 +331,7 @@
           "id": "jFjeYH6Nt3aRNkoM",
           "name": "Supabase_database"
         }
-      },
-      "continueOnFail": true
+      }
     },
     {
       "parameters": {
@@ -398,7 +401,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "={{ $json.sql }}",
-        "options": {}
+        "options": {
+          "queryBatching": "transaction"
+        }
       },
       "id": "4d905fd5-ada5-47c3-b468-10d00218d1ea",
       "name": "Supabase: upsert-sb",
@@ -413,8 +418,7 @@
           "id": "jFjeYH6Nt3aRNkoM",
           "name": "Supabase_database"
         }
-      },
-      "continueOnFail": true
+      }
     },
     {
       "parameters": {
@@ -484,7 +488,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "={{ $json.sql }}",
-        "options": {}
+        "options": {
+          "queryBatching": "transaction"
+        }
       },
       "id": "15d77d8f-5746-4b4c-a9fb-fe4a65631d05",
       "name": "Supabase: upsert-sbm",
@@ -499,13 +505,12 @@
           "id": "jFjeYH6Nt3aRNkoM",
           "name": "Supabase_database"
         }
-      },
-      "continueOnFail": true
+      }
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT C5_NUM, C5_CLIENTE, C5_LOJACLI, C5_YNOMEC, C5_VEND1, C5_EMISSAO\nFROM SC5010\nWHERE D_E_L_E_T_ = ''\n  AND C5_EMISSAO >= CONVERT(varchar(8), DATEADD(day, -180, GETDATE()), 112)"
+        "query": "SELECT C5_NUM, C5_CLIENTE, C5_LOJACLI, C5_YNOMEC, C5_VEND1, C5_EMISSAO\nFROM SC5010\nWHERE D_E_L_E_T_ = ''\n  AND C5_FILIAL = '0401'\n  AND C5_EMISSAO >= CONVERT(varchar(8), DATEADD(day, -180, GETDATE()), 112)"
       },
       "id": "7a669427-d079-4845-bf90-f820f6426a50",
       "name": "Query Protheus SC",
@@ -570,7 +575,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "={{ $json.sql }}",
-        "options": {}
+        "options": {
+          "queryBatching": "transaction"
+        }
       },
       "id": "2e5152aa-62b4-4811-bc3b-bcdbb6188dab",
       "name": "Supabase: upsert-sc",
@@ -585,13 +592,12 @@
           "id": "jFjeYH6Nt3aRNkoM",
           "name": "Supabase_database"
         }
-      },
-      "continueOnFail": true
+      }
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT F2_DOC, F2_SERIE, F2_CLIENTE, F2_LOJA, F2_EMISSAO, F2_VALBRUT\nFROM SF2010\nWHERE D_E_L_E_T_ = ''\n  AND F2_EMISSAO >= CONVERT(varchar(8), DATEADD(day, -365, GETDATE()), 112)"
+        "query": "SELECT F2_DOC, F2_SERIE, F2_CLIENTE, F2_LOJA, F2_EMISSAO, F2_VALBRUT\nFROM SF2010\nWHERE D_E_L_E_T_ = ''\n  AND F2_FILIAL = '0401'\n  AND F2_EMISSAO >= CONVERT(varchar(8), DATEADD(day, -365, GETDATE()), 112)"
       },
       "id": "bc8471a0-f91d-425e-98c7-cc9d2ed814e8",
       "name": "Query Protheus SF",
@@ -656,7 +662,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "={{ $json.sql }}",
-        "options": {}
+        "options": {
+          "queryBatching": "transaction"
+        }
       },
       "id": "ed8b00e4-eb02-48c0-8ef7-b259338f985e",
       "name": "Supabase: upsert-sf",
@@ -671,13 +679,12 @@
           "id": "jFjeYH6Nt3aRNkoM",
           "name": "Supabase_database"
         }
-      },
-      "continueOnFail": true
+      }
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT F4_CODIGO, F4_TIPO, F4_CF, F4_TEXTO FROM SF4010 WHERE D_E_L_E_T_ = ''"
+        "query": "SELECT F4_CODIGO, F4_TIPO, F4_CF, F4_TEXTO FROM SF4010 WHERE D_E_L_E_T_ = '' AND F4_FILIAL = '0401'"
       },
       "id": "c01eb89c-6af8-42c2-bbb1-cadb8d8dc592",
       "name": "Query Protheus SF4011",
@@ -687,6 +694,7 @@
         -1216,
         800
       ],
+      "alwaysOutputData": true,
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 2000,
@@ -741,7 +749,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "={{ $json.sql }}",
-        "options": {}
+        "options": {
+          "queryBatching": "transaction"
+        }
       },
       "id": "c66c8823-1523-461e-bb47-b420d2835c78",
       "name": "Supabase: upsert-sf4011",
@@ -756,13 +766,12 @@
           "id": "jFjeYH6Nt3aRNkoM",
           "name": "Supabase_database"
         }
-      },
-      "continueOnFail": true
+      }
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT X5_TABELA, X5_CHAVE, X5_DESCRI FROM SX5010 WHERE D_E_L_E_T_ = ''"
+        "query": "SELECT X5_TABELA, X5_CHAVE, X5_DESCRI FROM SX5010 WHERE D_E_L_E_T_ = '' AND X5_FILIAL = '0401'"
       },
       "id": "9b18d6cd-d333-42cc-af85-d60f175a4fdf",
       "name": "Query Protheus SX",
@@ -827,7 +836,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "={{ $json.sql }}",
-        "options": {}
+        "options": {
+          "queryBatching": "transaction"
+        }
       },
       "id": "e3b282f1-6b0c-463f-a3fc-cb87c6eb20da",
       "name": "Supabase: upsert-sx",
@@ -842,8 +853,7 @@
           "id": "jFjeYH6Nt3aRNkoM",
           "name": "Supabase_database"
         }
-      },
-      "continueOnFail": true
+      }
     },
     {
       "parameters": {
@@ -913,7 +923,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "={{ $json.sql }}",
-        "options": {}
+        "options": {
+          "queryBatching": "transaction"
+        }
       },
       "id": "654e944d-4097-46a1-95af-5b0b0208544c",
       "name": "Supabase: upsert-sz",
@@ -928,13 +940,12 @@
           "id": "jFjeYH6Nt3aRNkoM",
           "name": "Supabase_database"
         }
-      },
-      "continueOnFail": true
+      }
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT ZA7_DATA, ZA7_HORA, ZA7_OPERAD, ZA7_NOMEOP, ZA7_ASSUNTO,\n  ZA7_CONTATO, ZA7_CLIENTE, ZA7_DESCLI, ZA7_VEND, ZA7_COMPLE\nFROM ZA7010\nWHERE D_E_L_E_T_ = ''\n  AND ZA7_DATA >= CONVERT(varchar(8), DATEADD(day, -180, GETDATE()), 112)\n  AND ZA7_DATA <> '        '"
+        "query": "SELECT ZA7_DATA, ZA7_HORA, ZA7_OPERAD, ZA7_NOMEOP, ZA7_ASSUNTO,\n  ZA7_CONTATO, ZA7_CLIENTE, ZA7_DESCLI, ZA7_VEND, ZA7_COMPLE\nFROM ZA7010\nWHERE D_E_L_E_T_ = ''\n  AND ZA7_FILIAL = '0401'\n  AND ZA7_DATA >= CONVERT(varchar(8), DATEADD(day, -180, GETDATE()), 112)\n  AND ZA7_DATA <> '        '"
       },
       "id": "f5249a97-b286-4b82-b34b-7e7e57900df3",
       "name": "Query Protheus ZA",
@@ -999,7 +1010,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "={{ $json.sql }}",
-        "options": {}
+        "options": {
+          "queryBatching": "transaction"
+        }
       },
       "id": "441363cb-0a86-401a-a4e2-f051e3ade895",
       "name": "Supabase: upsert-za",
@@ -1014,8 +1027,7 @@
           "id": "jFjeYH6Nt3aRNkoM",
           "name": "Supabase_database"
         }
-      },
-      "continueOnFail": true
+      }
     },
     {
       "parameters": {},
@@ -1030,7 +1042,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const totalDays = 1095;\nconst chunkDays = 365;\nconst chunks = [];\nconst today = new Date();\nfor (let i = 0; i < totalDays; i += chunkDays) {\n  const end = new Date(today);\n  end.setDate(end.getDate() - i);\n  const start = new Date(end);\n  start.setDate(start.getDate() - chunkDays);\n  const fmt = d => d.toISOString().slice(0,10).replace(/-/g,'');\n  chunks.push({ json: {\n    chunkIndex: Math.floor(i / chunkDays),\n    totalChunks: Math.ceil(totalDays / chunkDays),\n    startDate: start.toISOString().slice(0,10),\n    endDate: end.toISOString().slice(0,10),\n    startFmt: fmt(start),\n    endFmt: fmt(end)\n  }});\n}\nreturn chunks;\n"
+        "jsCode": "// Janela de 36 meses em chunks mensais. Ranges half-open [start, end) para nao duplicar as bordas.\n// Datas montadas por componentes locais (toISOString desloca 1 dia em BRT).\nconst MONTHS = 36;\nconst pad = n => String(n).padStart(2, '0');\nconst ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;\nconst fmt = d => ymd(d).replace(/-/g, '');\nconst now = new Date();\nconst chunks = [];\nfor (let i = MONTHS - 1; i >= 0; i--) {\n  const start = new Date(now.getFullYear(), now.getMonth() - i, 1);\n  const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);\n  chunks.push({ json: {\n    chunkIndex: MONTHS - 1 - i,\n    totalChunks: MONTHS,\n    startDate: ymd(start),\n    endDate: ymd(end),\n    startFmt: fmt(start),\n    endFmt: fmt(end)\n  }});\n}\nreturn chunks;\n"
       },
       "id": "3e1ad31d-6ca6-4497-8e2a-a2556cb7c943",
       "name": "Code: sd2010-chunks",
@@ -1045,30 +1057,7 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "DELETE FROM castor_src_sd2010 WHERE d2_emissao >= (CURRENT_DATE - INTERVAL '1095 days')::date OR d2_emissao IS NULL",
-        "options": {}
-      },
-      "id": "f7011a80-9dbb-452a-8aac-8855ca0ce621",
-      "name": "Delete: sd2010",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        -1408,
-        1712
-      ],
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      },
-      "continueOnFail": true
-    },
-    {
-      "parameters": {
-        "batchSize": 365,
+        "batchSize": 1,
         "options": {}
       },
       "id": "98adc5f8-cd06-4638-86cb-6ce7f57a6208",
@@ -1084,7 +1073,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ `SELECT D2_ITEM, D2_COD, D2_QUANT, D2_PRCVEN, D2_TOTAL, D2_DESCON, D2_TES, D2_CF, D2_PEDIDO, D2_CLIENTE, D2_LOJA, D2_DOC, D2_SERIE, D2_GRUPO, D2_EMISSAO FROM SD2010 WHERE D_E_L_E_T_ = '' AND D2_EMISSAO >= '${$json.startFmt}' AND D2_EMISSAO <= '${$json.endFmt}'` }}"
+        "query": "={{ `SELECT D2_ITEM, D2_COD, D2_QUANT, D2_PRCVEN, D2_TOTAL, D2_DESCON, D2_TES, D2_CF, D2_PEDIDO, D2_CLIENTE, D2_LOJA, D2_DOC, D2_SERIE, D2_GRUPO, D2_EMISSAO FROM SD2010 WHERE D_E_L_E_T_ = '' AND D2_FILIAL = '0401' AND D2_EMISSAO >= '${$json.startFmt}' AND D2_EMISSAO < '${$json.endFmt}'` }}"
       },
       "id": "ea3c5517-293d-4ba4-8132-2d05f5a615e3",
       "name": "Query Protheus SD2010 (chunk)",
@@ -1137,7 +1126,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "={{ $json.sql }}",
-        "options": {}
+        "options": {
+          "queryBatching": "transaction"
+        }
       },
       "id": "64da5faa-7a20-4c2b-bb3d-326295cb885d",
       "name": "Supabase: refresh-sd2010",
@@ -1153,8 +1144,7 @@
           "id": "jFjeYH6Nt3aRNkoM",
           "name": "Supabase_database"
         }
-      },
-      "continueOnFail": true
+      }
     },
     {
       "parameters": {
@@ -1171,7 +1161,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['d2_item', 'd2_cod', 'd2_quant', 'd2_prcven', 'd2_total', 'd2_descon', 'd2_tes', 'd2_cf', 'd2_pedido', 'd2_cliente', 'd2_loja', 'd2_doc', 'd2_serie', 'd2_grupo', 'd2_emissao'];\nconst validRows = rows.filter(item => cols.some(c => { const v = item.json[c]; return v !== null && v !== undefined && String(v).trim() !== ''; }));\nif (!validRows.length) return [{ json: { sql: 'SELECT 1', rowCount: 0 } }];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < validRows.length; i += batchSize) {\n  const chunk = validRows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sd2010 (${cols.join(',')},ingested_at) VALUES ${values}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;\n"
+        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['d2_item', 'd2_cod', 'd2_quant', 'd2_prcven', 'd2_total', 'd2_descon', 'd2_tes', 'd2_cf', 'd2_pedido', 'd2_cliente', 'd2_loja', 'd2_doc', 'd2_serie', 'd2_grupo', 'd2_emissao'];\nconst validRows = rows.filter(item => cols.some(c => { const v = item.json[c]; return v !== null && v !== undefined && String(v).trim() !== ''; }));\n// DELETE escopado ao mesmo range do chunk; roda na mesma transacao do INSERT (queryBatching=transaction).\n// $runIndex = iteracao atual do loop; os chunks saem em ordem com batchSize=1.\nconst w = $('Code: sd2010-chunks').all()[$runIndex]?.json;\nif (!w || !w.startDate) throw new Error(`chunk window ausente para runIndex=${$runIndex}`);\nconst nullClause = w.chunkIndex === 0 ? \" OR d2_emissao IS NULL\" : '';\nconst batches = [{ json: {\n  sql: `DELETE FROM castor_src_sd2010 WHERE (d2_emissao >= '${w.startDate}' AND d2_emissao < '${w.endDate}')${nullClause}`,\n  rowCount: 0\n}}];\nconst batchSize = 2000;\nfor (let i = 0; i < validRows.length; i += batchSize) {\n  const chunk = validRows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sd2010 (${cols.join(',')},ingested_at) VALUES ${values}`,\n    rowCount: chunk.length\n  }});\n}\nreturn batches;\n"
       },
       "id": "3a4cd575-c95f-4b44-be63-722e4179b4d1",
       "name": "Code: sd2010-batches1",
@@ -1186,7 +1176,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "={{ $json.sql }}",
-        "options": {}
+        "options": {
+          "queryBatching": "transaction"
+        }
       },
       "id": "fb9d9f80-6aff-4ca5-a512-031f92c025dc",
       "name": "Supabase: upsert-sd",
@@ -1201,15 +1193,14 @@
           "id": "jFjeYH6Nt3aRNkoM",
           "name": "Supabase_database"
         }
-      },
-      "continueOnFail": true
+      }
     },
     {
       "parameters": {
         "rule": {
           "interval": [
             {
-              "triggerAtHour": 2
+              "triggerAtHour": 6
             }
           ]
         }
@@ -1228,7 +1219,7 @@
         "rule": {
           "interval": [
             {
-              "triggerAtHour": 6
+              "triggerAtHour": 3
             }
           ]
         }
@@ -1247,7 +1238,7 @@
         "rule": {
           "interval": [
             {
-              "triggerAtHour": 3
+              "triggerAtHour": 5
             }
           ]
         }
@@ -1266,7 +1257,7 @@
         "rule": {
           "interval": [
             {
-              "triggerAtHour": 7
+              "triggerAtHour": 4
             }
           ]
         }
@@ -1285,7 +1276,7 @@
         "rule": {
           "interval": [
             {
-              "triggerAtHour": 5
+              "triggerAtHour": 2
             }
           ]
         }
@@ -1340,8 +1331,8 @@
     },
     {
       "parameters": {
-        "content": "Snapshot realizado em 5 etapas para não sobrecarregar o N8N.\n\nAjustado para que cada etapa aconteça em horários distintos para evitar gargalo",
-        "height": 144,
+        "content": "Snapshot em 5 etapas escalonadas para nao sobrecarregar o n8n.\n\nOrdem: 02h dimensoes de cliente (SA1/CC2/SA3) -> 03h produto+pedido (SB1/SBM/SC5) -> 04h NF (SF2/SF4) -> 05h auxiliares (SX5/SZ1/ZA7) -> 06h SD2010 em 36 chunks mensais + castor_refresh_metrics_sd2().",
+        "height": 176,
         "width": 512
       },
       "type": "n8n-nodes-base.stickyNote",
@@ -1414,14 +1405,14 @@
       "main": [
         [
           {
-            "node": "Map to castor_src_sa1010 columns1",
+            "node": "Map to castor_client_snapshot columns",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Map to castor_src_sa1010 columns1": {
+    "Map to castor_client_snapshot columns": {
       "main": [
         [
           {
@@ -2008,7 +1999,7 @@
       "main": [
         [
           {
-            "node": "Delete: sd2010",
+            "node": "Code: sd2010-chunks",
             "type": "main",
             "index": 0
           }
@@ -2026,29 +2017,18 @@
         ]
       ]
     },
-    "Delete: sd2010": {
-      "main": [
-        [
-          {
-            "node": "Code: sd2010-chunks",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Split In Batches: sd2010": {
       "main": [
         [
           {
-            "node": "Query Protheus SD2010 (chunk)",
+            "node": "Code: sd2010-refresh",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Code: sd2010-refresh",
+            "node": "Query Protheus SD2010 (chunk)",
             "type": "main",
             "index": 0
           }
@@ -2125,7 +2105,7 @@
       "main": [
         [
           {
-            "node": "Delete: sd2010",
+            "node": "Code: sd2010-chunks",
             "type": "main",
             "index": 0
           }

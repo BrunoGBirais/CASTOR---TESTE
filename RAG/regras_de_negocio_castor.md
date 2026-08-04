@@ -194,9 +194,9 @@ Todas `SECURITY DEFINER`, escopadas (admin = global; vendedor = carteira):
 | RPC | Tool do agente | Uso |
 |---|---|---|
 | `castor_product_mix(user, cliente, limit)` | `get_product_mix` | o que UM cliente compra (produtos + grupos) |
-| `castor_top_products(user, limit, grupo?)` | `get_top_products` | ranking de produtos mais vendidos |
-| `castor_top_groups(user, limit)` | `get_top_groups` | ranking de grupos de produto |
-| `castor_monthly_trend(user, cliente?, months)` | `get_sales_trend` | faturamento mês a mês (série) |
+| `castor_top_products(user, limit, grupo?, date_from?, date_to?)` | `get_top_products` | ranking de produtos mais vendidos |
+| `castor_top_groups(user, limit, date_from?, date_to?)` | `get_top_groups` | ranking de grupos de produto |
+| `castor_monthly_trend(user, cliente?, months, date_from?, date_to?)` | `get_sales_trend` | faturamento mês a mês (série) |
 | `castor_crosssell(user, cliente, limit)` | `get_crosssell_suggestions` | grupos que o ramo compra e o cliente não |
 | `castor_client_status_history(user, cliente, limit)` | `get_client_status_history` | histórico de status/risco (SZ1010) |
 

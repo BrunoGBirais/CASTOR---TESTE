@@ -4,7 +4,7 @@
     {
       "parameters": {
         "inputSource": "jsonSchema",
-        "jsonSchema": "{\"type\":\"object\",\"required\":[\"source_table\"],\"properties\":{\"source_table\":{\"type\":\"string\",\"description\":\"Nome da tabela ERP a consultar (ex: SA1010, SC5010)\"},\"filters\":{\"type\":\"object\",\"description\":\"Filtros key/value opcionais aplicados via JSONB containment (@>)\"},\"limit\":{\"type\":\"integer\",\"default\":50,\"minimum\":1,\"maximum\":500,\"description\":\"N\u00famero m\u00e1ximo de registros\"}}}"
+        "jsonSchema": "{\"type\":\"object\",\"required\":[\"user_id\"],\"properties\":{\"user_id\":{\"type\":\"string\",\"description\":\"UUID do usu\u00e1rio logado (do CONTEXTO DO USU\u00c1RIO) \u2014 define o escopo admin/vendedor\"},\"vendedor\":{\"type\":\"string\",\"description\":\"Representante: nome/apelido parcial ou c\u00f3digo A3_COD exato\"},\"filters\":{\"type\":\"string\",\"description\":\"String JSON com filtros opcionais: cliente_codigo, a1_cod, a1_loja, a1_cgc, a1_est, a1_mun, a1_msblql, a1_ativo, a1_inativo, nome\"},\"limit\":{\"type\":\"integer\",\"default\":50,\"minimum\":1,\"maximum\":500,\"description\":\"N\u00famero m\u00e1ximo de registros\"}}}"
       },
       "id": "a1b2c3d4-0001-0001-0001-000000000001",
       "name": "When called",
@@ -24,7 +24,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $json || {};\nconst source_table = String(input.source_table || '').trim();\nif (!source_table) throw new Error('source_table \u00e9 obrigat\u00f3rio');\nconst limit = Math.max(1, Math.min(500, +(input.limit) || 50));\nconst filters = input.filters && Object.keys(input.filters).length > 0 ? input.filters : null;\nreturn [{ json: { source_table, limit, filters } }];"
+        "jsCode": "const input = $json || {};\nconst user_id = String(input.user_id || '').trim();\nif (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user_id)) throw new Error('user_id (UUID) \u00e9 obrigat\u00f3rio');\nconst limit = Math.max(1, Math.min(500, +(input.limit) || 50));\nlet raw = input.filters;\nif (typeof raw === 'string') { try { raw = JSON.parse(raw); } catch (e) { raw = null; } }\nconst filters = (raw && typeof raw === 'object') ? { ...raw } : {};\nconst vendedor = String(input.vendedor || '').trim();\nif (vendedor) filters.vendedor = vendedor;\nfor (const k of Object.keys(filters)) { if (filters[k] === null || filters[k] === '') delete filters[k]; }\nreturn [{ json: { user_id, limit, filters } }];"
       },
       "id": "a1b2c3d4-0001-0001-0001-000000000003",
       "name": "Prepare params",
@@ -35,9 +35,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT row_to_json(r.*) AS record FROM castor_snapshot_query($1::text, $2::int, $3::jsonb) AS r",
+        "query": "SELECT castor_snapshot_query($1::uuid, $2::jsonb, $3::int) AS result",
         "options": {
-          "queryReplacement": "={{ [$json.source_table, $json.limit, $json.filters ? JSON.stringify($json.filters) : null] }}"
+          "queryReplacement": "={{ [$json.user_id, JSON.stringify($json.filters || {}), $json.limit] }}"
         }
       },
       "id": "a1b2c3d4-0001-0001-0001-000000000004",
@@ -56,7 +56,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const params = $('Prepare params').first().json;\nconst rows = $input.all();\nconst firstErr = rows[0] && rows[0].json && rows[0].json.error;\nif (firstErr) {\n  return [{ json: { ok: false, data: null, error: String(firstErr.message || firstErr) } }];\n}\nconst data = rows\n  .map(r => r.json && r.json.record ? r.json.record : null)\n  .filter(Boolean);\nreturn [{ json: { ok: true, source_table: params.source_table, count: data.length, data, error: null } }];"
+        "jsCode": "const params = $('Prepare params').first().json;\nconst rows = $input.all();\nconst firstErr = rows[0] && rows[0].json && rows[0].json.error;\nif (firstErr) {\n  return [{ json: { ok: false, data: null, error: String(firstErr.message || firstErr) } }];\n}\nconst res = rows[0] && rows[0].json ? rows[0].json.result : null;\nif (!res) {\n  return [{ json: { ok: false, data: null, error: 'castor_snapshot_query nao retornou resultado' } }];\n}\nif (res.ok === false) {\n  return [{ json: { ok: false, data: [], count: 0, error: res.error || 'consulta rejeitada' } }];\n}\nreturn [{ json: { ok: true, count: res.count, scope_applied: res.scope_applied, filters: params.filters, data: res.data || [], error: null } }];"
       },
       "id": "a1b2c3d4-0001-0001-0001-000000000005",
       "name": "Envelope",

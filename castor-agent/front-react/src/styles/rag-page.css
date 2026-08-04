@@ -1,0 +1,6 @@
+/* VERBATIM: bloco <style> inline da secao #ragDocsPage do legado. */
+            @keyframes ragSpin {
+              to {
+                transform: rotate(360deg);
+              }
+            }
