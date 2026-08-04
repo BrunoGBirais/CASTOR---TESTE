@@ -26,7 +26,10 @@
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
     <!-- Iframe polyfills — MUST load BEFORE Supabase SDK -->
     <script src="/legacy/iframe-storage-polyfill.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Versão exata: o comportamento de SIGNED_IN no visibilitychange já mudou
+         entre releases da linha 2.x. O guard de _bootedUserId em castor-app.js
+         deixa o app imune de qualquer forma; o pin evita surpresa vinda do CDN. -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.0"></script>
     <script src="/legacy/auth-storage.js"></script>
   </head>
 

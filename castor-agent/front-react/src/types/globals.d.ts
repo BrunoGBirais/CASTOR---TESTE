@@ -24,6 +24,13 @@ declare global {
     /** xlsx@0.18.5 (CDN). */
     XLSX: unknown;
 
+    /**
+     * Persistencia do chat (mensagem em voo, rascunho, ultima conversa).
+     * Publicada por `lib/chat/pendingMessage.ts` ANTES do runtime legado subir;
+     * e o unico ponto em que o legado depende de codigo de `src/`.
+     */
+    CastorPersist?: import("../lib/chat/pendingMessage").CastorPersistApi;
+
     /* ── Helpers publicados pelo runtime legado ─────────────────────────── */
     buildAuthStorage?: () => Storage;
     diagnoseAuthStorage?: (storage: unknown, storageKey: string) => void;

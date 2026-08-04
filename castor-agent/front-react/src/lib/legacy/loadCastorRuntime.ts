@@ -1,4 +1,5 @@
 import { LEGACY_RUNTIME_SRC } from "../../config/endpoints";
+import { installCastorPersist } from "../chat/pendingMessage";
 
 /**
  * Carrega o runtime legado (`public/legacy/castor-app.js`).
@@ -20,6 +21,10 @@ let pending: Promise<void> | null = null;
 
 export const loadCastorRuntime = (): Promise<void> => {
   if (pending) return pending;
+
+  // `window.CastorPersist` precisa existir antes do runtime rodar: o legado le o
+  // pending/rascunho/ultima conversa ja no boot (`startApp`).
+  installCastorPersist();
 
   pending = new Promise<void>((resolve, reject) => {
     const script = document.createElement("script");

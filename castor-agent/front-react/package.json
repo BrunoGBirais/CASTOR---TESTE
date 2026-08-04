@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "bundle": "node scripts/bundle-single-file.mjs",
+    "build:single": "npm run build && npm run bundle"
   },
   "dependencies": {
     "react": "^18.3.1",

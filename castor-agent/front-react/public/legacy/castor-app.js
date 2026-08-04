@@ -222,6 +222,40 @@
       let uploadAbortController = null;
       let _pendingChatRoute = null; // Promise de rota estruturada ao clicar em Roteiro
       let appStarted = false; // Moved to top for hoisting safety
+      // Idem: stopPendingPoll() é alcançável pelo logout e pelo handler de auth,
+      // que podem rodar antes da declaração ficar no lugar lá embaixo.
+      let _pendingPollTimer = null;
+
+      /* ── Persistência do chat (mensagem em voo, rascunho, última conversa) ──
+       * A implementação vive fora deste arquivo: em `src/lib/chat/pendingMessage.ts`
+       * no app React, e no bloco <script> equivalente do <head> no monólito
+       * `front-castor.html`. Ambos publicam `window.CastorPersist` antes deste
+       * script rodar — assim este arquivo é idêntico nos dois artefatos.
+       * O fallback abaixo é só para nunca quebrar se o global faltar: o app perde
+       * a recuperação pós-reload, mas continua funcionando.
+       */
+      const CastorPersist = window.CastorPersist || {
+        savePendingMessage: function () {},
+        loadPendingMessage: function () {
+          return null;
+        },
+        clearPendingMessage: function () {},
+        saveDraft: function () {},
+        loadDraft: function () {
+          return null;
+        },
+        clearDraft: function () {},
+        saveLastSession: function () {},
+        loadLastSession: function () {
+          return null;
+        },
+        clearLastSession: function () {},
+        clearPersistedChatState: function () {},
+        historyHasPendingReply: function () {
+          return false;
+        },
+      };
+
       const elements = {
         sessionList: document.getElementById("sessionList"),
         messagesContainer: document.getElementById("messagesContainer"),
@@ -442,6 +476,9 @@
       let currentUserRole = null;
       let currentUserId = null;
       let currentUserMeta = {};
+      // Usuário para o qual o app já bootou. É o que distingue login de verdade
+      // de revalidação de sessão — ver o handler de onAuthStateChange abaixo.
+      let _bootedUserId = null;
 
       function toggleLogin(loggedIn) {
         if (!elements.loginOverlay) return;
@@ -551,7 +588,16 @@
         }
         applySession(session);
         toggleLogin(true);
-        appStarted = false;
+        // Só uma troca real de usuário justifica reconstruir o app do zero — e
+        // aí o estado persistido é do usuário anterior, então também vai embora.
+        if (_bootedUserId && _bootedUserId !== session.user.id) {
+          appStarted = false;
+          stopPendingPoll();
+          CastorPersist.clearPersistedChatState();
+        }
+        // Atribuído aqui, e não no handler de auth, porque handleSession também
+        // é chamada direto pelo checkAuth() inicial e pelo submit do login.
+        _bootedUserId = session.user.id;
         if (typeof window.startApp === "function") {
           window.startApp();
         }
@@ -608,28 +654,39 @@
 
       supabaseClient.auth.onAuthStateChange(async (event, session) => {
         if (event === "SIGNED_OUT") {
+          _bootedUserId = null;
           stopTokenRefresh();
           clearAuthData();
           toggleLogin(false);
-        } else if (event === "SIGNED_IN" && session) {
-          saveAuthData({
-            access_token: session.access_token,
-            refresh_token: session.refresh_token,
-            expires_at: session.expires_at,
-            expires_in: session.expires_in,
-            token_type: session.token_type,
-            user: session.user,
-          });
+          return;
+        }
+        if (!session) return;
+
+        // Credenciais são sempre renovadas; a UI, nunca por este caminho.
+        saveAuthData({
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+          expires_at: session.expires_at,
+          expires_in: session.expires_in,
+          token_type: session.token_type,
+          user: session.user,
+        });
+
+        if (event === "TOKEN_REFRESHED") return;
+
+        if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
+          // O SDK do Supabase reemite SIGNED_IN a cada visibilitychange: voltar
+          // para a aba dispara _recoverAndRefresh(), que revalida a sessão e
+          // notifica como se fosse login. Mesmo usuário = nada mudou; chamar
+          // handleSession aqui remontaria o app inteiro (fetchSessions →
+          // loadSession → clearChatArea) e mataria a mensagem em voo.
+          // INITIAL_SESSION entra no mesmo guard porque disputa o boot com o
+          // checkAuth() logo abaixo.
+          if (_bootedUserId === session.user.id) {
+            applySession(session);
+            return;
+          }
           await handleSession(session);
-        } else if (event === "TOKEN_REFRESHED" && session) {
-          saveAuthData({
-            access_token: session.access_token,
-            refresh_token: session.refresh_token,
-            expires_at: session.expires_at,
-            expires_in: session.expires_in,
-            token_type: session.token_type,
-            user: session.user,
-          });
         }
       });
 
@@ -696,11 +753,16 @@
           toggleLogin(false);
           if (elements.emailInput) elements.emailInput.value = "";
           if (elements.passwordInput) elements.passwordInput.value = "";
+          stopPendingPoll();
+          CastorPersist.clearPersistedChatState();
           clearChatArea();
           elements.sessionList.innerHTML = "";
           sessions = [];
           currentSessionId = null;
           appStarted = false;
+          // Sem zerar isto o próximo login cai no guard de revalidação e o app
+          // nunca inicializa.
+          _bootedUserId = null;
           currentUserRole = null;
           currentUserId = null;
         });
@@ -2007,6 +2069,9 @@
       }
 
       function showTypingIndicator() {
+        // Idempotente: a retomada de uma mensagem pendente pode chamar isto com
+        // o indicador já na tela.
+        if (document.getElementById("typingIndicator")) return;
         const typingDiv = document.createElement("div");
         typingDiv.className = "typing-indicator";
         typingDiv.id = "typingIndicator";
@@ -2134,6 +2199,14 @@
           try {
             const success = await deleteSession(sessionToDeleteId);
             if (success) {
+              // A conversa não existe mais: nem polling, nem pending, nem
+              // "última conversa" podem continuar apontando para ela.
+              stopPendingPoll();
+              if (CastorPersist.loadPendingMessage(sessionToDeleteId))
+                CastorPersist.clearPendingMessage();
+              if (CastorPersist.loadLastSession() === sessionToDeleteId)
+                CastorPersist.clearLastSession();
+
               sessions = await fetchSessions();
 
               if (currentSessionId === sessionToDeleteId) {
@@ -2197,12 +2270,85 @@
           showConfirmModal("reset");
         });
       }
+      /* ── Recuperação de mensagem em voo após reload real ────────────────
+       * O guard de _bootedUserId resolve a troca de aba. Um reload de verdade
+       * (F5, tab discard, crash) mata o fetch para o n8n, mas a mensagem já está
+       * no backend: o front repõe a bolha, retoma o typing indicator e faz
+       * polling no histórico até a resposta aparecer.
+       */
+      function stopPendingPoll() {
+        if (_pendingPollTimer) {
+          clearTimeout(_pendingPollTimer);
+          _pendingPollTimer = null;
+        }
+      }
+
+      function resumePendingMessage(sessionId, history) {
+        const pending = CastorPersist.loadPendingMessage(sessionId);
+        if (!pending) return;
+        if (CastorPersist.historyHasPendingReply(history, pending)) {
+          CastorPersist.clearPendingMessage();
+          return;
+        }
+        // A geração desta aba ainda está viva — a bolha real já está na tela.
+        if (isLoading) return;
+
+        hideEmptyState();
+        renderMessage({ role: "user", content: pending.message });
+        showTypingIndicator();
+        setStatus("Recuperando resposta em andamento...", "warning");
+        pollPendingMessage(sessionId, pending, 0);
+      }
+
+      function pollPendingMessage(sessionId, pending, attempt) {
+        stopPendingPoll();
+        if (attempt >= 40) {
+          // ~2 min
+          hideTypingIndicator();
+          CastorPersist.clearPendingMessage();
+          setStatus(
+            "Não foi possível recuperar a resposta. Envie novamente.",
+            "error",
+          );
+          return;
+        }
+        _pendingPollTimer = setTimeout(async () => {
+          _pendingPollTimer = null;
+          if (currentSessionId !== sessionId) return; // trocou de conversa
+          if (isLoading) {
+            CastorPersist.clearPendingMessage();
+            return;
+          }
+
+          let history = null;
+          try {
+            history = await fetchHistory(sessionId);
+          } catch (e) {}
+          if (currentSessionId !== sessionId || isLoading) return;
+
+          if (CastorPersist.historyHasPendingReply(history, pending)) {
+            CastorPersist.clearPendingMessage();
+            hideTypingIndicator();
+            clearChatArea();
+            hideEmptyState();
+            // Re-render a partir do histórico: dedupla a bolha otimista reposta.
+            history.forEach((message) => renderMessage(message));
+            setStatus("Resposta recuperada.", "success");
+            sessions = await fetchSessions();
+            renderSessionList();
+            return;
+          }
+          pollPendingMessage(sessionId, pending, attempt + 1);
+        }, 3000);
+      }
+
       async function loadSession(sessionId) {
         hideUsersPage();
         if (typeof hideRagDocsPage === "function") hideRagDocsPage();
         if (window.RoutesPanel && typeof window.RoutesPanel.hide === "function")
           window.RoutesPanel.hide();
         setActiveNav("chat");
+        stopPendingPoll();
 
         if (currentSessionId !== sessionId) {
           sessions = sessions.filter((s) => !s._isTemp);
@@ -2210,9 +2356,13 @@
         }
 
         currentSessionId = sessionId;
+        CastorPersist.saveLastSession(sessionId);
         clearChatArea();
         showSkeletonMessages();
         const history = await fetchHistory(sessionId);
+        // Guarda contra corrida: o usuário pode ter trocado de conversa durante
+        // o fetch, e o render abaixo escreveria no chat errado.
+        if (currentSessionId !== sessionId) return;
         clearChatArea(); // Shows empty state by default
 
         if (history && history.length > 0) {
@@ -2223,6 +2373,7 @@
         }
 
         renderSessionList();
+        resumePendingMessage(sessionId, history);
         elements.messageInput.focus();
       }
       function startNewChat() {
@@ -2231,6 +2382,7 @@
         if (window.RoutesPanel && typeof window.RoutesPanel.hide === "function")
           window.RoutesPanel.hide();
         setActiveNav("chat");
+        stopPendingPoll();
 
         // If a stream is running, abort it first
         if (isLoading) {
@@ -2245,10 +2397,13 @@
           hideTypingIndicator();
           setLoading(false);
         }
+        // A conversa anterior foi abandonada: nada a reconciliar.
+        CastorPersist.clearPendingMessage();
 
         sessions = sessions.filter((s) => !s._isTemp);
 
         currentSessionId = generateUUID();
+        CastorPersist.saveLastSession(currentSessionId);
         clearChatArea();
 
         const tempSession = {
@@ -2270,6 +2425,7 @@
           if (abortController) {
             abortController.abort();
             abortController = null;
+            CastorPersist.clearPendingMessage();
             setStatus("Geração interrompida.", "warning");
             hideTypingIndicator();
             setLoading(false);
@@ -2277,6 +2433,7 @@
           if (uploadAbortController) {
             uploadAbortController.abort();
             uploadAbortController = null;
+            CastorPersist.clearPendingMessage();
             setStatus("Upload cancelado.", "warning");
             hideTypingIndicator();
             setLoading(false);
@@ -2296,8 +2453,12 @@
         }
 
         renderMessage({ role: "user", content: message });
+        // Se a página morrer agora, o próximo carregamento repõe a bolha e
+        // espera o backend terminar.
+        CastorPersist.savePendingMessage(currentSessionId, message);
         elements.messageInput.value = "";
         elements.messageInput.style.height = "auto";
+        CastorPersist.clearDraft();
 
         setLoading(true);
 
@@ -2356,6 +2517,8 @@
           );
         }
 
+        // Resposta chegou (ou foi cancelada) nesta aba: nada a recuperar.
+        CastorPersist.clearPendingMessage();
         setLoading(false);
 
         // Injetar botão "Ver no mapa" se era prompt de roteiro e a rota foi gerada
@@ -2500,9 +2663,12 @@
       elements.messageInput.addEventListener("input", function () {
         this.style.height = "auto";
         this.style.height = this.scrollHeight + "px";
+        CastorPersist.saveDraft(this.value);
       });
       async function startApp() {
-        if (appStarted) return;
+        // isLoading no guard: nenhuma rota pode destruir o chat com uma geração
+        // em andamento.
+        if (appStarted || isLoading) return;
         appStarted = true;
 
         checkHealth();
@@ -2518,14 +2684,39 @@
 
         sessions = await fetchSessions();
 
-        if (sessions.length > 0) {
-          await loadSession(sessions[0].session_id);
+        // Prioridade: conversa com mensagem em voo > última conversa aberta >
+        // mais recente. Abrir sempre sessions[0] jogava quem estava numa
+        // conversa nova para a mais recente a cada boot.
+        const pending = CastorPersist.loadPendingMessage(null);
+        const lastId = CastorPersist.loadLastSession();
+        let target = null;
+        if (pending && pending.sessionId) {
+          target = pending.sessionId;
+        } else if (lastId && sessions.some((s) => s.session_id === lastId)) {
+          target = lastId;
+        } else if (sessions.length > 0) {
+          target = sessions[0].session_id;
+        }
+
+        if (target) {
+          await loadSession(target);
         } else {
           startNewChat();
         }
         renderSessionList();
 
+        const draft = CastorPersist.loadDraft();
+        if (draft && !elements.messageInput.value) {
+          elements.messageInput.value = draft;
+          elements.messageInput.style.height = "auto";
+          elements.messageInput.style.height =
+            elements.messageInput.scrollHeight + "px";
+        }
+
         // Página inicial pós-login = Roteiros & Clientes (foco do produto).
+        // Exceto quando há uma resposta sendo recuperada: mandar o usuário para
+        // Roteiros nesse momento seria o mesmo bug com outro nome.
+        if (pending && pending.sessionId) return;
         try {
           if (
             window.RoutesPanel &&
