@@ -112,7 +112,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\n// Mapeia SA1010 → schema castor_client_snapshot\n// A1_MSBLQL: 1=Inativo, 2=Ativo (SX3 SA1;B5)\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  const cod  = String(r.A1_COD  || '').trim();\n  const loja = String(r.A1_LOJA || '').trim().padStart(2, '0');\n  const blql = String(r.A1_MSBLQL || '').trim();\n  const fmtD = v => (v && String(v).trim().length === 8) ? String(v).trim().slice(0,4)+'-'+String(v).trim().slice(4,6)+'-'+String(v).trim().slice(6,8) : null;\n  out.push({ json: {\n    a1_codcli_raw:   cod + loja,\n    record_id:       cod + loja,\n    a1_msblql:       blql || null,\n    a1_nome:         r.A1_NOME   || null,\n    a1_nreduz:       r.A1_NREDUZ || null,\n    a1_pessoa:       r.A1_PESSOA || null,\n    a1_cgc:          r.A1_CGC    || null,\n    a1_pricom:       fmtD(r.A1_PRICOM),\n    a1_ultcom:       fmtD(r.A1_ULTCOM),\n    a1_vend:         r.A1_VEND   || null,\n    a1_risco:        r.A1_RISCO  || null,\n    a1_lc:           r.A1_LC != null ? Number(r.A1_LC) : null,\n    a1_sativ1:       r.A1_SATIV1 || null,\n    a1_end:          r.A1_END    || null,\n    a1_cep:          r.A1_CEP    || null,\n    a1_bairro:       r.A1_BAIRRO || null,\n    a1_est:          r.A1_EST    || null,\n    a1_cod_mun:      r.A1_COD_MUN || null,\n    a1_mun:          r.A1_MUN    || null,\n    a1_ativo_raw:    blql === '2' ? '1' : '0',\n    a1_inativo_raw:  blql === '1' ? '1' : '0',\n    cliente_codigo:  cod + loja,\n    a1_cod:          r.A1_COD    || null,\n    a1_loja:         r.A1_LOJA   || null,\n    a1_ativo:        blql === '2',\n    a1_inativo:      blql === '1'\n  }});\n}\nreturn out;"
+        "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\n// Mapeia SA1010 → schema castor_client_snapshot\n// A1_MSBLQL: 1=Inativo, 2=Ativo (SX3 SA1;B5)\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  const cod  = String(r.A1_COD  || '').trim();\n  const loja = String(r.A1_LOJA || '').trim().padStart(2, '0');\n  const blql = String(r.A1_MSBLQL || '').trim();\n  const fmtD = v => (v && String(v).trim().length === 8) ? String(v).trim().slice(0,4)+'-'+String(v).trim().slice(4,6)+'-'+String(v).trim().slice(6,8) : null;\n  out.push({ json: {\n    a1_codcli_raw:   cod + loja,\n    record_id:       cod + loja,\n    a1_msblql:       blql || null,\n    a1_nome:         r.A1_NOME   || null,\n    a1_nreduz:       r.A1_NREDUZ || null,\n    a1_pessoa:       r.A1_PESSOA || null,\n    a1_cgc:          r.A1_CGC    || null,\n    a1_pricom:       fmtD(r.A1_PRICOM),\n    a1_ultcom:       fmtD(r.A1_ULTCOM),\n    a1_vend:         r.A1_VEND   || null,\n    a1_risco:        r.A1_RISCO  || null,\n    a1_lc:           r.A1_LC != null ? Number(r.A1_LC) : null,\n    a1_sativ1:       r.A1_SATIV1 || null,\n    a1_end:          r.A1_END    || null,\n    a1_cep:          r.A1_CEP    || null,\n    a1_bairro:       r.A1_BAIRRO || null,\n    a1_est:          r.A1_EST    || null,\n    a1_cod_mun:      r.A1_COD_MUN || null,\n    a1_mun:          r.A1_MUN    || null,\n    a1_ativo_raw:    blql === '2' ? '1' : '0',\n    a1_inativo_raw:  blql === '1' ? '1' : '0',\n    cliente_codigo:  cod + loja,\n    a1_cod:          cod,\n    a1_loja:         loja,\n    a1_ativo:        blql === '2',\n    a1_inativo:      blql === '1'\n  }});\n}\nreturn out;"
       },
       "id": "2e54a829-79c3-40b8-a4e5-7385277f8a66",
       "name": "Map to castor_client_snapshot columns",
@@ -125,7 +125,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = [\"record_id\",\"a1_codcli_raw\",\"a1_nome\",\"a1_nreduz\",\"a1_pessoa\",\"a1_cgc\",\"a1_pricom\",\"a1_ultcom\",\"a1_vend\",\"a1_risco\",\"a1_lc\",\"a1_sativ1\",\"a1_end\",\"a1_cep\",\"a1_bairro\",\"a1_est\",\"a1_cod_mun\",\"a1_mun\",\"a1_msblql\",\"a1_ativo_raw\",\"a1_inativo_raw\",\"cliente_codigo\",\"a1_cod\",\"a1_loja\",\"a1_ativo\",\"a1_inativo\"];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const upd = cols.filter(c => c !== 'record_id').map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_client_snapshot (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (record_id) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
+        "jsCode": "let rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = [\"record_id\",\"a1_codcli_raw\",\"a1_nome\",\"a1_nreduz\",\"a1_pessoa\",\"a1_cgc\",\"a1_pricom\",\"a1_ultcom\",\"a1_vend\",\"a1_risco\",\"a1_lc\",\"a1_sativ1\",\"a1_end\",\"a1_cep\",\"a1_bairro\",\"a1_est\",\"a1_cod_mun\",\"a1_mun\",\"a1_msblql\",\"a1_ativo_raw\",\"a1_inativo_raw\",\"cliente_codigo\",\"a1_cod\",\"a1_loja\",\"a1_ativo\",\"a1_inativo\"];\n// Dedupe pela chave do ON CONFLICT. O Postgres recusa o INSERT inteiro com\n// \"ON CONFLICT DO UPDATE command cannot affect row a second time\" quando a\n// mesma chave aparece duas vezes no MESMO statement. Mantem a ultima ocorrencia,\n// que e a mesma semantica que o upsert teria se as linhas viessem separadas.\n// Chave vazia/nula vira NULL no SQL e NULL nao conflita com NULL: essas passam direto.\nconst keyCols = ['record_id'];\nconst _uniq = new Map();\nconst _semChave = [];\nfor (const item of rows) {\n  const vals = keyCols.map(c => item.json[c]);\n  if (vals.some(v => v === null || v === undefined || String(v).trim() === '')) { _semChave.push(item); continue; }\n  _uniq.set(vals.map(v => String(v).trim()).join('\\u0001'), item);\n}\nconst _dup = rows.length - _uniq.size - _semChave.length;\nif (_dup > 0) console.warn(`[sa1010] ${_dup} linha(s) com (${keyCols.join(',')}) duplicado na origem — mantida a ultima de cada`);\nrows = [..._uniq.values(), ..._semChave];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const upd = cols.filter(c => c !== 'record_id').map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_client_snapshot (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (record_id) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
       },
       "id": "22437d5b-94af-4b46-aa0f-ee4aad5a6cf1",
       "name": "Code: sa1010-batches1",
@@ -212,7 +212,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['cc2_est', 'cc2_codmun', 'cc2_mun'];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"cc2_est\",\"cc2_codmun\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_cc2010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (cc2_est, cc2_codmun) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
+        "jsCode": "let rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['cc2_est', 'cc2_codmun', 'cc2_mun'];\n// Dedupe pela chave do ON CONFLICT. O Postgres recusa o INSERT inteiro com\n// \"ON CONFLICT DO UPDATE command cannot affect row a second time\" quando a\n// mesma chave aparece duas vezes no MESMO statement. Mantem a ultima ocorrencia,\n// que e a mesma semantica que o upsert teria se as linhas viessem separadas.\n// Chave vazia/nula vira NULL no SQL e NULL nao conflita com NULL: essas passam direto.\nconst keyCols = ['cc2_est', 'cc2_codmun'];\nconst _uniq = new Map();\nconst _semChave = [];\nfor (const item of rows) {\n  const vals = keyCols.map(c => item.json[c]);\n  if (vals.some(v => v === null || v === undefined || String(v).trim() === '')) { _semChave.push(item); continue; }\n  _uniq.set(vals.map(v => String(v).trim()).join('\\u0001'), item);\n}\nconst _dup = rows.length - _uniq.size - _semChave.length;\nif (_dup > 0) console.warn(`[cc2010] ${_dup} linha(s) com (${keyCols.join(',')}) duplicado na origem — mantida a ultima de cada`);\nrows = [..._uniq.values(), ..._semChave];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"cc2_est\",\"cc2_codmun\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_cc2010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (cc2_est, cc2_codmun) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
       },
       "id": "a26dbd6d-a93f-4d89-b7af-45d2cdcda483",
       "name": "Code: cc2010-batches1",
@@ -299,7 +299,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['a3_cod', 'a3_nome', 'a3_nreduz'];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"a3_cod\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sa3010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (a3_cod) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
+        "jsCode": "let rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['a3_cod', 'a3_nome', 'a3_nreduz'];\n// Dedupe pela chave do ON CONFLICT. O Postgres recusa o INSERT inteiro com\n// \"ON CONFLICT DO UPDATE command cannot affect row a second time\" quando a\n// mesma chave aparece duas vezes no MESMO statement. Mantem a ultima ocorrencia,\n// que e a mesma semantica que o upsert teria se as linhas viessem separadas.\n// Chave vazia/nula vira NULL no SQL e NULL nao conflita com NULL: essas passam direto.\nconst keyCols = ['a3_cod'];\nconst _uniq = new Map();\nconst _semChave = [];\nfor (const item of rows) {\n  const vals = keyCols.map(c => item.json[c]);\n  if (vals.some(v => v === null || v === undefined || String(v).trim() === '')) { _semChave.push(item); continue; }\n  _uniq.set(vals.map(v => String(v).trim()).join('\\u0001'), item);\n}\nconst _dup = rows.length - _uniq.size - _semChave.length;\nif (_dup > 0) console.warn(`[sa3010] ${_dup} linha(s) com (${keyCols.join(',')}) duplicado na origem — mantida a ultima de cada`);\nrows = [..._uniq.values(), ..._semChave];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"a3_cod\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sa3010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (a3_cod) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
       },
       "id": "bad20a73-660a-4fbe-9f20-0788866b3b79",
       "name": "Code: sa3010-batches1",
@@ -386,7 +386,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['b1_cod', 'b1_desc', 'b1_tipo', 'b1_um', 'b1_grupo', 'b1_prv1'];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"b1_cod\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sb1010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (b1_cod) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
+        "jsCode": "let rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['b1_cod', 'b1_desc', 'b1_tipo', 'b1_um', 'b1_grupo', 'b1_prv1'];\n// Dedupe pela chave do ON CONFLICT. O Postgres recusa o INSERT inteiro com\n// \"ON CONFLICT DO UPDATE command cannot affect row a second time\" quando a\n// mesma chave aparece duas vezes no MESMO statement. Mantem a ultima ocorrencia,\n// que e a mesma semantica que o upsert teria se as linhas viessem separadas.\n// Chave vazia/nula vira NULL no SQL e NULL nao conflita com NULL: essas passam direto.\nconst keyCols = ['b1_cod'];\nconst _uniq = new Map();\nconst _semChave = [];\nfor (const item of rows) {\n  const vals = keyCols.map(c => item.json[c]);\n  if (vals.some(v => v === null || v === undefined || String(v).trim() === '')) { _semChave.push(item); continue; }\n  _uniq.set(vals.map(v => String(v).trim()).join('\\u0001'), item);\n}\nconst _dup = rows.length - _uniq.size - _semChave.length;\nif (_dup > 0) console.warn(`[sb1010] ${_dup} linha(s) com (${keyCols.join(',')}) duplicado na origem — mantida a ultima de cada`);\nrows = [..._uniq.values(), ..._semChave];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"b1_cod\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sb1010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (b1_cod) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
       },
       "id": "6f2f6296-50ea-429c-96a2-0261c711db55",
       "name": "Code: sb1010-batches1",
@@ -473,7 +473,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['bm_grupo', 'bm_desc'];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"bm_grupo\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sbm010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (bm_grupo) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
+        "jsCode": "let rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['bm_grupo', 'bm_desc'];\n// Dedupe pela chave do ON CONFLICT. O Postgres recusa o INSERT inteiro com\n// \"ON CONFLICT DO UPDATE command cannot affect row a second time\" quando a\n// mesma chave aparece duas vezes no MESMO statement. Mantem a ultima ocorrencia,\n// que e a mesma semantica que o upsert teria se as linhas viessem separadas.\n// Chave vazia/nula vira NULL no SQL e NULL nao conflita com NULL: essas passam direto.\nconst keyCols = ['bm_grupo'];\nconst _uniq = new Map();\nconst _semChave = [];\nfor (const item of rows) {\n  const vals = keyCols.map(c => item.json[c]);\n  if (vals.some(v => v === null || v === undefined || String(v).trim() === '')) { _semChave.push(item); continue; }\n  _uniq.set(vals.map(v => String(v).trim()).join('\\u0001'), item);\n}\nconst _dup = rows.length - _uniq.size - _semChave.length;\nif (_dup > 0) console.warn(`[sbm010] ${_dup} linha(s) com (${keyCols.join(',')}) duplicado na origem — mantida a ultima de cada`);\nrows = [..._uniq.values(), ..._semChave];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"bm_grupo\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sbm010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (bm_grupo) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
       },
       "id": "6b0bed21-9f03-4273-a4f6-78588de72efa",
       "name": "Code: sbm010-batches1",
@@ -510,7 +510,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT C5_NUM, C5_CLIENTE, C5_LOJACLI, C5_YNOMEC, C5_VEND1, C5_EMISSAO\nFROM SC5010\nWHERE D_E_L_E_T_ = ''\n  AND C5_FILIAL = '0401'\n  AND C5_EMISSAO >= CONVERT(varchar(8), DATEADD(day, -180, GETDATE()), 112)"
+        "query": "={{ `SELECT C5_NUM, C5_CLIENTE, C5_LOJACLI, C5_YNOMEC, C5_VEND1, C5_EMISSAO\nFROM SC5010\nWHERE D_E_L_E_T_ = ''\n  AND C5_FILIAL = '0401'\n  AND C5_EMISSAO >= CONVERT(varchar(8), DATEADD(day, -${Number($json.dias) || 30}, GETDATE()), 112)` }}"
       },
       "id": "7a669427-d079-4845-bf90-f820f6426a50",
       "name": "Query Protheus SC",
@@ -560,7 +560,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['c5_num', 'c5_cliente', 'c5_loja', 'c5_nome', 'c5_vend', 'c5_emissao'];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"c5_num\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sc5010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (c5_num) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
+        "jsCode": "let rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['c5_num', 'c5_cliente', 'c5_loja', 'c5_nome', 'c5_vend', 'c5_emissao'];\n// Dedupe pela chave do ON CONFLICT. O Postgres recusa o INSERT inteiro com\n// \"ON CONFLICT DO UPDATE command cannot affect row a second time\" quando a\n// mesma chave aparece duas vezes no MESMO statement. Mantem a ultima ocorrencia,\n// que e a mesma semantica que o upsert teria se as linhas viessem separadas.\n// Chave vazia/nula vira NULL no SQL e NULL nao conflita com NULL: essas passam direto.\nconst keyCols = ['c5_num'];\nconst _uniq = new Map();\nconst _semChave = [];\nfor (const item of rows) {\n  const vals = keyCols.map(c => item.json[c]);\n  if (vals.some(v => v === null || v === undefined || String(v).trim() === '')) { _semChave.push(item); continue; }\n  _uniq.set(vals.map(v => String(v).trim()).join('\\u0001'), item);\n}\nconst _dup = rows.length - _uniq.size - _semChave.length;\nif (_dup > 0) console.warn(`[sc5010] ${_dup} linha(s) com (${keyCols.join(',')}) duplicado na origem — mantida a ultima de cada`);\nrows = [..._uniq.values(), ..._semChave];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"c5_num\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sc5010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (c5_num) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
       },
       "id": "fb72b936-5110-408f-8753-2ac888caecaa",
       "name": "Code: sc5010-batches1",
@@ -597,7 +597,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT F2_DOC, F2_SERIE, F2_CLIENTE, F2_LOJA, F2_EMISSAO, F2_VALBRUT\nFROM SF2010\nWHERE D_E_L_E_T_ = ''\n  AND F2_FILIAL = '0401'\n  AND F2_EMISSAO >= CONVERT(varchar(8), DATEADD(day, -365, GETDATE()), 112)"
+        "query": "={{ `SELECT F2_DOC, F2_SERIE, F2_CLIENTE, F2_LOJA, F2_EMISSAO, F2_VALBRUT\nFROM SF2010\nWHERE D_E_L_E_T_ = ''\n  AND F2_FILIAL = '0401'\n  AND F2_EMISSAO >= CONVERT(varchar(8), DATEADD(day, -${Number($json.dias) || 30}, GETDATE()), 112)` }}"
       },
       "id": "bc8471a0-f91d-425e-98c7-cc9d2ed814e8",
       "name": "Query Protheus SF",
@@ -647,7 +647,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['f2_doc', 'f2_serie', 'f2_cliente', 'f2_loja', 'f2_emissao', 'f2_valor'];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"f2_doc\",\"f2_serie\",\"f2_cliente\",\"f2_loja\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sf2010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (f2_doc, f2_serie, f2_cliente, f2_loja) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
+        "jsCode": "let rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['f2_doc', 'f2_serie', 'f2_cliente', 'f2_loja', 'f2_emissao', 'f2_valor'];\n// Dedupe pela chave do ON CONFLICT. O Postgres recusa o INSERT inteiro com\n// \"ON CONFLICT DO UPDATE command cannot affect row a second time\" quando a\n// mesma chave aparece duas vezes no MESMO statement. Mantem a ultima ocorrencia,\n// que e a mesma semantica que o upsert teria se as linhas viessem separadas.\n// Chave vazia/nula vira NULL no SQL e NULL nao conflita com NULL: essas passam direto.\nconst keyCols = ['f2_doc', 'f2_serie', 'f2_cliente', 'f2_loja'];\nconst _uniq = new Map();\nconst _semChave = [];\nfor (const item of rows) {\n  const vals = keyCols.map(c => item.json[c]);\n  if (vals.some(v => v === null || v === undefined || String(v).trim() === '')) { _semChave.push(item); continue; }\n  _uniq.set(vals.map(v => String(v).trim()).join('\\u0001'), item);\n}\nconst _dup = rows.length - _uniq.size - _semChave.length;\nif (_dup > 0) console.warn(`[sf2010] ${_dup} linha(s) com (${keyCols.join(',')}) duplicado na origem — mantida a ultima de cada`);\nrows = [..._uniq.values(), ..._semChave];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"f2_doc\",\"f2_serie\",\"f2_cliente\",\"f2_loja\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sf2010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (f2_doc, f2_serie, f2_cliente, f2_loja) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
       },
       "id": "c1fc4709-aa3c-43c2-908c-d920ff6f0066",
       "name": "Code: sf2010-batches1",
@@ -734,7 +734,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['f4_codigo', 'f4_tipo', 'f4_cf', 'f4_texto'];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"f4_codigo\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sf4010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (f4_codigo) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
+        "jsCode": "let rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['f4_codigo', 'f4_tipo', 'f4_cf', 'f4_texto'];\n// Dedupe pela chave do ON CONFLICT. O Postgres recusa o INSERT inteiro com\n// \"ON CONFLICT DO UPDATE command cannot affect row a second time\" quando a\n// mesma chave aparece duas vezes no MESMO statement. Mantem a ultima ocorrencia,\n// que e a mesma semantica que o upsert teria se as linhas viessem separadas.\n// Chave vazia/nula vira NULL no SQL e NULL nao conflita com NULL: essas passam direto.\nconst keyCols = ['f4_codigo'];\nconst _uniq = new Map();\nconst _semChave = [];\nfor (const item of rows) {\n  const vals = keyCols.map(c => item.json[c]);\n  if (vals.some(v => v === null || v === undefined || String(v).trim() === '')) { _semChave.push(item); continue; }\n  _uniq.set(vals.map(v => String(v).trim()).join('\\u0001'), item);\n}\nconst _dup = rows.length - _uniq.size - _semChave.length;\nif (_dup > 0) console.warn(`[sf4010] ${_dup} linha(s) com (${keyCols.join(',')}) duplicado na origem — mantida a ultima de cada`);\nrows = [..._uniq.values(), ..._semChave];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"f4_codigo\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sf4010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (f4_codigo) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
       },
       "id": "9bd079f0-8178-46cd-a223-9ce993e0ff25",
       "name": "Code: sf4010-batches1",
@@ -821,7 +821,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['x5_tabela', 'x5_chave', 'x5_descri'];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"x5_tabela\",\"x5_chave\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sx5010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (x5_tabela, x5_chave) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
+        "jsCode": "let rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['x5_tabela', 'x5_chave', 'x5_descri'];\n// Dedupe pela chave do ON CONFLICT. O Postgres recusa o INSERT inteiro com\n// \"ON CONFLICT DO UPDATE command cannot affect row a second time\" quando a\n// mesma chave aparece duas vezes no MESMO statement. Mantem a ultima ocorrencia,\n// que e a mesma semantica que o upsert teria se as linhas viessem separadas.\n// Chave vazia/nula vira NULL no SQL e NULL nao conflita com NULL: essas passam direto.\nconst keyCols = ['x5_tabela', 'x5_chave'];\nconst _uniq = new Map();\nconst _semChave = [];\nfor (const item of rows) {\n  const vals = keyCols.map(c => item.json[c]);\n  if (vals.some(v => v === null || v === undefined || String(v).trim() === '')) { _semChave.push(item); continue; }\n  _uniq.set(vals.map(v => String(v).trim()).join('\\u0001'), item);\n}\nconst _dup = rows.length - _uniq.size - _semChave.length;\nif (_dup > 0) console.warn(`[sx5010] ${_dup} linha(s) com (${keyCols.join(',')}) duplicado na origem — mantida a ultima de cada`);\nrows = [..._uniq.values(), ..._semChave];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"x5_tabela\",\"x5_chave\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sx5010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (x5_tabela, x5_chave) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
       },
       "id": "a09f69a5-00b3-460e-91e5-b21e76e247c2",
       "name": "Code: sx5010-batches1",
@@ -858,7 +858,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT Z1_COD, Z1_CLICOD, Z1_LOJA, Z1_STATUA, Z1_STATUD,\n  Z1_RISCOA, Z1_RISCOD, Z1_TPALT, Z1_PEDIDO, Z1_USUNOM, Z1_DATA, Z1_HORA\nFROM SZ1010\nWHERE D_E_L_E_T_ = ''\n  AND Z1_DATA >= CONVERT(varchar(8), DATEADD(day, -365, GETDATE()), 112)"
+        "query": "={{ `SELECT Z1_COD, Z1_CLICOD, Z1_LOJA, Z1_STATUA, Z1_STATUD,\n  Z1_RISCOA, Z1_RISCOD, Z1_TPALT, Z1_PEDIDO, Z1_USUNOM, Z1_DATA, Z1_HORA\nFROM SZ1010\nWHERE D_E_L_E_T_ = ''\n  AND Z1_DATA >= CONVERT(varchar(8), DATEADD(day, -${Number($json.dias) || 30}, GETDATE()), 112)` }}"
       },
       "id": "f0ff99f4-362f-49fb-a20f-8d38340d9b91",
       "name": "Query Protheus SZ",
@@ -908,7 +908,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['z1_cod', 'z1_clicod', 'z1_loja', 'z1_statua', 'z1_statud', 'z1_riscoa', 'z1_riscod', 'z1_tpalt', 'z1_pedido', 'z1_usunom', 'z1_data', 'z1_hora'];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"z1_cod\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sz1010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (z1_cod) WHERE z1_cod IS NOT NULL DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
+        "jsCode": "let rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['z1_cod', 'z1_clicod', 'z1_loja', 'z1_statua', 'z1_statud', 'z1_riscoa', 'z1_riscod', 'z1_tpalt', 'z1_pedido', 'z1_usunom', 'z1_data', 'z1_hora'];\n// Dedupe pela chave do ON CONFLICT. O Postgres recusa o INSERT inteiro com\n// \"ON CONFLICT DO UPDATE command cannot affect row a second time\" quando a\n// mesma chave aparece duas vezes no MESMO statement. Mantem a ultima ocorrencia,\n// que e a mesma semantica que o upsert teria se as linhas viessem separadas.\n// Chave vazia/nula vira NULL no SQL e NULL nao conflita com NULL: essas passam direto.\nconst keyCols = ['z1_cod'];\nconst _uniq = new Map();\nconst _semChave = [];\nfor (const item of rows) {\n  const vals = keyCols.map(c => item.json[c]);\n  if (vals.some(v => v === null || v === undefined || String(v).trim() === '')) { _semChave.push(item); continue; }\n  _uniq.set(vals.map(v => String(v).trim()).join('\\u0001'), item);\n}\nconst _dup = rows.length - _uniq.size - _semChave.length;\nif (_dup > 0) console.warn(`[sz1010] ${_dup} linha(s) com (${keyCols.join(',')}) duplicado na origem — mantida a ultima de cada`);\nrows = [..._uniq.values(), ..._semChave];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"z1_cod\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sz1010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (z1_cod) WHERE z1_cod IS NOT NULL DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
       },
       "id": "ff82e357-f435-4cd4-b4d2-4b30f3a22128",
       "name": "Code: sz1010-batches1",
@@ -945,7 +945,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT ZA7_DATA, ZA7_HORA, ZA7_OPERAD, ZA7_NOMEOP, ZA7_ASSUNTO,\n  ZA7_CONTATO, ZA7_CLIENTE, ZA7_DESCLI, ZA7_VEND, ZA7_COMPLE\nFROM ZA7010\nWHERE D_E_L_E_T_ = ''\n  AND ZA7_FILIAL = '0401'\n  AND ZA7_DATA >= CONVERT(varchar(8), DATEADD(day, -180, GETDATE()), 112)\n  AND ZA7_DATA <> '        '"
+        "query": "={{ `SELECT ZA7_DATA, ZA7_HORA, ZA7_OPERAD, ZA7_NOMEOP, ZA7_ASSUNTO,\n  ZA7_CONTATO, ZA7_CLIENTE, ZA7_DESCLI, ZA7_VEND, ZA7_COMPLE\nFROM ZA7010\nWHERE D_E_L_E_T_ = ''\n  AND ZA7_FILIAL = '0401'\n  AND ZA7_DATA >= CONVERT(varchar(8), DATEADD(day, -${Number($json.dias) || 30}, GETDATE()), 112)\n  AND ZA7_DATA <> '        '` }}"
       },
       "id": "f5249a97-b286-4b82-b34b-7e7e57900df3",
       "name": "Query Protheus ZA",
@@ -995,7 +995,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['za7_data', 'za7_hora', 'za7_operad', 'za7_nomeop', 'za7_assunto', 'za7_contato', 'za7_cliente', 'za7_nome_cli', 'za7_vend', 'za7_compl'];\nconst batchSize = 2000;\n// 1a instrucao: DELETE incremental da janela de sync (historico fora da janela preservado)\nconst batches = [{ json: { sql: 'DELETE FROM castor_src_za7010 WHERE za7_data >= (CURRENT_DATE - INTERVAL \\'180 days\\')::date OR za7_data IS NULL', rowCount: 0 } }];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_za7010 (${cols.join(',')},ingested_at) VALUES ${values}`,\n    rowCount: chunk.length\n  }});\n}\nreturn batches;"
+        "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['za7_data', 'za7_hora', 'za7_operad', 'za7_nomeop', 'za7_assunto', 'za7_contato', 'za7_cliente', 'za7_nome_cli', 'za7_vend', 'za7_compl'];\nconst batchSize = 2000;\n// 1a instrucao: DELETE incremental da janela de sync (historico fora da janela preservado)\n// A janela do DELETE TEM que ser a mesma da query (Query Protheus ZA), senao\n// apagamos mais dias do que o INSERT repoe. No caminho agendado o Set nao roda.\nconst _cfg = $('Set: grupo manual');\nconst dias = Number(_cfg.isExecuted ? _cfg.first().json.dias : null) || 30;\nconst batches = [{ json: { sql: `DELETE FROM castor_src_za7010 WHERE za7_data >= (CURRENT_DATE - INTERVAL '${dias} days')::date OR za7_data IS NULL`, rowCount: 0 } }];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_za7010 (${cols.join(',')},ingested_at) VALUES ${values}`,\n    rowCount: chunk.length\n  }});\n}\nreturn batches;"
       },
       "id": "dc32b407-d8bc-4dfe-b117-89c1929d74b3",
       "name": "Code: za7010-batches1",
@@ -1034,15 +1034,210 @@
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
       "position": [
-        -1856,
-        1840
+        -2496,
+        560
       ],
       "id": "ef83b705-f842-46c3-ad4b-a1b943a1447d",
       "name": "When clicking ‘Execute workflow’"
     },
     {
       "parameters": {
-        "jsCode": "// Janela de 36 meses em chunks mensais. Ranges half-open [start, end) para nao duplicar as bordas.\n// Datas montadas por componentes locais (toISOString desloca 1 dia em BRT).\nconst MONTHS = 36;\nconst pad = n => String(n).padStart(2, '0');\nconst ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;\nconst fmt = d => ymd(d).replace(/-/g, '');\nconst now = new Date();\nconst chunks = [];\nfor (let i = MONTHS - 1; i >= 0; i--) {\n  const start = new Date(now.getFullYear(), now.getMonth() - i, 1);\n  const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);\n  chunks.push({ json: {\n    chunkIndex: MONTHS - 1 - i,\n    totalChunks: MONTHS,\n    startDate: ymd(start),\n    endDate: ymd(end),\n    startFmt: fmt(start),\n    endFmt: fmt(end)\n  }});\n}\nreturn chunks;\n"
+        "content": "EXECUCAO MANUAL — UM GRUPO POR EXECUCAO\n\nO n8n guarda a saida de TODO node ate o fim da execucao. Rodar mais de um\ngrupo de uma vez soma tudo na memoria e derruba o processo (OOM).\nOs Schedule Triggers ja rodam escalonados justamente por isso.\n\nEdite `grupo` em \"Set: grupo manual\" e clique em Execute workflow:\n\n  clientes    SA1010 / CC2010 / SA3010   (sem janela)\n  produtos    SB1010 / SBM010 / SC5010\n  nf          SF2010 / SF4010\n  auxiliares  SX5010 / SZ1010 / ZA7010\n  sd2010      itens de NF, em chunks mensais\n\nJANELA (opcional — vazio = default noturno):\n  dias        SC5010 / SF2010 / SZ1010 / ZA7010   default 30\n  meses_ini   SD2010: quantos meses atras comeca  default 3\n  meses_fim   SD2010: onde termina (0 = mes atual) default 0\n\nBACKFILL (uma vez, um por execucao, com pausa entre elas):\n  produtos dias=180 · nf dias=365 · auxiliares dias=365\n  sd2010 meses_ini=36 meses_fim=24, depois 24/12, depois 12/0\n\nATENCAO: `dias` controla a query E o DELETE do ZA7010 juntos.\nNao desacople os dois — o DELETE apagaria mais do que o INSERT repoe.",
+        "height": 704,
+        "width": 560
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2560,
+        112
+      ],
+      "id": "b1a0c4d2-0000-4000-8000-000000000100",
+      "name": "Sticky Note: execucao manual"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b1a0c4d2-0000-4000-8000-000000000101",
+              "name": "grupo",
+              "value": "clientes",
+              "type": "string"
+            },
+            {
+              "id": "b1a0c4d2-0000-4000-8000-000000000111",
+              "name": "dias",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "b1a0c4d2-0000-4000-8000-000000000112",
+              "name": "meses_ini",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "b1a0c4d2-0000-4000-8000-000000000113",
+              "name": "meses_fim",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2272,
+        560
+      ],
+      "id": "b1a0c4d2-0000-4000-8000-000000000102",
+      "name": "Set: grupo manual"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b1a0c4d2-0000-4000-8000-000000000201",
+                    "leftValue": "={{ $json.grupo }}",
+                    "rightValue": "clientes",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "clientes"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b1a0c4d2-0000-4000-8000-000000000202",
+                    "leftValue": "={{ $json.grupo }}",
+                    "rightValue": "produtos",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "produtos"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b1a0c4d2-0000-4000-8000-000000000203",
+                    "leftValue": "={{ $json.grupo }}",
+                    "rightValue": "nf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "nf"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b1a0c4d2-0000-4000-8000-000000000204",
+                    "leftValue": "={{ $json.grupo }}",
+                    "rightValue": "auxiliares",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "auxiliares"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b1a0c4d2-0000-4000-8000-000000000205",
+                    "leftValue": "={{ $json.grupo }}",
+                    "rightValue": "sd2010",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "sd2010"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "none"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -2048,
+        560
+      ],
+      "id": "b1a0c4d2-0000-4000-8000-000000000103",
+      "name": "Switch: grupo manual"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Janela em chunks mensais, ranges half-open [start, end) para nao duplicar as bordas.\n// Datas montadas por componentes locais (toISOString desloca 1 dia em BRT).\n// meses_ini/meses_fim permitem fatiar o backfill em execucoes separadas:\n//   nightly = 3/0 · backfill = 36/24, depois 24/12, depois 12/0.\nconst MESES_INI = Number($json.meses_ini) || 3;\nconst MESES_FIM = Number($json.meses_fim) || 0;\nif (MESES_FIM >= MESES_INI) throw new Error(`janela invalida: meses_ini=${MESES_INI} meses_fim=${MESES_FIM}`);\nconst pad = n => String(n).padStart(2, '0');\nconst ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;\nconst fmt = d => ymd(d).replace(/-/g, '');\nconst now = new Date();\nconst chunks = [];\nfor (let i = MESES_INI - 1; i >= MESES_FIM; i--) {\n  const start = new Date(now.getFullYear(), now.getMonth() - i, 1);\n  const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);\n  chunks.push({ json: {\n    chunkIndex: chunks.length,\n    totalChunks: MESES_INI - MESES_FIM,\n    startDate: ymd(start),\n    endDate: ymd(end),\n    startFmt: fmt(start),\n    endFmt: fmt(end)\n  }});\n}\nreturn chunks;\n"
       },
       "id": "3e1ad31d-6ca6-4497-8e2a-a2556cb7c943",
       "name": "Code: sd2010-chunks",
@@ -1999,6 +2194,91 @@
       "main": [
         [
           {
+            "node": "Set: grupo manual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set: grupo manual": {
+      "main": [
+        [
+          {
+            "node": "Switch: grupo manual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch: grupo manual": {
+      "main": [
+        [
+          {
+            "node": "Query Protheus SA",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Protheus CC",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Protheus SA3011",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Query Protheus SB",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Protheus SBM",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Protheus SC",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Query Protheus SF",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Protheus SF4011",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Query Protheus SX",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Protheus SZ",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Protheus ZA",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Code: sd2010-chunks",
             "type": "main",
             "index": 0
@@ -2193,6 +2473,14 @@
     }
   },
   "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": false,
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": true,
+    "executionTimeout": 3600
+  },
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "03d32a206f2d8840fce482e6c587726f18775bd9177e9401c00ca76d3086ad41"
