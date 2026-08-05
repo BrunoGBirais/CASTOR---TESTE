@@ -1305,7 +1305,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: { sql: 'SELECT castor_refresh_metrics_sd2();', rowCount: 0 } }];"
+        "jsCode": "// Ultima etapa do snapshot: recalcula TODOS os agregados (sf/sc/sc5_address/alltime/sa1010_derived/sd2).\n// Sem isso, castor_client_metrics_v2 e as tools do agente ficam congeladas no ultimo ingest.\nreturn [{ json: { sql: 'SELECT castor_refresh_all_metrics();', rowCount: 0 } }];"
       },
       "id": "de3ab7ca-7932-4344-8c50-1571db375001",
       "name": "Code: sd2010-refresh",
@@ -1526,7 +1526,7 @@
     },
     {
       "parameters": {
-        "content": "Snapshot em 5 etapas escalonadas para nao sobrecarregar o n8n.\n\nOrdem: 02h dimensoes de cliente (SA1/CC2/SA3) -> 03h produto+pedido (SB1/SBM/SC5) -> 04h NF (SF2/SF4) -> 05h auxiliares (SX5/SZ1/ZA7) -> 06h SD2010 em 36 chunks mensais + castor_refresh_metrics_sd2().",
+        "content": "Snapshot em 5 etapas escalonadas para nao sobrecarregar o n8n.\n\nOrdem: 02h dimensoes de cliente (SA1/CC2/SA3) -> 03h produto+pedido (SB1/SBM/SC5) -> 04h NF (SF2/SF4) -> 05h auxiliares (SX5/SZ1/ZA7) -> 06h SD2010 em chunks mensais + castor_refresh_all_metrics().\n\ncastor_refresh_all_metrics() (migration 059) roda no fim da etapa 06h, quando todas as castor_src_* ja foram carregadas, e recalcula sf/sc/sc5_address/alltime/sa1010_derived/sd2 em subtransacoes isoladas. Retorna {ok, steps[], errors[]} - confira o output do no 'Supabase: refresh-sd2010' quando o agente reclamar de dado velho.",
         "height": 176,
         "width": 512
       },
