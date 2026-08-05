@@ -151,17 +151,31 @@ A partir da ingestão de `SD2010` (itens de NF), `SB1010`/`SBM010` (produtos/gru
 `SF4010`/`SX5010` (CFOP/ramo) e `SZ1010` (histórico de status), a base ganhou uma
 camada analítica **aditiva** (não altera as regras anteriores).
 
-### 9.1. Faturamento de VENDA × bonificação × devolução (CFOP)
+### 9.1. Faturamento de VENDA × bonificação × devolução (TES — migration 061)
 
-`SD2010` mistura operações. A função `castor_cfop_class(d2_cf)` classifica cada item:
+`SD2010` mistura operações. A função `castor_operacao_class(d2_tes, d2_cf)` classifica
+cada item **pelo TES** (`D2_TES` → `SF4010`), que é a fonte oficial da regra no Protheus:
 
-- **venda** — CFOP `5xx`/`6xx` de venda (510x, 540x, 511x, 512x…). **Única receita real.**
-- **bonificação** — CFOP `59x`/`69x` (brinde/amostra). **NÃO é receita.**
-- **devolução** — CFOP `1x`/`2x` (entrada) + casos específicos. Reduz/contesta venda.
-- **transferência** — 515x/540x entre filiais.
+- **venda** — TES de saída que gera duplicata (`F4_TIPO='S'` e `F4_DUPLIC='S'`). **Única receita real.**
+- **devolução** — TES de entrada (`F4_TIPO='E'`). Excluída (não abate o mês).
+- **transferência** — TES sem duplicata + CFOP de transferência (515x/540x entre filiais).
+- **bonificação** — demais TES de saída sem duplicata (brinde/amostra/remessa). **NÃO é receita.**
+
+> **Por que não basta o CFOP:** a bonificação normalmente sai com CFOP de venda
+> (5102/6102) e só se distingue pelo TES. A regra anterior, só por CFOP
+> (`castor_cfop_class`), contava essas notas como venda e inflava a contagem de notas
+> do mês. `castor_cfop_class` continua existindo como **fallback**, usado quando o TES
+> não está no `SF4010` ou quando `F4_DUPLIC` ainda não foi sincronizado.
+
+Exceções pontuais (um TES mal cadastrado, por exemplo) são corrigidas inserindo em
+`castor_tes_override(f4_codigo, classe, motivo)` — precedência máxima, sem migration.
 
 Toda métrica de produto/grupo/mês considera **apenas `venda`**. Ao falar de faturamento,
 o agente nunca soma bonificação como receita; se perguntado, explica que são separados.
+
+> ⚠️ **Não confundir com `faturamento_12m`/`pedidos_12m`/`ticket_medio_12m`/`faturamento_alltime`**
+> (seção 2, base `SF2010`): esses ainda somam **toda** nota de saída, sem filtro de
+> operação. São métricas de porte/atividade do cliente, não de venda líquida.
 
 ### 9.2. Agregados (atualizados no ingest de SD2010)
 
