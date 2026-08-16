@@ -69,7 +69,7 @@ Legacy `Castor-Panel-API` (176 nodes) was split into 4 workflows — **paths unc
 | `Castor-Panel-CRM` | Interações/follow-ups |
 | `Castor-Panel-Admin` | Gestão/manutenção |
 
-`Castor-Panel-API.legacy.json` is retired — deactivate/delete in n8n before importing the new ones to avoid path conflicts.
+`_ARCHIVED_Castor-Panel-API.legacy.json` is retired — deactivate/delete in n8n before importing the new ones to avoid path conflicts.
 
 ## Conventions
 

@@ -117,10 +117,10 @@ Reviewer: opencode (mimo-v2.5-free)
 - **Problema:** Dois workflows fazem sync de dados do Protheus. `Snapshot-Sync` (SA1010) e `Customer-Sync-MSSQL` (geral). Overlap de responsabilidade.
 - **Solução:** Consolidar em um único workflow de sync ou documentar claramente a divisão de responsabilidade.
 
-### 19. Panel-API.legacy.json: path conflict
-- **Arquivo:** `castor-agent/workspaces/Castor-Panel-API.legacy.json`
+### 19. Panel-API.legacy.json: path conflict (RESOLVIDO)
+- **Arquivo:** `castor-agent/workspaces/_ARCHIVED_Castor-Panel-API.legacy.json` (renomeado com prefixo `_ARCHIVED_` para seguir a convenção dos demais workflows aposentados)
 - **Problema:** Workflow legado com 176 nodes ainda no repo. Se importado junto com os 4 novos workflows (Panel-Routes, Panel-Clients, Panel-CRM, Panel-Admin), gera conflito de paths.
-- **Solução:** Arquivar (renomear para `_ARCHIVED_...`) ou deletar do n8n. Já está no repo como legado.
+- **Solução:** Arquivado no repo (renomeado). Ainda assim, nunca importar/ativar no n8n junto com os 4 novos — só existe como referência histórica.
 
 ### 20. MigrationsClean 12 arquivos vs Migrations 54 arquivos (RESOLVIDO)
 - **Problema:** `migrations-clean/` tinha 12 arquivos consolidados (a partir de 001-036), mas `migrations/` chegou a 65 arquivos incrementais. As 12 consolidadas estavam 29 migrações atrás.
@@ -269,7 +269,7 @@ Reviewer: opencode (mimo-v2.5-free)
 | 16 | Colunas tabela leads | CORRIGIDO |
 | 17 | Sync MSSQL Respond OK | PENDENTE |
 | 18 | Snapshot vs MSSQL overlap | PENDENTE |
-| 19 | Panel-API legacy | PENDENTE |
+| 19 | Panel-API legacy | CORRIGIDO |
 | 20 | MigrationsClean 18 atrás | CORRIGIDO |
 | 21 | RAG manifest SHA256 | PENDENTE |
 | 22 | dicionario_sx3 ausente | PENDENTE |

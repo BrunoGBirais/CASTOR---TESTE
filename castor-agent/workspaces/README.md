@@ -23,7 +23,7 @@ Cada subflow declara entrada/saída no padrão `{ok, data, error}`. O agente pri
 | `/castor-panel-feedback`             | POST   | Castor-Panel-CRM           | `{user_id,cliente_codigo,outcome,custom_days?,notes?,idempotency_key?}` (RPC `castor_register_visit_feedback` via `SET LOCAL request.jwt.claim.sub`)                                                                                                                                                                                                                                                      |
 | `/castor-panel-cache-purge`          | POST   | Castor-Panel-Admin         | Invalida o cache em memória do snapshot (chamar após `/castor-source-replace`)                                                                                                                                                                                                                                                                                                                            |
 
-> Os 27 webhooks `/castor-panel-*` foram **segmentados** do antigo `Castor-Panel-API` (176 nós) em 4 workflows por domínio — **paths inalterados**. O arquivo original virou `Castor-Panel-API.legacy.json` (aposentado; desative/delete no n8n antes de importar os novos para evitar conflito de path).
+> Os 27 webhooks `/castor-panel-*` foram **segmentados** do antigo `Castor-Panel-API` (176 nós) em 4 workflows por domínio — **paths inalterados**. O arquivo original foi renomeado para `_ARCHIVED_Castor-Panel-API.legacy.json` (aposentado; nunca importe no n8n junto com os novos — conflito de path).
 
 ### Segmentação do Panel API (4 workflows)
 
