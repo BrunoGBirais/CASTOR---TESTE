@@ -1,4 +1,4 @@
--- file: 009_rag.sql
+-- file: 010_rag.sql
 -- tier: A
 -- purpose: RAG — metadata de documentos, linhas tabulares e embeddings (pgvector 1536).
 -- depends: 001
@@ -61,7 +61,7 @@ END;
 $$;
 
 INSERT INTO castor_schema_migrations(version)
-VALUES ('009_rag') ON CONFLICT DO NOTHING;
+VALUES ('010_rag') ON CONFLICT DO NOTHING;
 
 COMMIT;
 

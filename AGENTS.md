@@ -76,7 +76,7 @@ Legacy `Castor-Panel-API` (176 nodes) was split into 4 workflows — **paths unc
 - **Language**: pt-BR for user-facing text, English/snake_case for code identifiers.
 - **Subflow contract**: every subflow returns `{ok, data, error}`.
 - **Credential placeholders**: `__FILL_ME__<CRED_ID__` in workspace JSONs — reconnect in n8n after import.
-- **Migrations**: `migrations/` has 54 incremental files; `migrations-clean/` has the 12-file consolidated set. Prefer `migrations-clean/` for fresh databases.
+- **Migrations**: `migrations/` has 65 incremental files; `migrations-clean/` has the 14-file consolidated set (covers all 65). Prefer `migrations-clean/` for fresh databases.
 - **RAG files**: canonical source is `RAG/`. Keep `castor-agent/docs/business-rules.md` in sync (it's a copy).
 - **`netlify/`**: generated output — never edit manually.
 

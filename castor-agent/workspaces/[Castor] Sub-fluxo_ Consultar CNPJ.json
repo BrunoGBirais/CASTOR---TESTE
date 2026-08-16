@@ -53,8 +53,8 @@
             {
               "id": "1",
               "leftValue": "={{ $('Normalize').item.json.force_refresh || !$json.cnpj }}",
-              "rightValue": "true",
-              "operator": { "type": "boolean", "operation": "equals" }
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
             }
           ]
         }

@@ -62,5 +62,20 @@ export const ProductsDateFilter = () => (
     >
       Limpar
     </button>
+    <span
+      style={{
+        width: "1px",
+        height: "20px",
+        background: "var(--border-color, #e5e7eb)",
+        margin: "0 4px",
+      }}
+    />
+    <select
+      id="prodGroupFilter"
+      title="Filtrar por família de produto"
+      style={{ ...DATE_INPUT_STYLE, maxWidth: "220px" }}
+    >
+      <option value="">Todas as famílias</option>
+    </select>
   </div>
 );

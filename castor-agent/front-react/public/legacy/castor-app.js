@@ -2872,6 +2872,8 @@
         const TTL = 5 * 60 * 1000;
         let _dateFrom = "";
         let _dateTo = "";
+        let _grupo = "";
+        let _familiesLoaded = false;
         const fmtBRL = (v) =>
           "R$ " +
           (Number(v) || 0).toLocaleString("pt-BR", {
@@ -3017,6 +3019,19 @@
           _syncInputs();
           load(true);
         }
+        function _populateGroupFilter(families) {
+          const sel = document.getElementById("prodGroupFilter");
+          if (!sel || _familiesLoaded || !Array.isArray(families)) return;
+          families.forEach((f) => {
+            if (!f || !f.grupo) return;
+            const opt = document.createElement("option");
+            opt.value = f.grupo;
+            opt.textContent = f.grupo_desc || f.grupo;
+            sel.appendChild(opt);
+          });
+          sel.value = _grupo;
+          _familiesLoaded = true;
+        }
         async function load(force) {
           const status = document.getElementById("prodStatus");
           const now = Date.now();
@@ -3032,6 +3047,7 @@
             p.set("segment", "meta");
             if (_dateFrom) p.set("dateFrom", _dateFrom);
             if (_dateTo) p.set("dateTo", _dateTo);
+            if (_grupo) p.set("grupo", _grupo);
             const url =
               PANEL_SNAPSHOT_URL + (p.toString() ? "?" + p.toString() : "");
             const res = await fetch(url, {
@@ -3058,6 +3074,7 @@
               "Sem dados de grupo.",
             );
             renderTrend(document.getElementById("prodTrend"), d.sales_trend);
+            _populateGroupFilter(d.families);
             const scope = document.getElementById("prodScopeLabel");
             if (scope) {
               const period = _fmtPeriodLabel(_dateFrom, _dateTo);
@@ -3122,6 +3139,12 @@
         document
           .getElementById("prodDateClear")
           ?.addEventListener("click", clearDates);
+        document
+          .getElementById("prodGroupFilter")
+          ?.addEventListener("change", (e) => {
+            _grupo = e.target.value || "";
+            load(true);
+          });
         return { show, hide, load, setDates, clearDates };
       })();
 
@@ -4975,6 +4998,46 @@
 
           document.getElementById("routeModal").style.display = "flex";
           lucide.createIcons();
+
+          // Envia o roteiro para o Kanban "Meus Contatos" em paralelo (não bloqueia o popup do mapa)
+          const stops = clients.map((c, i) => ({
+            seq: i + 1,
+            cliente_codigo: c._code,
+            name: c.a1_nreduz || c.a1_nome || c._code,
+            a1_mun: c.a1_mun || "",
+            a1_est: c.a1_est || "",
+            a1_end: c.a1_end || "",
+            a1_cep: c.a1_cep || "",
+          }));
+          fetch(PANEL_ROUTE_SAVE_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: ctx.id, source: "manual", stops }),
+          })
+            .then(async (r) => {
+              const j = await window.castorSafeJson(r);
+              if (!r.ok || !j || j.ok === false)
+                throw new Error((j && j.error) || "HTTP " + r.status);
+              const d = j.data || {};
+              toast(
+                d.appended
+                  ? `\u2713 +${d.added_count || 0} enviado(s) para Meus Contatos`
+                  : "\u2713 Roteiro enviado para Meus Contatos",
+              );
+              state.selected.clear();
+              updateSelCount();
+              try {
+                window.RoutesSidebar &&
+                  window.RoutesSidebar.refresh &&
+                  window.RoutesSidebar.refresh();
+              } catch (e) {}
+            })
+            .catch((e) => {
+              toast(
+                "Falha ao enviar roteiro para Meus Contatos: " +
+                  (e.message || e),
+              );
+            });
         }
 
         function show() {

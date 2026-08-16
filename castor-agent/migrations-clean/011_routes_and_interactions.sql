@@ -1,4 +1,4 @@
--- file: 010_routes_and_interactions.sql
+-- file: 011_routes_and_interactions.sql
 -- tier: A
 -- purpose: Tabela castor_route_saved (1 rota aberta por usuário) e TODAS as funções de roteiro/cliente:
 --   route_save, route_save_unified, route_build_maps_url, route_list, route_detail, route_metrics,
@@ -104,7 +104,7 @@ BEGIN
 
   SELECT COALESCE(raw_user_meta_data->>'role','vendedor')
     INTO v_role FROM auth.users WHERE id = p_user_id;
-  IF v_role = 'admin' THEN
+  IF v_role IN ('admin', 'supervisor') THEN
     RAISE EXCEPTION 'admin_nao_pode_ter_roteiro: use castor_admin_task_assign / castor_admin_card_reassign'
       USING ERRCODE='42501';
   END IF;
@@ -274,7 +274,7 @@ SET search_path = public, pg_temp
 LANGUAGE plpgsql AS $$
 DECLARE v_is_admin BOOLEAN;
 BEGIN
-  SELECT COALESCE((u.raw_user_meta_data->>'role'),'vendedor')='admin'
+  SELECT COALESCE((u.raw_user_meta_data->>'role'),'vendedor') IN ('admin','supervisor')
     INTO v_is_admin FROM auth.users u WHERE u.id = p_user_id;
 
   RETURN QUERY
@@ -326,7 +326,7 @@ DECLARE
 
   v_stop_visited TIMESTAMPTZ;
 BEGIN
-  SELECT COALESCE((u.raw_user_meta_data->>'role'),'vendedor')='admin'
+  SELECT COALESCE((u.raw_user_meta_data->>'role'),'vendedor') IN ('admin','supervisor')
     INTO v_is_admin FROM auth.users u WHERE u.id = p_user_id;
 
   SELECT * INTO v_row FROM castor_route_saved WHERE id = p_route_id;
@@ -436,7 +436,7 @@ DECLARE
   v_is_admin BOOLEAN;
   v_result   JSONB;
 BEGIN
-  SELECT COALESCE(u.raw_user_meta_data->>'role','vendedor') = 'admin'
+  SELECT COALESCE(u.raw_user_meta_data->>'role','vendedor') IN ('admin','supervisor')
     INTO v_is_admin FROM auth.users u WHERE u.id = p_user_id;
 
   WITH base AS (
@@ -513,7 +513,7 @@ DECLARE
     'nao_existe_mais','nao_interessado_permanente'
   ];
 BEGIN
-  SELECT COALESCE((u.raw_user_meta_data->>'role'),'vendedor')='admin'
+  SELECT COALESCE((u.raw_user_meta_data->>'role'),'vendedor') IN ('admin','supervisor')
     INTO v_is_admin FROM auth.users u WHERE u.id = p_user_id;
 
   SELECT * INTO v_row FROM castor_route_saved WHERE id = p_route_id;
@@ -667,7 +667,7 @@ DECLARE
   v_is_admin BOOLEAN;
   v_removed  BOOLEAN := false;
 BEGIN
-  SELECT COALESCE((u.raw_user_meta_data->>'role'),'vendedor')='admin'
+  SELECT COALESCE((u.raw_user_meta_data->>'role'),'vendedor') IN ('admin','supervisor')
     INTO v_is_admin FROM auth.users u WHERE u.id = p_user_id;
 
   SELECT * INTO v_row FROM castor_route_saved WHERE id = p_route_id;
@@ -729,7 +729,7 @@ BEGIN
     RETURN jsonb_build_object('ok',false,'error','mode_invalido');
   END IF;
 
-  SELECT COALESCE((u.raw_user_meta_data->>'role'),'vendedor')='admin'
+  SELECT COALESCE((u.raw_user_meta_data->>'role'),'vendedor') IN ('admin','supervisor')
     INTO v_is_admin FROM auth.users u WHERE u.id = p_user_id;
 
   SELECT * INTO v_row FROM castor_route_saved WHERE id = p_route_id;
@@ -827,17 +827,26 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'error', 'cliente nao encontrado');
   END IF;
 
+  -- Visibilidade
   IF v_scope.role = 'admin' THEN
     v_visible := TRUE;
+  ELSIF v_scope.vendor_code IS NOT NULL THEN
+    -- Tem vendor_code: visível se o cliente pertence à carteira (a1_vend).
+    -- Território é ignorado para evitar bloquear reassigns cross-estado.
+    v_visible := (v_a1_vend = v_scope.vendor_code);
   ELSE
+    -- Sem vendor_code: usa território (legado / pré-onboarding).
     v_visible := (
-      (v_scope.vendor_code IS NULL OR v_a1_vend = v_scope.vendor_code)
-      AND (v_scope.estados IS NULL OR upper(coalesce(v_a1_est, '')) = ANY(v_scope.estados))
+      (v_scope.estados IS NULL OR upper(coalesce(v_a1_est, '')) = ANY(v_scope.estados))
       AND (v_scope.cidades IS NULL OR upper(coalesce(v_a1_mun, '')) = ANY(v_scope.cidades))
     );
+  END IF;
 
-    IF NOT v_visible THEN
-      SELECT EXISTS (
+  -- Fallback: vendedor pode abrir o detalhe quando há vínculo explícito
+  -- com o cliente — interação registrada, rota salva ou override de status
+  -- atribuído a ele. Isso destrava tarefas avulsas e reassigns.
+  IF NOT v_visible THEN
+    SELECT EXISTS (
                SELECT 1 FROM castor_client_interactions i
                 WHERE i.cliente_codigo = p_cliente_codigo
                   AND i.vendedor_user_id = p_user_id
@@ -852,23 +861,23 @@ BEGIN
                 WHERE f.cliente_codigo = p_cliente_codigo
                   AND f.vendedor_user_id = p_user_id
              )
-        INTO v_has_link;
+      INTO v_has_link;
 
-      IF NOT v_has_link THEN
-        BEGIN
-          EXECUTE 'SELECT EXISTS (SELECT 1 FROM castor_client_status_override o '
-               || 'WHERE o.cliente_codigo = $1 AND o.assigned_user_id = $2)'
-            INTO v_has_link
-            USING p_cliente_codigo, p_user_id;
-        EXCEPTION
-          WHEN undefined_table THEN v_has_link := FALSE;
-          WHEN undefined_column THEN v_has_link := FALSE;
-        END;
-      END IF;
+    -- Override de status (se a tabela existir nesta instalação)
+    IF NOT v_has_link THEN
+      BEGIN
+        EXECUTE 'SELECT EXISTS (SELECT 1 FROM castor_client_status_override o '
+             || 'WHERE o.cliente_codigo = $1 AND o.assigned_user_id = $2)'
+          INTO v_has_link
+          USING p_cliente_codigo, p_user_id;
+      EXCEPTION
+        WHEN undefined_table  THEN v_has_link := FALSE;
+        WHEN undefined_column THEN v_has_link := FALSE;
+      END;
+    END IF;
 
-      IF v_has_link THEN
-        v_visible := TRUE;
-      END IF;
+    IF v_has_link THEN
+      v_visible := TRUE;
     END IF;
   END IF;
 
@@ -890,22 +899,29 @@ BEGIN
   SELECT COALESCE(jsonb_agg(to_jsonb(r.*) ORDER BY r.created_at DESC), '[]'::jsonb)
     INTO v_routes
     FROM (
-      SELECT r.id, r.name, r.source, r.status, r.total_km, r.maps_url,
-             r.created_at, r.updated_at, r.completed_at, r.user_id,
-             (SELECT u.raw_user_meta_data->>'full_name' FROM auth.users u WHERE u.id = r.user_id) AS user_name,
-             (SELECT jsonb_array_length(r.stops)) AS stops_count
-        FROM castor_route_saved r
-       WHERE r.stops @> jsonb_build_array(jsonb_build_object('cliente_codigo', p_cliente_codigo))
-         AND (v_scope.role = 'admin' OR r.user_id = p_user_id)
-       ORDER BY r.created_at DESC
+      SELECT id, name, status, source, stops_count, done_count, created_at, updated_at
+        FROM (
+          SELECT r2.id, r2.name, r2.status, r2.source,
+                 COALESCE(jsonb_array_length(r2.stops), 0) AS stops_count,
+                 (SELECT COUNT(*) FROM jsonb_array_elements(r2.stops) s
+                   WHERE (s->>'outcome') IS NOT NULL) AS done_count,
+                 r2.created_at, r2.updated_at
+            FROM castor_route_saved r2
+           WHERE r2.stops @> jsonb_build_array(jsonb_build_object('cliente_codigo', p_cliente_codigo))
+             AND (v_scope.role = 'admin' OR r2.user_id = p_user_id)
+        ) sub
+       ORDER BY created_at DESC
        LIMIT 20
     ) r;
 
   RETURN jsonb_build_object(
-    'ok', true,
-    'client', v_client,
-    'feedbacks', v_feedbacks,
-    'routes', v_routes
+    'ok',        true,
+    'error',     null,
+    'data',      jsonb_build_object(
+      'cliente',   v_client,
+      'feedbacks', v_feedbacks,
+      'routes',    v_routes
+    )
   );
 END;
 $$;
@@ -1129,6 +1145,7 @@ BEGIN
    LIMIT GREATEST(1, LEAST(COALESCE(p_limit,50), 200));
 END; $$;
 
+-- versão mesclada: dedup de 041 (bugfix) + gate admin/supervisor de 047 (047 sozinho reintroduzia o bug)
 CREATE OR REPLACE FUNCTION castor_client_pending_followups(
   p_user_id     UUID,
   p_days_ahead  INT,
@@ -1156,7 +1173,7 @@ DECLARE
   v_is_admin BOOLEAN;
   v_cap_date DATE;
 BEGIN
-  SELECT COALESCE((u.raw_user_meta_data->>'role'),'vendedor')='admin'
+  SELECT COALESCE((u.raw_user_meta_data->>'role'),'vendedor') IN ('admin','supervisor')
     INTO v_is_admin FROM auth.users u WHERE u.id = p_user_id;
 
   v_cap_date := CURRENT_DATE + (GREATEST(0, COALESCE(p_days_ahead,0)) || ' days')::INTERVAL;
@@ -1310,7 +1327,7 @@ GRANT EXECUTE ON FUNCTION castor_client_recent_changes(UUID,INT,INT) TO authenti
 GRANT EXECUTE ON FUNCTION castor_admin_route_reassign(UUID, UUID, UUID) TO authenticated, service_role;
 
 INSERT INTO castor_schema_migrations(version)
-VALUES ('010_routes_and_interactions') ON CONFLICT DO NOTHING;
+VALUES ('011_routes_and_interactions') ON CONFLICT DO NOTHING;
 
 COMMIT;
 

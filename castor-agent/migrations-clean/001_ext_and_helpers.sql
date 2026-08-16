@@ -1,6 +1,6 @@
 -- file: 001_ext_and_helpers.sql
 -- tier: A
--- purpose: Extensões, tabela de versão de migrations, grants canônicos auth, helpers castor_is_admin / castor_assert_admin.
+-- purpose: Extensões, tabela de versão de migrations, grants canônicos auth, helpers castor_is_admin / castor_assert_admin / castor_is_admin_or_supervisor.
 -- depends: -
 -- IDEMPOTENTE.
 
@@ -75,6 +75,36 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION castor_is_admin_or_supervisor()
+RETURNS BOOLEAN
+SECURITY DEFINER
+SET search_path = auth, public, pg_temp
+LANGUAGE plpgsql STABLE
+AS $$
+DECLARE
+  v_user TEXT := current_user;
+  v_uid  UUID;
+BEGIN
+  IF v_user IN ('postgres', 'service_role', 'supabase_admin', 'supabase_auth_admin') THEN
+    RETURN TRUE;
+  END IF;
+  BEGIN
+    v_uid := auth.uid();
+  EXCEPTION WHEN OTHERS THEN
+    RETURN FALSE;
+  END;
+  IF v_uid IS NULL THEN
+    RETURN FALSE;
+  END IF;
+  RETURN COALESCE(
+    (SELECT raw_user_meta_data->>'role'
+       FROM auth.users
+      WHERE id = v_uid) IN ('admin', 'supervisor'),
+    FALSE
+  );
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION castor_assert_admin(p_caller UUID)
 RETURNS VOID
 SECURITY DEFINER
@@ -87,12 +117,13 @@ BEGIN
   END IF;
   SELECT COALESCE(u.raw_user_meta_data->>'role','vendedor')
     INTO v_role FROM auth.users u WHERE u.id = p_caller;
-  IF v_role IS DISTINCT FROM 'admin' THEN
+  IF v_role NOT IN ('admin', 'supervisor') THEN
     RAISE EXCEPTION 'forbidden: admin-only' USING ERRCODE='42501';
   END IF;
 END; $$;
 
 GRANT EXECUTE ON FUNCTION castor_is_admin() TO authenticated;
+GRANT EXECUTE ON FUNCTION castor_is_admin_or_supervisor() TO authenticated;
 GRANT EXECUTE ON FUNCTION castor_assert_admin(UUID) TO authenticated, service_role;
 
 INSERT INTO castor_schema_migrations(version)
@@ -104,6 +135,7 @@ NOTIFY pgrst, 'reload schema';
 
 -- ========================== DOWN (comentado) ==========================
 -- BEGIN;
+-- DROP FUNCTION IF EXISTS castor_is_admin_or_supervisor();
 -- DROP FUNCTION IF EXISTS castor_assert_admin(UUID);
 -- DROP FUNCTION IF EXISTS castor_is_admin();
 -- DROP TABLE IF EXISTS castor_schema_migrations;

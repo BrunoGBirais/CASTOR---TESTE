@@ -2,7 +2,7 @@
 -- tier: A
 -- purpose: Tabelas castor_client_address_override (override editorial de endereço/contato/lifecycle por cliente)
 --   e castor_client_interactions (histórico unificado). As FUNÇÕES que operam sobre essas tabelas
---   ficam em 010_routes_and_interactions_functions.sql (precisam de objetos definidos depois).
+--   ficam em 011_routes_and_interactions.sql (precisam de objetos definidos depois).
 -- depends: 001
 -- IDEMPOTENTE.
 

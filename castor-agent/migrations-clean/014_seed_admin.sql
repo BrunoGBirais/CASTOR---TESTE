@@ -1,4 +1,4 @@
--- file: 012_seed_admin.sql
+-- file: 014_seed_admin.sql
 -- tier: A
 -- purpose: Seed do admin padrão (admin@castor.com.br / @Admin123). Idempotente — se já existir,
 --   apenas garante role=admin/company_name=castor e email confirmado.
@@ -71,7 +71,7 @@ END
 $$;
 
 INSERT INTO castor_schema_migrations(version)
-VALUES ('012_seed_admin') ON CONFLICT DO NOTHING;
+VALUES ('014_seed_admin') ON CONFLICT DO NOTHING;
 
 COMMIT;
 

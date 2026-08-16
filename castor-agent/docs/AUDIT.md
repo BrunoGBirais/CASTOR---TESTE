@@ -122,9 +122,9 @@ Reviewer: opencode (mimo-v2.5-free)
 - **Problema:** Workflow legado com 176 nodes ainda no repo. Se importado junto com os 4 novos workflows (Panel-Routes, Panel-Clients, Panel-CRM, Panel-Admin), gera conflito de paths.
 - **Solução:** Arquivar (renomear para `_ARCHIVED_...`) ou deletar do n8n. Já está no repo como legado.
 
-### 20. MigrationsClean 12 arquivos vs Migrations 54 arquivos
-- **Problema:** `migrations-clean/` tem 12 arquivos consolidados, mas `migrations/` tem 54 arquivos incrementais. As 12 consolidadas estão 18 migrações atrás.
-- **Solução:** Re-consolidar `migrations-clean/` incluindo as migrações 037-054, ou documentar que `migrations-clean/` é apenas para fresh installs e `migrations/` é para updates.
+### 20. MigrationsClean 12 arquivos vs Migrations 54 arquivos (RESOLVIDO)
+- **Problema:** `migrations-clean/` tinha 12 arquivos consolidados (a partir de 001-036), mas `migrations/` chegou a 65 arquivos incrementais. As 12 consolidadas estavam 29 migrações atrás.
+- **Solução aplicada:** `migrations-clean/` foi re-consolidado cobrindo 001-065, agora com 14 arquivos (2 novos: `008_client_snapshot.sql` e `013_products_analytics.sql`, deslocando o restante). Ver [`../migrations-clean/README.md`](../migrations-clean/README.md) para o histórico completo da re-consolidação, incluindo a mescla manual do bug de `castor_client_pending_followups` (041 vs 047) e os arquivos de reparo/diagnóstico (057, 058) deliberadamente descartados.
 
 ### 21. RAG manifest: SHA256 stale
 - **Arquivo:** `RAG/manifest.json`
@@ -270,7 +270,7 @@ Reviewer: opencode (mimo-v2.5-free)
 | 17 | Sync MSSQL Respond OK | PENDENTE |
 | 18 | Snapshot vs MSSQL overlap | PENDENTE |
 | 19 | Panel-API legacy | PENDENTE |
-| 20 | MigrationsClean 18 atrás | PENDENTE |
+| 20 | MigrationsClean 18 atrás | CORRIGIDO |
 | 21 | RAG manifest SHA256 | PENDENTE |
 | 22 | dicionario_sx3 ausente | PENDENTE |
 | 23 | AGENTS.md "36+" | CORRIGIDO |
@@ -313,7 +313,7 @@ Reviewer: opencode (mimo-v2.5-free)
 7. ~~Atualizar AGENTS.md (problemas 23, 24)~~ ✅
 
 ### Médio prazo (1 semana)
-8. Re-consolidar migrations-clean (problema 20)
+8. ~~Re-consolidar migrations-clean (problema 20)~~ ✅
 9. Criar skills faltantes (problema 25)
 10. Adicionar rate limiting (problema 44)
 11. Restringir CORS (problema 10)
