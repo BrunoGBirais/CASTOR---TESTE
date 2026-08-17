@@ -4,13 +4,13 @@
       "parameters": {
         "jsCode": "// Sync concluido: Final Merge recebeu saida de todos os 4 grupos.\n// Nao usa respondToWebhook (workflow disparado por Schedule, sem contexto de webhook).\nconst items = $input.all();\nreturn [{ json: { ok: true, synced_at: new Date().toISOString(), source: 'mssql_live', groups_done: items.length } }];"
       },
-      "id": "6899fe2f-e067-4647-8e78-aa0f66779949",
+      "id": "0181bb64-ac70-4dc3-aade-789123aeb1f8",
       "name": "Respond OK2",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        256,
-        -336
+        2928,
+        3040
       ]
     },
     {
@@ -19,13 +19,13 @@
         "numberInputs": 3,
         "useDataOfInput": 3
       },
-      "id": "3760655c-86ab-4cad-9260-8cb227a75e79",
+      "id": "72bd78bc-854b-4832-883f-921f7c7d22d5",
       "name": "Sub-Merge: G",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        48,
-        -352
+        2720,
+        3024
       ]
     },
     {
@@ -34,13 +34,13 @@
         "numberInputs": 3,
         "useDataOfInput": 3
       },
-      "id": "916faae0-d493-4884-88c0-b2fa3adc68db",
+      "id": "49678289-00f7-4dc1-94f9-eb14dd4e5e6d",
       "name": "Sub-Merge: G5",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        48,
-        240
+        2720,
+        3616
       ]
     },
     {
@@ -48,13 +48,13 @@
         "mode": "chooseBranch",
         "useDataOfInput": 2
       },
-      "id": "a3bea536-26b7-4138-963f-929bfbeec7d6",
+      "id": "ab08a258-7bf1-4ed5-b678-95e0ae2c72e9",
       "name": "Sub-Merge: G6",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        48,
-        608
+        2720,
+        3984
       ]
     },
     {
@@ -63,77 +63,52 @@
         "numberInputs": 3,
         "useDataOfInput": 3
       },
-      "id": "abdd9395-cc27-4591-81fb-2a5f473d3e46",
+      "id": "b77f303e-5587-466c-9c9d-bef7a22c6c98",
       "name": "Sub-Merge: G7",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        48,
-        1200
+        2720,
+        4576
       ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT A1_COD, A1_LOJA, A1_NOME, A1_NREDUZ, A1_PESSOA, A1_CGC,\n  A1_PRICOM, A1_ULTCOM, A1_VEND, A1_RISCO, A1_LC, A1_SATIV1,\n  A1_END, A1_CEP, A1_BAIRRO, A1_EST, A1_COD_MUN, A1_MUN, A1_MSBLQL\nFROM SA1010\nWHERE D_E_L_E_T_ = ''\n  AND A1_SATIV1 NOT IN ('000134', '000116')\n "
-      },
-      "id": "5acceadc-5130-4c87-a7e7-480ad3caacfc",
-      "name": "Query Protheus SA",
-      "type": "n8n-nodes-base.microsoftSql",
-      "typeVersion": 1,
-      "position": [
-        -1216,
-        -528
-      ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 2000,
-      "alwaysOutputData": true,
-      "credentials": {
-        "microsoftSql": {
-          "id": "5tLHk3XOaTL32faz",
-          "name": "Microsoft SQL account 2"
-        }
-      },
-      "continueOnFail": true
     },
     {
       "parameters": {
         "jsCode": "// Catch: intercepta erros do Query MSSQL (continueOnFail) e propaga _skip\nconst items = $input.all();\nif (!items || items.length === 0)\n  return [{ json: { _skip: true, _table: 'sa1010', _reason: 'no_data' } }];\nconst first = items[0].json;\nconst isErr = first && (first.error || first.$error || (first.code && first.message));\nif (isErr) {\n  const msg = first.error?.message ?? first.message ?? String(first.error ?? first.$error ?? 'query failed');\n  console.error('[Catch sa1010] ' + msg);\n  return [{ json: { _skip: true, _table: 'sa1010', _error: msg, _ts: new Date().toISOString() } }];\n}\nreturn items;"
       },
-      "id": "80776190-d43f-4efd-a7f9-280f8231ef55",
+      "id": "0990fa5d-7b1f-4778-9290-c47eef04eb22",
       "name": "Catch: sa",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1024,
-        -528
+        1648,
+        2848
       ]
     },
     {
       "parameters": {
         "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\n// Mapeia SA1010 → schema castor_client_snapshot\n// A1_MSBLQL: 1=Inativo, 2=Ativo (SX3 SA1;B5)\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  const cod  = String(r.A1_COD  || '').trim();\n  const loja = String(r.A1_LOJA || '').trim().padStart(2, '0');\n  const blql = String(r.A1_MSBLQL || '').trim();\n  const fmtD = v => (v && String(v).trim().length === 8) ? String(v).trim().slice(0,4)+'-'+String(v).trim().slice(4,6)+'-'+String(v).trim().slice(6,8) : null;\n  out.push({ json: {\n    a1_codcli_raw:   cod + loja,\n    record_id:       cod + loja,\n    a1_msblql:       blql || null,\n    a1_nome:         r.A1_NOME   || null,\n    a1_nreduz:       r.A1_NREDUZ || null,\n    a1_pessoa:       r.A1_PESSOA || null,\n    a1_cgc:          r.A1_CGC    || null,\n    a1_pricom:       fmtD(r.A1_PRICOM),\n    a1_ultcom:       fmtD(r.A1_ULTCOM),\n    a1_vend:         r.A1_VEND   || null,\n    a1_risco:        r.A1_RISCO  || null,\n    a1_lc:           r.A1_LC != null ? Number(r.A1_LC) : null,\n    a1_sativ1:       r.A1_SATIV1 || null,\n    a1_end:          r.A1_END    || null,\n    a1_cep:          r.A1_CEP    || null,\n    a1_bairro:       r.A1_BAIRRO || null,\n    a1_est:          r.A1_EST    || null,\n    a1_cod_mun:      r.A1_COD_MUN || null,\n    a1_mun:          r.A1_MUN    || null,\n    a1_ativo_raw:    blql === '2' ? '1' : '0',\n    a1_inativo_raw:  blql === '1' ? '1' : '0',\n    cliente_codigo:  cod + loja,\n    a1_cod:          cod,\n    a1_loja:         loja,\n    a1_ativo:        blql === '2',\n    a1_inativo:      blql === '1'\n  }});\n}\nreturn out;"
       },
-      "id": "2e54a829-79c3-40b8-a4e5-7385277f8a66",
+      "id": "6b7c5897-8b60-4c50-8788-93a9cc58e551",
       "name": "Map to castor_client_snapshot columns",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -816,
-        -528
+        1856,
+        2848
       ]
     },
     {
       "parameters": {
         "jsCode": "let rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = [\"record_id\",\"a1_codcli_raw\",\"a1_nome\",\"a1_nreduz\",\"a1_pessoa\",\"a1_cgc\",\"a1_pricom\",\"a1_ultcom\",\"a1_vend\",\"a1_risco\",\"a1_lc\",\"a1_sativ1\",\"a1_end\",\"a1_cep\",\"a1_bairro\",\"a1_est\",\"a1_cod_mun\",\"a1_mun\",\"a1_msblql\",\"a1_ativo_raw\",\"a1_inativo_raw\",\"cliente_codigo\",\"a1_cod\",\"a1_loja\",\"a1_ativo\",\"a1_inativo\"];\n// Dedupe pela chave do ON CONFLICT. O Postgres recusa o INSERT inteiro com\n// \"ON CONFLICT DO UPDATE command cannot affect row a second time\" quando a\n// mesma chave aparece duas vezes no MESMO statement. Mantem a ultima ocorrencia,\n// que e a mesma semantica que o upsert teria se as linhas viessem separadas.\n// Chave vazia/nula vira NULL no SQL e NULL nao conflita com NULL: essas passam direto.\nconst keyCols = ['record_id'];\nconst _uniq = new Map();\nconst _semChave = [];\nfor (const item of rows) {\n  const vals = keyCols.map(c => item.json[c]);\n  if (vals.some(v => v === null || v === undefined || String(v).trim() === '')) { _semChave.push(item); continue; }\n  _uniq.set(vals.map(v => String(v).trim()).join('\\u0001'), item);\n}\nconst _dup = rows.length - _uniq.size - _semChave.length;\nif (_dup > 0) console.warn(`[sa1010] ${_dup} linha(s) com (${keyCols.join(',')}) duplicado na origem — mantida a ultima de cada`);\nrows = [..._uniq.values(), ..._semChave];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const upd = cols.filter(c => c !== 'record_id').map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_client_snapshot (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (record_id) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
       },
-      "id": "22437d5b-94af-4b46-aa0f-ee4aad5a6cf1",
+      "id": "8904c5c9-2511-4290-a6c0-c3f5b9b3167f",
       "name": "Code: sa1010-batches1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -624,
-        -528
+        2048,
+        2848
       ]
     },
     {
@@ -144,83 +119,53 @@
           "queryBatching": "transaction"
         }
       },
-      "id": "389557cb-757b-4584-ab2e-9dfa602c81c8",
+      "id": "449e1781-8a54-455b-80fc-fc051cb14a0d",
       "name": "Supabase: upsert-sa",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -416,
-        -528
+        2256,
+        2848
       ],
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT CC2_EST, CC2_CODMUN, CC2_MUN FROM CC2010 WHERE D_E_L_E_T_ = ''"
-      },
-      "id": "b868d953-345f-44c6-90a3-17d39bd6f14c",
-      "name": "Query Protheus CC",
-      "type": "n8n-nodes-base.microsoftSql",
-      "typeVersion": 1,
-      "position": [
-        -1216,
-        -352
-      ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 2000,
-      "alwaysOutputData": true,
-      "credentials": {
-        "microsoftSql": {
-          "id": "5tLHk3XOaTL32faz",
-          "name": "Microsoft SQL account 2"
-        }
-      },
-      "continueOnFail": true
+      "credentials": {}
     },
     {
       "parameters": {
         "jsCode": "// Catch: intercepta erros do Query MSSQL (continueOnFail) e propaga _skip\nconst items = $input.all();\nif (!items || items.length === 0)\n  return [{ json: { _skip: true, _table: 'cc2010', _reason: 'no_data' } }];\nconst first = items[0].json;\nconst isErr = first && (first.error || first.$error || (first.code && first.message));\nif (isErr) {\n  const msg = first.error?.message ?? first.message ?? String(first.error ?? first.$error ?? 'query failed');\n  console.error('[Catch cc2010] ' + msg);\n  return [{ json: { _skip: true, _table: 'cc2010', _error: msg, _ts: new Date().toISOString() } }];\n}\nreturn items;"
       },
-      "id": "4b0cdf7b-444b-41da-894c-960808087d5c",
+      "id": "c008521e-2116-4888-a59a-ec66cdb4a2f7",
       "name": "Catch: cc",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1024,
-        -352
+        1648,
+        3024
       ]
     },
     {
       "parameters": {
         "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\nconst str = v => { const x = String(v == null ? '' : v).trim(); return x === '' ? null : x; };\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  out.push({ json: {\n    cc2_est: str(r.CC2_EST),\n    cc2_codmun: str(r.CC2_CODMUN),\n    cc2_mun: str(r.CC2_MUN)\n  }});\n}\nreturn out;"
       },
-      "id": "37876212-346b-4a40-b4f8-d978a0dc202f",
+      "id": "5582e6f8-6c97-45c4-83c7-d2826b7076e4",
       "name": "Map: cc",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -816,
-        -352
+        1856,
+        3024
       ]
     },
     {
       "parameters": {
         "jsCode": "let rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['cc2_est', 'cc2_codmun', 'cc2_mun'];\n// Dedupe pela chave do ON CONFLICT. O Postgres recusa o INSERT inteiro com\n// \"ON CONFLICT DO UPDATE command cannot affect row a second time\" quando a\n// mesma chave aparece duas vezes no MESMO statement. Mantem a ultima ocorrencia,\n// que e a mesma semantica que o upsert teria se as linhas viessem separadas.\n// Chave vazia/nula vira NULL no SQL e NULL nao conflita com NULL: essas passam direto.\nconst keyCols = ['cc2_est', 'cc2_codmun'];\nconst _uniq = new Map();\nconst _semChave = [];\nfor (const item of rows) {\n  const vals = keyCols.map(c => item.json[c]);\n  if (vals.some(v => v === null || v === undefined || String(v).trim() === '')) { _semChave.push(item); continue; }\n  _uniq.set(vals.map(v => String(v).trim()).join('\\u0001'), item);\n}\nconst _dup = rows.length - _uniq.size - _semChave.length;\nif (_dup > 0) console.warn(`[cc2010] ${_dup} linha(s) com (${keyCols.join(',')}) duplicado na origem — mantida a ultima de cada`);\nrows = [..._uniq.values(), ..._semChave];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"cc2_est\",\"cc2_codmun\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_cc2010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (cc2_est, cc2_codmun) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
       },
-      "id": "a26dbd6d-a93f-4d89-b7af-45d2cdcda483",
+      "id": "d5054472-3800-4450-8f4d-3b610183c57c",
       "name": "Code: cc2010-batches1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -624,
-        -352
+        2048,
+        3024
       ]
     },
     {
@@ -231,83 +176,73 @@
           "queryBatching": "transaction"
         }
       },
-      "id": "63ae4feb-0aef-46a3-9b7b-826ebb32f66a",
+      "id": "08cd56fc-a482-46b5-b544-7732890c5538",
       "name": "Supabase: upsert-cc",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -416,
-        -352
+        2256,
+        3024
       ],
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
+      "credentials": {}
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT A3_COD, A3_NOME, A3_NREDUZ FROM SA3010 WHERE D_E_L_E_T_ = ''"
       },
-      "id": "1d9995c1-c9ac-41aa-bf77-6d797739c8cc",
+      "id": "bb259259-d795-4329-85c4-64fd3ba1a9b2",
       "name": "Query Protheus SA3011",
       "type": "n8n-nodes-base.microsoftSql",
       "typeVersion": 1,
       "position": [
-        -1216,
-        -160
+        1456,
+        3216
       ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 2000,
       "alwaysOutputData": true,
-      "credentials": {
-        "microsoftSql": {
-          "id": "5tLHk3XOaTL32faz",
-          "name": "Microsoft SQL account 2"
-        }
-      },
+      "credentials": {},
       "continueOnFail": true
     },
     {
       "parameters": {
         "jsCode": "// Catch: intercepta erros do Query MSSQL (continueOnFail) e propaga _skip\nconst items = $input.all();\nif (!items || items.length === 0)\n  return [{ json: { _skip: true, _table: 'sa3010', _reason: 'no_data' } }];\nconst first = items[0].json;\nconst isErr = first && (first.error || first.$error || (first.code && first.message));\nif (isErr) {\n  const msg = first.error?.message ?? first.message ?? String(first.error ?? first.$error ?? 'query failed');\n  console.error('[Catch sa3010] ' + msg);\n  return [{ json: { _skip: true, _table: 'sa3010', _error: msg, _ts: new Date().toISOString() } }];\n}\nreturn items;"
       },
-      "id": "275292e9-61c5-4603-b8fd-94d516610f30",
+      "id": "924eeca0-3bda-43d4-b833-2a6d90dfc494",
       "name": "Catch: sa3011",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1024,
-        -160
+        1648,
+        3216
       ]
     },
     {
       "parameters": {
         "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\nconst str = v => { const x = String(v == null ? '' : v).trim(); return x === '' ? null : x; };\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  out.push({ json: {\n    a3_cod: str(r.A3_COD),\n    a3_nome: str(r.A3_NOME),\n    a3_nreduz: str(r.A3_NREDUZ)\n  }});\n}\nreturn out;"
       },
-      "id": "542e9de7-ed9f-4e90-b9a2-c6dd066742ad",
+      "id": "a01c5aea-88fa-475f-af7d-302b9f279df8",
       "name": "Map: sa",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -816,
-        -160
+        1856,
+        3216
       ]
     },
     {
       "parameters": {
         "jsCode": "let rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['a3_cod', 'a3_nome', 'a3_nreduz'];\n// Dedupe pela chave do ON CONFLICT. O Postgres recusa o INSERT inteiro com\n// \"ON CONFLICT DO UPDATE command cannot affect row a second time\" quando a\n// mesma chave aparece duas vezes no MESMO statement. Mantem a ultima ocorrencia,\n// que e a mesma semantica que o upsert teria se as linhas viessem separadas.\n// Chave vazia/nula vira NULL no SQL e NULL nao conflita com NULL: essas passam direto.\nconst keyCols = ['a3_cod'];\nconst _uniq = new Map();\nconst _semChave = [];\nfor (const item of rows) {\n  const vals = keyCols.map(c => item.json[c]);\n  if (vals.some(v => v === null || v === undefined || String(v).trim() === '')) { _semChave.push(item); continue; }\n  _uniq.set(vals.map(v => String(v).trim()).join('\\u0001'), item);\n}\nconst _dup = rows.length - _uniq.size - _semChave.length;\nif (_dup > 0) console.warn(`[sa3010] ${_dup} linha(s) com (${keyCols.join(',')}) duplicado na origem — mantida a ultima de cada`);\nrows = [..._uniq.values(), ..._semChave];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"a3_cod\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sa3010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (a3_cod) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
       },
-      "id": "bad20a73-660a-4fbe-9f20-0788866b3b79",
+      "id": "518f3046-4ded-41cf-85e6-c16c1d8495ac",
       "name": "Code: sa3010-batches1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -624,
-        -160
+        2048,
+        3216
       ]
     },
     {
@@ -318,83 +253,53 @@
           "queryBatching": "transaction"
         }
       },
-      "id": "b92de823-1837-4df4-955e-510b041c6190",
+      "id": "d1c956e6-6264-4c97-bb92-962ce5355c63",
       "name": "Supabase: upsert-sa3011",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -416,
-        -160
+        2256,
+        3216
       ],
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT B1_COD, B1_DESC, B1_TIPO, B1_UM, B1_GRUPO, B1_PRV1 FROM SB1010 WHERE D_E_L_E_T_ = ''"
-      },
-      "id": "9a48ca8f-38a0-4778-80ad-a4810057acbf",
-      "name": "Query Protheus SB",
-      "type": "n8n-nodes-base.microsoftSql",
-      "typeVersion": 1,
-      "position": [
-        -1216,
-        48
-      ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 2000,
-      "alwaysOutputData": true,
-      "credentials": {
-        "microsoftSql": {
-          "id": "5tLHk3XOaTL32faz",
-          "name": "Microsoft SQL account 2"
-        }
-      },
-      "continueOnFail": true
+      "credentials": {}
     },
     {
       "parameters": {
         "jsCode": "// Catch: intercepta erros do Query MSSQL (continueOnFail) e propaga _skip\nconst items = $input.all();\nif (!items || items.length === 0)\n  return [{ json: { _skip: true, _table: 'sb1010', _reason: 'no_data' } }];\nconst first = items[0].json;\nconst isErr = first && (first.error || first.$error || (first.code && first.message));\nif (isErr) {\n  const msg = first.error?.message ?? first.message ?? String(first.error ?? first.$error ?? 'query failed');\n  console.error('[Catch sb1010] ' + msg);\n  return [{ json: { _skip: true, _table: 'sb1010', _error: msg, _ts: new Date().toISOString() } }];\n}\nreturn items;"
       },
-      "id": "ea82c287-c141-4bf5-883e-ec1be45a817b",
+      "id": "bb1fdcb3-2115-4e0a-a272-283541ffc0d8",
       "name": "Catch: sb",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1024,
-        48
+        1648,
+        3424
       ]
     },
     {
       "parameters": {
         "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\nconst str = v => { const x = String(v == null ? '' : v).trim(); return x === '' ? null : x; };\nfunction toDate(v) {\n  if (!v) return null;\n  const s = String(v).trim();\n  if (s.length === 8 && /^\\d{8}$/.test(s)) return s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8);\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return s;\n  return null;\n}\nconst num = v => { const n = parseFloat(String(v == null ? '' : v).trim().replace(',','.')); return isNaN(n) ? null : n; };\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  out.push({ json: {\n    b1_cod: str(r.B1_COD),\n    b1_desc: str(r.B1_DESC),\n    b1_tipo: str(r.B1_TIPO),\n    b1_um: str(r.B1_UM),\n    b1_grupo: str(r.B1_GRUPO),\n    b1_prv1: num(r.B1_PRV1)\n  }});\n}\nreturn out;"
       },
-      "id": "7cc37c4c-7057-4325-8318-6b3c1363c8f8",
+      "id": "4e716e28-8c28-4c11-995e-af7c8aa5d082",
       "name": "Map: sb",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -816,
-        48
+        1856,
+        3424
       ]
     },
     {
       "parameters": {
         "jsCode": "let rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['b1_cod', 'b1_desc', 'b1_tipo', 'b1_um', 'b1_grupo', 'b1_prv1'];\n// Dedupe pela chave do ON CONFLICT. O Postgres recusa o INSERT inteiro com\n// \"ON CONFLICT DO UPDATE command cannot affect row a second time\" quando a\n// mesma chave aparece duas vezes no MESMO statement. Mantem a ultima ocorrencia,\n// que e a mesma semantica que o upsert teria se as linhas viessem separadas.\n// Chave vazia/nula vira NULL no SQL e NULL nao conflita com NULL: essas passam direto.\nconst keyCols = ['b1_cod'];\nconst _uniq = new Map();\nconst _semChave = [];\nfor (const item of rows) {\n  const vals = keyCols.map(c => item.json[c]);\n  if (vals.some(v => v === null || v === undefined || String(v).trim() === '')) { _semChave.push(item); continue; }\n  _uniq.set(vals.map(v => String(v).trim()).join('\\u0001'), item);\n}\nconst _dup = rows.length - _uniq.size - _semChave.length;\nif (_dup > 0) console.warn(`[sb1010] ${_dup} linha(s) com (${keyCols.join(',')}) duplicado na origem — mantida a ultima de cada`);\nrows = [..._uniq.values(), ..._semChave];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"b1_cod\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sb1010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (b1_cod) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
       },
-      "id": "6f2f6296-50ea-429c-96a2-0261c711db55",
+      "id": "8063d5cb-c113-411e-a988-6a069d6e717d",
       "name": "Code: sb1010-batches1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -624,
-        48
+        2048,
+        3424
       ]
     },
     {
@@ -405,83 +310,53 @@
           "queryBatching": "transaction"
         }
       },
-      "id": "4d905fd5-ada5-47c3-b468-10d00218d1ea",
+      "id": "5fa9c64f-8f6e-4a28-aa25-d287689860c6",
       "name": "Supabase: upsert-sb",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -416,
-        48
+        2256,
+        3424
       ],
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT BM_GRUPO, BM_DESC FROM SBM010 WHERE D_E_L_E_T_ = ''"
-      },
-      "id": "43299d75-6853-40cd-abaf-5feba01bed2e",
-      "name": "Query Protheus SBM",
-      "type": "n8n-nodes-base.microsoftSql",
-      "typeVersion": 1,
-      "position": [
-        -1216,
-        240
-      ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 2000,
-      "alwaysOutputData": true,
-      "credentials": {
-        "microsoftSql": {
-          "id": "5tLHk3XOaTL32faz",
-          "name": "Microsoft SQL account 2"
-        }
-      },
-      "continueOnFail": true
+      "credentials": {}
     },
     {
       "parameters": {
         "jsCode": "// Catch: intercepta erros do Query MSSQL (continueOnFail) e propaga _skip\nconst items = $input.all();\nif (!items || items.length === 0)\n  return [{ json: { _skip: true, _table: 'sbm010', _reason: 'no_data' } }];\nconst first = items[0].json;\nconst isErr = first && (first.error || first.$error || (first.code && first.message));\nif (isErr) {\n  const msg = first.error?.message ?? first.message ?? String(first.error ?? first.$error ?? 'query failed');\n  console.error('[Catch sbm010] ' + msg);\n  return [{ json: { _skip: true, _table: 'sbm010', _error: msg, _ts: new Date().toISOString() } }];\n}\nreturn items;"
       },
-      "id": "fc093e1c-89d3-44ab-942c-321dd73daa6f",
+      "id": "8de93698-7b15-4e22-8e72-94875cb12906",
       "name": "Catch: sbm",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1024,
-        240
+        1648,
+        3616
       ]
     },
     {
       "parameters": {
         "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\nconst str = v => { const x = String(v == null ? '' : v).trim(); return x === '' ? null : x; };\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  out.push({ json: {\n    bm_grupo: str(r.BM_GRUPO),\n    bm_desc: str(r.BM_DESC)\n  }});\n}\nreturn out;"
       },
-      "id": "c4c1e304-bd71-4740-bd50-c6a576a1150e",
+      "id": "151d57e4-e4cc-4e94-a119-6dc20fdf6003",
       "name": "Map: sbm",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -816,
-        240
+        1856,
+        3616
       ]
     },
     {
       "parameters": {
         "jsCode": "let rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['bm_grupo', 'bm_desc'];\n// Dedupe pela chave do ON CONFLICT. O Postgres recusa o INSERT inteiro com\n// \"ON CONFLICT DO UPDATE command cannot affect row a second time\" quando a\n// mesma chave aparece duas vezes no MESMO statement. Mantem a ultima ocorrencia,\n// que e a mesma semantica que o upsert teria se as linhas viessem separadas.\n// Chave vazia/nula vira NULL no SQL e NULL nao conflita com NULL: essas passam direto.\nconst keyCols = ['bm_grupo'];\nconst _uniq = new Map();\nconst _semChave = [];\nfor (const item of rows) {\n  const vals = keyCols.map(c => item.json[c]);\n  if (vals.some(v => v === null || v === undefined || String(v).trim() === '')) { _semChave.push(item); continue; }\n  _uniq.set(vals.map(v => String(v).trim()).join('\\u0001'), item);\n}\nconst _dup = rows.length - _uniq.size - _semChave.length;\nif (_dup > 0) console.warn(`[sbm010] ${_dup} linha(s) com (${keyCols.join(',')}) duplicado na origem — mantida a ultima de cada`);\nrows = [..._uniq.values(), ..._semChave];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"bm_grupo\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sbm010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (bm_grupo) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
       },
-      "id": "6b0bed21-9f03-4273-a4f6-78588de72efa",
+      "id": "2409f33e-f231-494c-b58f-a7fde27681ca",
       "name": "Code: sbm010-batches1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -624,
-        240
+        2048,
+        3616
       ]
     },
     {
@@ -492,83 +367,53 @@
           "queryBatching": "transaction"
         }
       },
-      "id": "15d77d8f-5746-4b4c-a9fb-fe4a65631d05",
+      "id": "bc82f709-0777-44d1-901b-bec0547c8119",
       "name": "Supabase: upsert-sbm",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -416,
-        240
+        2256,
+        3616
       ],
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ `SELECT C5_NUM, C5_CLIENTE, C5_LOJACLI, C5_YNOMEC, C5_VEND1, C5_EMISSAO\nFROM SC5010\nWHERE D_E_L_E_T_ = ''\n  AND C5_FILIAL = '0401'\n  AND C5_EMISSAO >= CONVERT(varchar(8), DATEADD(day, -${Number($json.dias) || 30}, GETDATE()), 112)` }}"
-      },
-      "id": "7a669427-d079-4845-bf90-f820f6426a50",
-      "name": "Query Protheus SC",
-      "type": "n8n-nodes-base.microsoftSql",
-      "typeVersion": 1,
-      "position": [
-        -1216,
-        448
-      ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 2000,
-      "alwaysOutputData": true,
-      "credentials": {
-        "microsoftSql": {
-          "id": "5tLHk3XOaTL32faz",
-          "name": "Microsoft SQL account 2"
-        }
-      },
-      "continueOnFail": true
+      "credentials": {}
     },
     {
       "parameters": {
         "jsCode": "// Catch: intercepta erros do Query MSSQL (continueOnFail) e propaga _skip\nconst items = $input.all();\nif (!items || items.length === 0)\n  return [{ json: { _skip: true, _table: 'sc5010', _reason: 'no_data' } }];\nconst first = items[0].json;\nconst isErr = first && (first.error || first.$error || (first.code && first.message));\nif (isErr) {\n  const msg = first.error?.message ?? first.message ?? String(first.error ?? first.$error ?? 'query failed');\n  console.error('[Catch sc5010] ' + msg);\n  return [{ json: { _skip: true, _table: 'sc5010', _error: msg, _ts: new Date().toISOString() } }];\n}\nreturn items;"
       },
-      "id": "3618ea92-ac9c-4902-a61e-6cebd0cf85b2",
+      "id": "6f01ca10-0c88-4070-8533-b5c1a699f45c",
       "name": "Catch: sc",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1024,
-        448
+        1648,
+        3824
       ]
     },
     {
       "parameters": {
         "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\nconst str = v => { const x = String(v == null ? '' : v).trim(); return x === '' ? null : x; };\nfunction toDate(v) {\n  if (!v) return null;\n  const s = String(v).trim();\n  if (s.length === 8 && /^\\d{8}$/.test(s)) return s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8);\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return s;\n  return null;\n}\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  out.push({ json: {\n    c5_num: str(r.C5_NUM),\n    c5_cliente: str(r.C5_CLIENTE),\n    c5_loja: str(r.C5_LOJACLI),\n    c5_nome: str(r.C5_YNOMEC),\n    c5_vend: str(r.C5_VEND1),\n    c5_emissao: toDate(r.C5_EMISSAO)\n  }});\n}\nreturn out;"
       },
-      "id": "b4007f96-eba2-4cdf-9110-b64b67b4313d",
+      "id": "3d3cf61e-7293-49e9-867f-a81f8e64b7cd",
       "name": "Map: sc",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -816,
-        448
+        1856,
+        3824
       ]
     },
     {
       "parameters": {
         "jsCode": "let rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['c5_num', 'c5_cliente', 'c5_loja', 'c5_nome', 'c5_vend', 'c5_emissao'];\n// Dedupe pela chave do ON CONFLICT. O Postgres recusa o INSERT inteiro com\n// \"ON CONFLICT DO UPDATE command cannot affect row a second time\" quando a\n// mesma chave aparece duas vezes no MESMO statement. Mantem a ultima ocorrencia,\n// que e a mesma semantica que o upsert teria se as linhas viessem separadas.\n// Chave vazia/nula vira NULL no SQL e NULL nao conflita com NULL: essas passam direto.\nconst keyCols = ['c5_num'];\nconst _uniq = new Map();\nconst _semChave = [];\nfor (const item of rows) {\n  const vals = keyCols.map(c => item.json[c]);\n  if (vals.some(v => v === null || v === undefined || String(v).trim() === '')) { _semChave.push(item); continue; }\n  _uniq.set(vals.map(v => String(v).trim()).join('\\u0001'), item);\n}\nconst _dup = rows.length - _uniq.size - _semChave.length;\nif (_dup > 0) console.warn(`[sc5010] ${_dup} linha(s) com (${keyCols.join(',')}) duplicado na origem — mantida a ultima de cada`);\nrows = [..._uniq.values(), ..._semChave];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"c5_num\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sc5010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (c5_num) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
       },
-      "id": "fb72b936-5110-408f-8753-2ac888caecaa",
+      "id": "ead877c0-7526-4960-8059-cff93879ead4",
       "name": "Code: sc5010-batches1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -624,
-        448
+        2048,
+        3824
       ]
     },
     {
@@ -579,83 +424,53 @@
           "queryBatching": "transaction"
         }
       },
-      "id": "2e5152aa-62b4-4811-bc3b-bcdbb6188dab",
+      "id": "c762c310-06cf-429a-8b61-2f50f0769d13",
       "name": "Supabase: upsert-sc",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -416,
-        448
+        2256,
+        3824
       ],
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ `SELECT F2_DOC, F2_SERIE, F2_CLIENTE, F2_LOJA, F2_EMISSAO, F2_VALBRUT\nFROM SF2010\nWHERE D_E_L_E_T_ = ''\n  AND F2_FILIAL = '0401'\n  AND F2_EMISSAO >= CONVERT(varchar(8), DATEADD(day, -${Number($json.dias) || 30}, GETDATE()), 112)` }}"
-      },
-      "id": "bc8471a0-f91d-425e-98c7-cc9d2ed814e8",
-      "name": "Query Protheus SF",
-      "type": "n8n-nodes-base.microsoftSql",
-      "typeVersion": 1,
-      "position": [
-        -1216,
-        608
-      ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 2000,
-      "alwaysOutputData": true,
-      "credentials": {
-        "microsoftSql": {
-          "id": "5tLHk3XOaTL32faz",
-          "name": "Microsoft SQL account 2"
-        }
-      },
-      "continueOnFail": true
+      "credentials": {}
     },
     {
       "parameters": {
         "jsCode": "// Catch: intercepta erros do Query MSSQL (continueOnFail) e propaga _skip\nconst items = $input.all();\nif (!items || items.length === 0)\n  return [{ json: { _skip: true, _table: 'sf2010', _reason: 'no_data' } }];\nconst first = items[0].json;\nconst isErr = first && (first.error || first.$error || (first.code && first.message));\nif (isErr) {\n  const msg = first.error?.message ?? first.message ?? String(first.error ?? first.$error ?? 'query failed');\n  console.error('[Catch sf2010] ' + msg);\n  return [{ json: { _skip: true, _table: 'sf2010', _error: msg, _ts: new Date().toISOString() } }];\n}\nreturn items;"
       },
-      "id": "3e6eb507-0291-4920-bfb7-a60890a9bf17",
+      "id": "e2e664e6-a057-415f-934e-296ae1d42d1a",
       "name": "Catch: sf",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1024,
-        608
+        1648,
+        3984
       ]
     },
     {
       "parameters": {
         "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\nconst str = v => { const x = String(v == null ? '' : v).trim(); return x === '' ? null : x; };\nfunction toDate(v) {\n  if (!v) return null;\n  const s = String(v).trim();\n  if (s.length === 8 && /^\\d{8}$/.test(s)) return s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8);\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return s;\n  return null;\n}\nconst num = v => { const n = parseFloat(String(v == null ? '' : v).trim().replace(',','.')); return isNaN(n) ? null : n; };\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  out.push({ json: {\n    f2_doc: str(r.F2_DOC),\n    f2_serie: str(r.F2_SERIE),\n    f2_cliente: str(r.F2_CLIENTE),\n    f2_loja: str(r.F2_LOJA),\n    f2_emissao: toDate(r.F2_EMISSAO),\n    f2_valor: num(r.F2_VALBRUT)\n  }});\n}\nreturn out;"
       },
-      "id": "5e90a875-3884-4643-9506-32af3694547f",
+      "id": "0c053e46-5ea5-4d2c-bec4-27d75043d48e",
       "name": "Map: sf",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -816,
-        608
+        1856,
+        3984
       ]
     },
     {
       "parameters": {
         "jsCode": "let rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['f2_doc', 'f2_serie', 'f2_cliente', 'f2_loja', 'f2_emissao', 'f2_valor'];\n// Dedupe pela chave do ON CONFLICT. O Postgres recusa o INSERT inteiro com\n// \"ON CONFLICT DO UPDATE command cannot affect row a second time\" quando a\n// mesma chave aparece duas vezes no MESMO statement. Mantem a ultima ocorrencia,\n// que e a mesma semantica que o upsert teria se as linhas viessem separadas.\n// Chave vazia/nula vira NULL no SQL e NULL nao conflita com NULL: essas passam direto.\nconst keyCols = ['f2_doc', 'f2_serie', 'f2_cliente', 'f2_loja'];\nconst _uniq = new Map();\nconst _semChave = [];\nfor (const item of rows) {\n  const vals = keyCols.map(c => item.json[c]);\n  if (vals.some(v => v === null || v === undefined || String(v).trim() === '')) { _semChave.push(item); continue; }\n  _uniq.set(vals.map(v => String(v).trim()).join('\\u0001'), item);\n}\nconst _dup = rows.length - _uniq.size - _semChave.length;\nif (_dup > 0) console.warn(`[sf2010] ${_dup} linha(s) com (${keyCols.join(',')}) duplicado na origem — mantida a ultima de cada`);\nrows = [..._uniq.values(), ..._semChave];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"f2_doc\",\"f2_serie\",\"f2_cliente\",\"f2_loja\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sf2010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (f2_doc, f2_serie, f2_cliente, f2_loja) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
       },
-      "id": "c1fc4709-aa3c-43c2-908c-d920ff6f0066",
+      "id": "6ae2affd-bd57-4758-84e8-e42392f66c29",
       "name": "Code: sf2010-batches1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -624,
-        608
+        2048,
+        3984
       ]
     },
     {
@@ -666,83 +481,73 @@
           "queryBatching": "transaction"
         }
       },
-      "id": "ed8b00e4-eb02-48c0-8ef7-b259338f985e",
+      "id": "9789bf77-db6c-4362-8fa3-dac0873d4f46",
       "name": "Supabase: upsert-sf",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -416,
-        608
+        2256,
+        3984
       ],
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
+      "credentials": {}
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT F4_CODIGO, F4_TIPO, F4_CF, F4_TEXTO, F4_DUPLIC, F4_ESTOQUE FROM SF4010 WHERE D_E_L_E_T_ = '' AND F4_FILIAL = '0401'"
+        "query": "SELECT F4_CODIGO, F4_TIPO, F4_CF, F4_TEXTO, F4_DUPLIC, F4_ESTOQUE FROM SF4010 WHERE D_E_L_E_T_ = ''"
       },
-      "id": "c01eb89c-6af8-42c2-bbb1-cadb8d8dc592",
+      "id": "88c7b3e2-76ff-48c7-9c05-76504d2a7586",
       "name": "Query Protheus SF4011",
       "type": "n8n-nodes-base.microsoftSql",
       "typeVersion": 1,
       "position": [
-        -1216,
-        800
+        1456,
+        4176
       ],
       "alwaysOutputData": true,
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 2000,
-      "credentials": {
-        "microsoftSql": {
-          "id": "5tLHk3XOaTL32faz",
-          "name": "Microsoft SQL account 2"
-        }
-      },
+      "credentials": {},
       "continueOnFail": true
     },
     {
       "parameters": {
         "jsCode": "// Catch: intercepta erros do Query MSSQL (continueOnFail) e propaga _skip\nconst items = $input.all();\nif (!items || items.length === 0)\n  return [{ json: { _skip: true, _table: 'sf4010', _reason: 'no_data' } }];\nconst first = items[0].json;\nconst isErr = first && (first.error || first.$error || (first.code && first.message));\nif (isErr) {\n  const msg = first.error?.message ?? first.message ?? String(first.error ?? first.$error ?? 'query failed');\n  console.error('[Catch sf4010] ' + msg);\n  return [{ json: { _skip: true, _table: 'sf4010', _error: msg, _ts: new Date().toISOString() } }];\n}\nreturn items;"
       },
-      "id": "68935c61-5838-4783-8405-77cf7cfd253b",
+      "id": "a1cdd14c-0695-4fb5-86c8-d142eb83677f",
       "name": "Catch: sf4011",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1024,
-        800
+        1648,
+        4176
       ]
     },
     {
       "parameters": {
         "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\nconst str = v => { const x = String(v == null ? '' : v).trim(); return x === '' ? null : x; };\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  out.push({ json: {\n    f4_codigo: str(r.F4_CODIGO),\n    f4_tipo: str(r.F4_TIPO),\n    f4_cf: str(r.F4_CF),\n    f4_texto: str(r.F4_TEXTO),\n    f4_duplic: str(r.F4_DUPLIC),\n    f4_estoque: str(r.F4_ESTOQUE)\n  }});\n}\nreturn out;"
       },
-      "id": "476f8a6e-df18-46f2-9a13-828bc0b5358e",
+      "id": "adfaf769-7e9e-48b8-9aa7-7e9c2c7ece3f",
       "name": "Map: sf4011",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -816,
-        800
+        1856,
+        4176
       ]
     },
     {
       "parameters": {
         "jsCode": "let rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['f4_codigo', 'f4_tipo', 'f4_cf', 'f4_texto', 'f4_duplic', 'f4_estoque'];\n// Dedupe pela chave do ON CONFLICT. O Postgres recusa o INSERT inteiro com\n// \"ON CONFLICT DO UPDATE command cannot affect row a second time\" quando a\n// mesma chave aparece duas vezes no MESMO statement. Mantem a ultima ocorrencia,\n// que e a mesma semantica que o upsert teria se as linhas viessem separadas.\n// Chave vazia/nula vira NULL no SQL e NULL nao conflita com NULL: essas passam direto.\nconst keyCols = ['f4_codigo'];\nconst _uniq = new Map();\nconst _semChave = [];\nfor (const item of rows) {\n  const vals = keyCols.map(c => item.json[c]);\n  if (vals.some(v => v === null || v === undefined || String(v).trim() === '')) { _semChave.push(item); continue; }\n  _uniq.set(vals.map(v => String(v).trim()).join('\\u0001'), item);\n}\nconst _dup = rows.length - _uniq.size - _semChave.length;\nif (_dup > 0) console.warn(`[sf4010] ${_dup} linha(s) com (${keyCols.join(',')}) duplicado na origem — mantida a ultima de cada`);\nrows = [..._uniq.values(), ..._semChave];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"f4_codigo\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sf4010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (f4_codigo) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
       },
-      "id": "9bd079f0-8178-46cd-a223-9ce993e0ff25",
+      "id": "19b176be-831d-4ff6-af88-eeb08ede98f5",
       "name": "Code: sf4010-batches1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -624,
-        800
+        2048,
+        4176
       ]
     },
     {
@@ -753,83 +558,53 @@
           "queryBatching": "transaction"
         }
       },
-      "id": "c66c8823-1523-461e-bb47-b420d2835c78",
+      "id": "18ebf0dc-711e-4ec9-9492-eb5be6b3258a",
       "name": "Supabase: upsert-sf4011",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -416,
-        800
+        2256,
+        4176
       ],
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT X5_TABELA, X5_CHAVE, X5_DESCRI FROM SX5010 WHERE D_E_L_E_T_ = '' AND X5_FILIAL = '0401'"
-      },
-      "id": "9b18d6cd-d333-42cc-af85-d60f175a4fdf",
-      "name": "Query Protheus SX",
-      "type": "n8n-nodes-base.microsoftSql",
-      "typeVersion": 1,
-      "position": [
-        -1216,
-        1008
-      ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 2000,
-      "alwaysOutputData": true,
-      "credentials": {
-        "microsoftSql": {
-          "id": "5tLHk3XOaTL32faz",
-          "name": "Microsoft SQL account 2"
-        }
-      },
-      "continueOnFail": true
+      "credentials": {}
     },
     {
       "parameters": {
         "jsCode": "// Catch: intercepta erros do Query MSSQL (continueOnFail) e propaga _skip\nconst items = $input.all();\nif (!items || items.length === 0)\n  return [{ json: { _skip: true, _table: 'sx5010', _reason: 'no_data' } }];\nconst first = items[0].json;\nconst isErr = first && (first.error || first.$error || (first.code && first.message));\nif (isErr) {\n  const msg = first.error?.message ?? first.message ?? String(first.error ?? first.$error ?? 'query failed');\n  console.error('[Catch sx5010] ' + msg);\n  return [{ json: { _skip: true, _table: 'sx5010', _error: msg, _ts: new Date().toISOString() } }];\n}\nreturn items;"
       },
-      "id": "0b50a9ab-667a-4c63-ae09-724869fd56b1",
+      "id": "3cc5bda1-314d-421d-8585-e8795acd23d9",
       "name": "Catch: sx",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1024,
-        1008
+        1648,
+        4384
       ]
     },
     {
       "parameters": {
         "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\nconst str = v => { const x = String(v == null ? '' : v).trim(); return x === '' ? null : x; };\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  out.push({ json: {\n    x5_tabela: str(r.X5_TABELA),\n    x5_chave: str(r.X5_CHAVE),\n    x5_descri: str(r.X5_DESCRI)\n  }});\n}\nreturn out;"
       },
-      "id": "d2b18fc2-fc57-41f1-a8fd-222ac7b8daf1",
+      "id": "bf26d657-e82d-487d-a5b5-e234eed565e3",
       "name": "Map: sx",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -816,
-        1008
+        1856,
+        4384
       ]
     },
     {
       "parameters": {
         "jsCode": "let rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['x5_tabela', 'x5_chave', 'x5_descri'];\n// Dedupe pela chave do ON CONFLICT. O Postgres recusa o INSERT inteiro com\n// \"ON CONFLICT DO UPDATE command cannot affect row a second time\" quando a\n// mesma chave aparece duas vezes no MESMO statement. Mantem a ultima ocorrencia,\n// que e a mesma semantica que o upsert teria se as linhas viessem separadas.\n// Chave vazia/nula vira NULL no SQL e NULL nao conflita com NULL: essas passam direto.\nconst keyCols = ['x5_tabela', 'x5_chave'];\nconst _uniq = new Map();\nconst _semChave = [];\nfor (const item of rows) {\n  const vals = keyCols.map(c => item.json[c]);\n  if (vals.some(v => v === null || v === undefined || String(v).trim() === '')) { _semChave.push(item); continue; }\n  _uniq.set(vals.map(v => String(v).trim()).join('\\u0001'), item);\n}\nconst _dup = rows.length - _uniq.size - _semChave.length;\nif (_dup > 0) console.warn(`[sx5010] ${_dup} linha(s) com (${keyCols.join(',')}) duplicado na origem — mantida a ultima de cada`);\nrows = [..._uniq.values(), ..._semChave];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"x5_tabela\",\"x5_chave\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sx5010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (x5_tabela, x5_chave) DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
       },
-      "id": "a09f69a5-00b3-460e-91e5-b21e76e247c2",
+      "id": "265c4d38-2770-49fa-b714-d83752e0c733",
       "name": "Code: sx5010-batches1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -624,
-        1008
+        2048,
+        4384
       ]
     },
     {
@@ -840,83 +615,53 @@
           "queryBatching": "transaction"
         }
       },
-      "id": "e3b282f1-6b0c-463f-a3fc-cb87c6eb20da",
+      "id": "4fdc9b5c-97ff-41fe-b231-df1580fb9995",
       "name": "Supabase: upsert-sx",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -416,
-        1008
+        2256,
+        4384
       ],
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ `SELECT Z1_COD, Z1_CLICOD, Z1_LOJA, Z1_STATUA, Z1_STATUD,\n  Z1_RISCOA, Z1_RISCOD, Z1_TPALT, Z1_PEDIDO, Z1_USUNOM, Z1_DATA, Z1_HORA\nFROM SZ1010\nWHERE D_E_L_E_T_ = ''\n  AND Z1_DATA >= CONVERT(varchar(8), DATEADD(day, -${Number($json.dias) || 30}, GETDATE()), 112)` }}"
-      },
-      "id": "f0ff99f4-362f-49fb-a20f-8d38340d9b91",
-      "name": "Query Protheus SZ",
-      "type": "n8n-nodes-base.microsoftSql",
-      "typeVersion": 1,
-      "position": [
-        -1216,
-        1200
-      ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 2000,
-      "alwaysOutputData": true,
-      "credentials": {
-        "microsoftSql": {
-          "id": "5tLHk3XOaTL32faz",
-          "name": "Microsoft SQL account 2"
-        }
-      },
-      "continueOnFail": true
+      "credentials": {}
     },
     {
       "parameters": {
         "jsCode": "// Catch: intercepta erros do Query MSSQL (continueOnFail) e propaga _skip\nconst items = $input.all();\nif (!items || items.length === 0)\n  return [{ json: { _skip: true, _table: 'sz1010', _reason: 'no_data' } }];\nconst first = items[0].json;\nconst isErr = first && (first.error || first.$error || (first.code && first.message));\nif (isErr) {\n  const msg = first.error?.message ?? first.message ?? String(first.error ?? first.$error ?? 'query failed');\n  console.error('[Catch sz1010] ' + msg);\n  return [{ json: { _skip: true, _table: 'sz1010', _error: msg, _ts: new Date().toISOString() } }];\n}\nreturn items;"
       },
-      "id": "83af1c52-3156-4af0-bff0-dd93927c5574",
+      "id": "d167c008-e447-4cd9-8592-5b3ab34e4d18",
       "name": "Catch: sz",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1024,
-        1200
+        1648,
+        4576
       ]
     },
     {
       "parameters": {
         "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\nconst str = v => { const x = String(v == null ? '' : v).trim(); return x === '' ? null : x; };\nfunction toDate(v) {\n  if (!v) return null;\n  const s = String(v).trim();\n  if (s.length === 8 && /^\\d{8}$/.test(s)) return s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8);\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return s;\n  return null;\n}\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  out.push({ json: {\n    z1_cod: str(r.Z1_COD),\n    z1_clicod: str(r.Z1_CLICOD),\n    z1_loja: str(r.Z1_LOJA),\n    z1_statua: str(r.Z1_STATUA),\n    z1_statud: str(r.Z1_STATUD),\n    z1_riscoa: str(r.Z1_RISCOA),\n    z1_riscod: str(r.Z1_RISCOD),\n    z1_tpalt: str(r.Z1_TPALT),\n    z1_pedido: str(r.Z1_PEDIDO),\n    z1_usunom: str(r.Z1_USUNOM),\n    z1_hora: str(r.Z1_HORA),\n    z1_data: toDate(r.Z1_DATA)\n  }});\n}\nreturn out;"
       },
-      "id": "a37449e7-f49a-4980-ba8f-e06d969951ff",
+      "id": "d2d9afa8-dffb-4c96-a1da-ab8429104ef2",
       "name": "Map: sz",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -816,
-        1200
+        1856,
+        4576
       ]
     },
     {
       "parameters": {
         "jsCode": "let rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['z1_cod', 'z1_clicod', 'z1_loja', 'z1_statua', 'z1_statud', 'z1_riscoa', 'z1_riscod', 'z1_tpalt', 'z1_pedido', 'z1_usunom', 'z1_data', 'z1_hora'];\n// Dedupe pela chave do ON CONFLICT. O Postgres recusa o INSERT inteiro com\n// \"ON CONFLICT DO UPDATE command cannot affect row a second time\" quando a\n// mesma chave aparece duas vezes no MESMO statement. Mantem a ultima ocorrencia,\n// que e a mesma semantica que o upsert teria se as linhas viessem separadas.\n// Chave vazia/nula vira NULL no SQL e NULL nao conflita com NULL: essas passam direto.\nconst keyCols = ['z1_cod'];\nconst _uniq = new Map();\nconst _semChave = [];\nfor (const item of rows) {\n  const vals = keyCols.map(c => item.json[c]);\n  if (vals.some(v => v === null || v === undefined || String(v).trim() === '')) { _semChave.push(item); continue; }\n  _uniq.set(vals.map(v => String(v).trim()).join('\\u0001'), item);\n}\nconst _dup = rows.length - _uniq.size - _semChave.length;\nif (_dup > 0) console.warn(`[sz1010] ${_dup} linha(s) com (${keyCols.join(',')}) duplicado na origem — mantida a ultima de cada`);\nrows = [..._uniq.values(), ..._semChave];\nconst batchSize = 2000;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  const confCols = [\"z1_cod\"];\n  const upd = cols.filter(c => !confCols.includes(c)).map(c => `${c}=EXCLUDED.${c}`).concat('ingested_at=NOW()').join(',');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sz1010 (${cols.join(',')},ingested_at) VALUES ${values} ON CONFLICT (z1_cod) WHERE z1_cod IS NOT NULL DO UPDATE SET ${upd}`,\n    rowCount: chunk.length\n  }});\n}\nif (!batches.length) batches.push({ json: { sql: 'SELECT 1', rowCount: 0 }});\nreturn batches;"
       },
-      "id": "ff82e357-f435-4cd4-b4d2-4b30f3a22128",
+      "id": "0d536a92-b0ce-4678-a0d8-40a70a49b358",
       "name": "Code: sz1010-batches1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -624,
-        1200
+        2048,
+        4576
       ]
     },
     {
@@ -927,83 +672,53 @@
           "queryBatching": "transaction"
         }
       },
-      "id": "654e944d-4097-46a1-95af-5b0b0208544c",
+      "id": "6e0d91fc-bd89-4ae6-b379-b2b61d4e0549",
       "name": "Supabase: upsert-sz",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -416,
-        1200
+        2256,
+        4576
       ],
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ `SELECT ZA7_DATA, ZA7_HORA, ZA7_OPERAD, ZA7_NOMEOP, ZA7_ASSUNTO,\n  ZA7_CONTATO, ZA7_CLIENTE, ZA7_DESCLI, ZA7_VEND, ZA7_COMPLE\nFROM ZA7010\nWHERE D_E_L_E_T_ = ''\n  AND ZA7_FILIAL = '0401'\n  AND ZA7_DATA >= CONVERT(varchar(8), DATEADD(day, -${Number($json.dias) || 30}, GETDATE()), 112)\n  AND ZA7_DATA <> '        '` }}"
-      },
-      "id": "f5249a97-b286-4b82-b34b-7e7e57900df3",
-      "name": "Query Protheus ZA",
-      "type": "n8n-nodes-base.microsoftSql",
-      "typeVersion": 1,
-      "position": [
-        -1216,
-        1408
-      ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 2000,
-      "alwaysOutputData": true,
-      "credentials": {
-        "microsoftSql": {
-          "id": "5tLHk3XOaTL32faz",
-          "name": "Microsoft SQL account 2"
-        }
-      },
-      "continueOnFail": true
+      "credentials": {}
     },
     {
       "parameters": {
         "jsCode": "// Catch: intercepta erros do Query MSSQL (continueOnFail) e propaga _skip\nconst items = $input.all();\nif (!items || items.length === 0)\n  return [{ json: { _skip: true, _table: 'za7010', _reason: 'no_data' } }];\nconst first = items[0].json;\nconst isErr = first && (first.error || first.$error || (first.code && first.message));\nif (isErr) {\n  const msg = first.error?.message ?? first.message ?? String(first.error ?? first.$error ?? 'query failed');\n  console.error('[Catch za7010] ' + msg);\n  return [{ json: { _skip: true, _table: 'za7010', _error: msg, _ts: new Date().toISOString() } }];\n}\nreturn items;"
       },
-      "id": "15dfc1d0-d780-4eb0-85d0-e17b8a0af99e",
+      "id": "3057a806-d5f5-41a6-9797-aea31cd42691",
       "name": "Catch: za",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1024,
-        1408
+        1648,
+        4784
       ]
     },
     {
       "parameters": {
         "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\nconst str = v => { const x = String(v == null ? '' : v).trim(); return x === '' ? null : x; };\nfunction toDate(v) {\n  if (!v) return null;\n  const s = String(v).trim();\n  if (s.length === 8 && /^\\d{8}$/.test(s)) return s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8);\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return s;\n  return null;\n}\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  out.push({ json: {\n    za7_hora: str(r.ZA7_HORA),\n    za7_operad: str(r.ZA7_OPERAD),\n    za7_nomeop: str(r.ZA7_NOMEOP),\n    za7_assunto: str(r.ZA7_ASSUNTO),\n    za7_contato: str(r.ZA7_CONTATO),\n    za7_cliente: str(r.ZA7_CLIENTE),\n    za7_nome_cli: str(r.ZA7_DESCLI),\n    za7_vend: str(r.ZA7_VEND),\n    za7_compl: str(r.ZA7_COMPLE),\n    za7_data: toDate(r.ZA7_DATA)\n  }});\n}\nreturn out;"
       },
-      "id": "7fddcca5-4bce-41db-a5dd-ddf741b5e8d4",
+      "id": "7c6648da-8ab5-4274-a004-39d7cb171f5a",
       "name": "Map: za",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -816,
-        1408
+        1856,
+        4784
       ]
     },
     {
       "parameters": {
         "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['za7_data', 'za7_hora', 'za7_operad', 'za7_nomeop', 'za7_assunto', 'za7_contato', 'za7_cliente', 'za7_nome_cli', 'za7_vend', 'za7_compl'];\nconst batchSize = 2000;\n// 1a instrucao: DELETE incremental da janela de sync (historico fora da janela preservado)\n// A janela do DELETE TEM que ser a mesma da query (Query Protheus ZA), senao\n// apagamos mais dias do que o INSERT repoe. No caminho agendado o Set nao roda.\nconst _cfg = $('Set: grupo manual');\nconst dias = Number(_cfg.isExecuted ? _cfg.first().json.dias : null) || 30;\nconst batches = [{ json: { sql: `DELETE FROM castor_src_za7010 WHERE za7_data >= (CURRENT_DATE - INTERVAL '${dias} days')::date OR za7_data IS NULL`, rowCount: 0 } }];\nfor (let i = 0; i < rows.length; i += batchSize) {\n  const chunk = rows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_za7010 (${cols.join(',')},ingested_at) VALUES ${values}`,\n    rowCount: chunk.length\n  }});\n}\nreturn batches;"
       },
-      "id": "dc32b407-d8bc-4dfe-b117-89c1929d74b3",
+      "id": "2ca1634b-988a-4908-9b52-e3302e83beb3",
       "name": "Code: za7010-batches1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -624,
-        1408
+        2048,
+        4784
       ]
     },
     {
@@ -1014,30 +729,25 @@
           "queryBatching": "transaction"
         }
       },
-      "id": "441363cb-0a86-401a-a4e2-f051e3ade895",
+      "id": "f5316834-e28b-48be-bddc-cac32fd4d782",
       "name": "Supabase: upsert-za",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -416,
-        1408
+        2256,
+        4784
       ],
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
+      "credentials": {}
     },
     {
       "parameters": {},
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
       "position": [
-        -2496,
-        560
+        176,
+        3936
       ],
-      "id": "ef83b705-f842-46c3-ad4b-a1b943a1447d",
+      "id": "ff9cdc4a-a35c-4302-ab8c-2a84fe98828c",
       "name": "When clicking ‘Execute workflow’"
     },
     {
@@ -1049,10 +759,10 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -2560,
-        112
+        112,
+        3152
       ],
-      "id": "b1a0c4d2-0000-4000-8000-000000000100",
+      "id": "22879755-1435-4637-a787-53396dc3439e",
       "name": "Sticky Note: execucao manual"
     },
     {
@@ -1062,7 +772,7 @@
             {
               "id": "b1a0c4d2-0000-4000-8000-000000000101",
               "name": "grupo",
-              "value": "clientes",
+              "value": "sd2010",
               "type": "string"
             },
             {
@@ -1090,10 +800,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -2272,
-        560
+        400,
+        3936
       ],
-      "id": "b1a0c4d2-0000-4000-8000-000000000102",
+      "id": "e976c846-fdf1-4b3f-b3eb-908dc6327a1b",
       "name": "Set: grupo manual"
     },
     {
@@ -1229,91 +939,85 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
-        -2048,
-        560
+        624,
+        3936
       ],
-      "id": "b1a0c4d2-0000-4000-8000-000000000103",
+      "id": "d481c47f-ea3d-48cf-bf7a-11cea2f92e3b",
       "name": "Switch: grupo manual"
     },
     {
       "parameters": {
         "jsCode": "// Janela em chunks mensais, ranges half-open [start, end) para nao duplicar as bordas.\n// Datas montadas por componentes locais (toISOString desloca 1 dia em BRT).\n// meses_ini/meses_fim permitem fatiar o backfill em execucoes separadas:\n//   nightly = 3/0 · backfill = 36/24, depois 24/12, depois 12/0.\nconst MESES_INI = Number($json.meses_ini) || 3;\nconst MESES_FIM = Number($json.meses_fim) || 0;\nif (MESES_FIM >= MESES_INI) throw new Error(`janela invalida: meses_ini=${MESES_INI} meses_fim=${MESES_FIM}`);\nconst pad = n => String(n).padStart(2, '0');\nconst ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;\nconst fmt = d => ymd(d).replace(/-/g, '');\nconst now = new Date();\nconst chunks = [];\nfor (let i = MESES_INI - 1; i >= MESES_FIM; i--) {\n  const start = new Date(now.getFullYear(), now.getMonth() - i, 1);\n  const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);\n  chunks.push({ json: {\n    chunkIndex: chunks.length,\n    totalChunks: MESES_INI - MESES_FIM,\n    startDate: ymd(start),\n    endDate: ymd(end),\n    startFmt: fmt(start),\n    endFmt: fmt(end)\n  }});\n}\nreturn chunks;\n"
       },
-      "id": "3e1ad31d-6ca6-4497-8e2a-a2556cb7c943",
+      "id": "e4579abf-02c0-43e5-9d0a-2c2a623ddc3f",
       "name": "Code: sd2010-chunks",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1600,
-        1712
+        1072,
+        5088
       ],
       "alwaysOutputData": true,
       "continueOnFail": true
     },
     {
       "parameters": {
-        "batchSize": 1,
         "options": {}
       },
-      "id": "98adc5f8-cd06-4638-86cb-6ce7f57a6208",
+      "id": "0a889204-aa70-4092-a93c-5fe89c3069d2",
       "name": "Split In Batches: sd2010",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        -1200,
-        1712
+        1472,
+        5088
       ],
       "alwaysOutputData": true
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ `SELECT D2_ITEM, D2_COD, D2_QUANT, D2_PRCVEN, D2_TOTAL, D2_DESCON, D2_TES, D2_CF, D2_PEDIDO, D2_CLIENTE, D2_LOJA, D2_DOC, D2_SERIE, D2_GRUPO, D2_EMISSAO FROM SD2010 WHERE D_E_L_E_T_ = '' AND D2_FILIAL = '0401' AND D2_EMISSAO >= '${$json.startFmt}' AND D2_EMISSAO < '${$json.endFmt}'` }}"
+        "query": "={{ `SELECT D2_ITEM, D2_COD, D2_QUANT, D2_PRCVEN, D2_TOTAL, D2_DESCON, D2_TES, D2_CF, D2_PEDIDO, D2_CLIENTE, D2_LOJA, D2_DOC, D2_SERIE, D2_GRUPO, D2_EMISSAO FROM SD2010 WHERE D_E_L_E_T_ = '' AND D2_EMISSAO >= '${$json.startFmt}' AND D2_EMISSAO < '${$json.endFmt}'` }}"
       },
-      "id": "ea3c5517-293d-4ba4-8132-2d05f5a615e3",
+      "id": "11f13274-52d0-4da2-9ff5-ebf3a143aac7",
       "name": "Query Protheus SD2010 (chunk)",
       "type": "n8n-nodes-base.microsoftSql",
       "typeVersion": 1,
       "position": [
-        -1056,
-        1616
+        1616,
+        4992
       ],
       "alwaysOutputData": true,
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 2000,
-      "credentials": {
-        "microsoftSql": {
-          "id": "5tLHk3XOaTL32faz",
-          "name": "Microsoft SQL account 2"
-        }
-      },
+      "credentials": {},
       "continueOnFail": true
     },
     {
       "parameters": {
         "jsCode": "const items = $input.all(); if (!items || items.length === 0) return [{ json: { _skip: true, _table: 'sd2010', _reason: 'no_data' } }]; const first = items[0].json; const isErr = first && (first.error || first.$error || (first.code && first.message)); if (isErr) { const msg = first.error?.message ?? first.message ?? String(first.error ?? first.$error ?? 'query failed'); return [{ json: { _skip: true, _table: 'sd2010', _error: msg, _ts: new Date().toISOString() } }]; } return items;\n"
       },
-      "id": "82f7fe16-658c-420a-a008-d307053d86e1",
+      "id": "f4eb3d4b-b743-45df-883d-c02e99860616",
       "name": "Catch: sd2010 (chunk)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -896,
-        1616
+        1776,
+        4992
       ]
     },
     {
       "parameters": {
         "jsCode": "// Ultima etapa do snapshot: recalcula TODOS os agregados (sf/sc/sc5_address/alltime/sa1010_derived/sd2).\n// Sem isso, castor_client_metrics_v2 e as tools do agente ficam congeladas no ultimo ingest.\nreturn [{ json: { sql: 'SELECT castor_refresh_all_metrics();', rowCount: 0 } }];"
       },
-      "id": "de3ab7ca-7932-4344-8c50-1571db375001",
+      "id": "fbd39c50-a429-4f42-bd5a-99844ae7f9c8",
       "name": "Code: sd2010-refresh",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -272,
-        1712
+        2400,
+        5088
       ],
       "alwaysOutputData": true
     },
@@ -1325,46 +1029,41 @@
           "queryBatching": "transaction"
         }
       },
-      "id": "64da5faa-7a20-4c2b-bb3d-326295cb885d",
+      "id": "9f20c089-8299-4dbc-a6eb-8f35701224b7",
       "name": "Supabase: refresh-sd2010",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -112,
-        1712
+        2560,
+        5088
       ],
       "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
+      "credentials": {}
     },
     {
       "parameters": {
         "jsCode": "const _all = $input.all(); if (!_all.length || _all[0].json?._skip) return _all.length ? _all : [];\nconst str = v => { const x = String(v == null ? '' : v).trim(); return x === '' ? null : x; };\nfunction toDate(v) {\n  if (!v) return null;\n  const s = String(v).trim();\n  if (s.length === 8 && /^\\d{8}$/.test(s)) return s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8);\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return s;\n  return null;\n}\nconst num = v => { const n = parseFloat(String(v == null ? '' : v).trim().replace(',','.')); return isNaN(n) ? null : n; };\nconst out = [];\nfor (const item of _all) {\n  const r = item.json;\n  out.push({ json: {\n    d2_item: str(r.D2_ITEM),\n    d2_cod: str(r.D2_COD),\n    d2_tes: str(r.D2_TES),\n    d2_cf: str(r.D2_CF),\n    d2_pedido: str(r.D2_PEDIDO),\n    d2_cliente: str(r.D2_CLIENTE),\n    d2_loja: str(r.D2_LOJA),\n    d2_doc: str(r.D2_DOC),\n    d2_serie: str(r.D2_SERIE),\n    d2_grupo: str(r.D2_GRUPO),\n    d2_emissao: toDate(r.D2_EMISSAO),\n    d2_quant: num(r.D2_QUANT),\n    d2_prcven: num(r.D2_PRCVEN),\n    d2_total: num(r.D2_TOTAL),\n    d2_descon: num(r.D2_DESCON)\n  }});\n}\nreturn out;"
       },
-      "id": "9b64f8f0-5419-4705-9224-8baa5861c5a6",
+      "id": "3e312eda-9c88-46fd-b909-9d8e283909d6",
       "name": "Map: sd",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -752,
-        1616
+        1920,
+        4992
       ]
     },
     {
       "parameters": {
         "jsCode": "const rows = $input.all(); if (!rows.length || rows[0].json?._skip) return [{ json: { sql: 'SELECT 1', rowCount: 0, _skip: true } }];\nfunction esc(v) {\n  if (v === null || v === undefined) return 'NULL';\n  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';\n  if (typeof v === 'number') return isNaN(v) ? 'NULL' : String(v);\n  const s = String(v).trim();\n  if (s === '') return 'NULL';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return `'${s}'`;\n  return `'${s.replace(/'/g, \"''\")}'`;\n}\nconst cols = ['d2_item', 'd2_cod', 'd2_quant', 'd2_prcven', 'd2_total', 'd2_descon', 'd2_tes', 'd2_cf', 'd2_pedido', 'd2_cliente', 'd2_loja', 'd2_doc', 'd2_serie', 'd2_grupo', 'd2_emissao'];\nconst validRows = rows.filter(item => cols.some(c => { const v = item.json[c]; return v !== null && v !== undefined && String(v).trim() !== ''; }));\n// DELETE escopado ao mesmo range do chunk; roda na mesma transacao do INSERT (queryBatching=transaction).\n// $runIndex = iteracao atual do loop; os chunks saem em ordem com batchSize=1.\nconst w = $('Code: sd2010-chunks').all()[$runIndex]?.json;\nif (!w || !w.startDate) throw new Error(`chunk window ausente para runIndex=${$runIndex}`);\nconst nullClause = w.chunkIndex === 0 ? \" OR d2_emissao IS NULL\" : '';\nconst batches = [{ json: {\n  sql: `DELETE FROM castor_src_sd2010 WHERE (d2_emissao >= '${w.startDate}' AND d2_emissao < '${w.endDate}')${nullClause}`,\n  rowCount: 0\n}}];\nconst batchSize = 2000;\nfor (let i = 0; i < validRows.length; i += batchSize) {\n  const chunk = validRows.slice(i, i + batchSize);\n  const values = chunk.map(item => {\n    const r = item.json;\n    return `(${cols.map(c => esc(r[c])).join(',')},NOW())`;\n  }).join(',\\n');\n  batches.push({ json: {\n    sql: `INSERT INTO castor_src_sd2010 (${cols.join(',')},ingested_at) VALUES ${values}`,\n    rowCount: chunk.length\n  }});\n}\nreturn batches;\n"
       },
-      "id": "3a4cd575-c95f-4b44-be63-722e4179b4d1",
+      "id": "b6c42876-6734-4761-ba8d-aa231ba89e87",
       "name": "Code: sd2010-batches1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -608,
-        1616
+        2064,
+        4992
       ]
     },
     {
@@ -1375,20 +1074,15 @@
           "queryBatching": "transaction"
         }
       },
-      "id": "fb9d9f80-6aff-4ca5-a512-031f92c025dc",
+      "id": "55771556-e600-49d4-a780-4a172d2ba2c0",
       "name": "Supabase: upsert-sd",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -464,
-        1856
+        2208,
+        5232
       ],
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
+      "credentials": {}
     },
     {
       "parameters": {
@@ -1403,10 +1097,10 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.3,
       "position": [
-        -1856,
-        1648
+        816,
+        5024
       ],
-      "id": "eef32c0a-7eb0-4057-9961-554fdad61bbf",
+      "id": "be08f041-0084-4cc1-9723-49a7e0b3c000",
       "name": "Schedule Trigger"
     },
     {
@@ -1419,13 +1113,13 @@
           ]
         }
       },
-      "id": "f45fefc1-7f9a-42ca-87de-063edc971f45",
+      "id": "0c62c24a-ff5e-472d-bd21-83c3a4bacf37",
       "name": "Schedule Trigger3",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        -1680,
-        160
+        992,
+        3536
       ]
     },
     {
@@ -1438,13 +1132,13 @@
           ]
         }
       },
-      "id": "694c1fd9-a60c-4878-9a38-d5a7ed1c1ce7",
+      "id": "77058040-eae1-42b1-af1c-fd8f01899dc2",
       "name": "Schedule Trigger4",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        -1616,
-        1232
+        1056,
+        4608
       ]
     },
     {
@@ -1457,13 +1151,13 @@
           ]
         }
       },
-      "id": "ba3ad41a-72c0-4cbb-842d-d9927448c7da",
+      "id": "7f67451e-0b51-4865-b5de-d5cef14cca23",
       "name": "Schedule Trigger5",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        -1600,
-        688
+        1072,
+        4064
       ]
     },
     {
@@ -1476,52 +1170,52 @@
           ]
         }
       },
-      "id": "8510cae4-66ab-4085-8378-41bc3ad36066",
+      "id": "3328de3a-b57d-4185-bf91-869ac979313f",
       "name": "Schedule Trigger2",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        -1680,
-        -304
+        992,
+        3072
       ]
     },
     {
       "parameters": {
         "jsCode": "// Sync concluido: Final Merge recebeu saida de todos os 4 grupos.\n// Nao usa respondToWebhook (workflow disparado por Schedule, sem contexto de webhook).\nconst items = $input.all();\nreturn [{ json: { ok: true, synced_at: new Date().toISOString(), source: 'mssql_live', groups_done: items.length } }];"
       },
-      "id": "351c26e0-d9a8-44ee-aba8-9c0a3760dfe4",
+      "id": "39e2ecf4-efa1-4f92-be7e-549d195b26bd",
       "name": "Respond OK",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        320,
-        256
+        2992,
+        3632
       ]
     },
     {
       "parameters": {
         "jsCode": "// Sync concluido: Final Merge recebeu saida de todos os 4 grupos.\n// Nao usa respondToWebhook (workflow disparado por Schedule, sem contexto de webhook).\nconst items = $input.all();\nreturn [{ json: { ok: true, synced_at: new Date().toISOString(), source: 'mssql_live', groups_done: items.length } }];"
       },
-      "id": "85a9a153-52c4-4e0e-a274-b17fc5fb9c59",
+      "id": "15866ed0-e791-4460-8dd6-774141403307",
       "name": "Respond OK3",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        288,
-        608
+        2960,
+        3984
       ]
     },
     {
       "parameters": {
         "jsCode": "// Sync concluido: Final Merge recebeu saida de todos os 4 grupos.\n// Nao usa respondToWebhook (workflow disparado por Schedule, sem contexto de webhook).\nconst items = $input.all();\nreturn [{ json: { ok: true, synced_at: new Date().toISOString(), source: 'mssql_live', groups_done: items.length } }];"
       },
-      "id": "68c4f6cd-8401-4798-abbd-6fad4cfe7f9c",
+      "id": "c58906e0-e5c9-4905-8ee6-17e607c46ef4",
       "name": "Respond OK4",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        272,
-        1216
+        2944,
+        4592
       ]
     },
     {
@@ -1533,11 +1227,191 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -1568,
-        -1232
+        1104,
+        2144
       ],
-      "id": "09d1d92e-1308-4eaf-b7b8-1ae759c6a7be",
+      "id": "d8a73a24-b4b6-469e-9bbe-c5727a17ceb2",
       "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ `SELECT F2_DOC, F2_SERIE, F2_CLIENTE, F2_LOJA, F2_EMISSAO, F2_VALBRUT\nFROM SF2010\nWHERE D_E_L_E_T_ = ''\n  AND F2_EMISSAO >= CONVERT(varchar(8), DATEADD(day, -${Number($json.dias) || 30}, GETDATE()), 112)` }}"
+      },
+      "id": "ea20737a-776a-4f37-970b-593a1f8e3c2f",
+      "name": "Query Protheus SF2010",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        1456,
+        3984
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "alwaysOutputData": true,
+      "credentials": {},
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ `SELECT C5_NUM, C5_CLIENTE, C5_LOJACLI, C5_YNOMEC, C5_VEND1, C5_EMISSAO\nFROM SC5010\nWHERE D_E_L_E_T_ = ''\n  AND C5_EMISSAO >= CONVERT(varchar(8), DATEADD(day, -${Number($json.dias) || 30}, GETDATE()), 112)` }}"
+      },
+      "id": "94eb5c65-1f76-41da-b6ac-d17432469cd3",
+      "name": "Query Protheus SC5010",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        1456,
+        3824
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "alwaysOutputData": true,
+      "credentials": {},
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT BM_GRUPO, BM_DESC FROM SBM010 WHERE D_E_L_E_T_ = ''"
+      },
+      "id": "f6a62c06-59c8-49e8-9527-e82a6f2d18df",
+      "name": "Query Protheus SBM010",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        1456,
+        3616
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "alwaysOutputData": true,
+      "credentials": {},
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT B1_COD, B1_DESC, B1_TIPO, B1_UM, B1_GRUPO, B1_PRV1 FROM SB1010 WHERE D_E_L_E_T_ = ''"
+      },
+      "id": "a15c4c26-7371-41be-aab0-fd23e3330e65",
+      "name": "Query Protheus SB1010",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        1456,
+        3424
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "alwaysOutputData": true,
+      "credentials": {},
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT CC2_EST, CC2_CODMUN, CC2_MUN FROM CC2010 WHERE D_E_L_E_T_ = ''"
+      },
+      "id": "edc81faf-7ec7-4d11-a8a0-9c0a5edaf564",
+      "name": "Query Protheus CC2010",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        1456,
+        3024
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "alwaysOutputData": true,
+      "credentials": {},
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT A1_COD, A1_LOJA, A1_NOME, A1_NREDUZ, A1_PESSOA, A1_CGC,\n  A1_PRICOM, A1_ULTCOM, A1_VEND, A1_RISCO, A1_LC, A1_SATIV1,\n  A1_END, A1_CEP, A1_BAIRRO, A1_EST, A1_COD_MUN, A1_MUN, A1_MSBLQL\nFROM SA1010\nWHERE D_E_L_E_T_ = ''\n  AND A1_SATIV1 NOT IN ('000134', '000116')\n "
+      },
+      "id": "ff059b05-4a16-4810-a80c-2726444f7725",
+      "name": "Query Protheus SA1010",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        1456,
+        2848
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "alwaysOutputData": true,
+      "credentials": {},
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT X5_TABELA, X5_CHAVE, X5_DESCRI FROM SX5010 WHERE D_E_L_E_T_ = ''"
+      },
+      "id": "9a970b03-94cc-47e6-8100-0d2b69d870a9",
+      "name": "Query Protheus SX5010",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        1456,
+        4384
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "alwaysOutputData": true,
+      "credentials": {},
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ `SELECT Z1_COD, Z1_CLICOD, Z1_LOJA, Z1_STATUA, Z1_STATUD,\n  Z1_RISCOA, Z1_RISCOD, Z1_TPALT, Z1_PEDIDO, Z1_USUNOM, Z1_DATA, Z1_HORA\nFROM SZ1010\nWHERE D_E_L_E_T_ = ''\n  AND Z1_DATA >= CONVERT(varchar(8), DATEADD(day, -${Number($json.dias) || 30}, GETDATE()), 112)` }}"
+      },
+      "id": "24e733ee-9d72-4d6a-97e5-7c7bd5635046",
+      "name": "Query Protheus SZ1010",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        1456,
+        4576
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "alwaysOutputData": true,
+      "credentials": {},
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ `SELECT ZA7_DATA, ZA7_HORA, ZA7_OPERAD, ZA7_NOMEOP, ZA7_ASSUNTO,\n  ZA7_CONTATO, ZA7_CLIENTE, ZA7_DESCLI, ZA7_VEND, ZA7_COMPLE\nFROM ZA7010\nWHERE D_E_L_E_T_ = ''\n  AND ZA7_DATA >= CONVERT(varchar(8), DATEADD(day, -${Number($json.dias) || 30}, GETDATE()), 112)\n  AND ZA7_DATA <> '        '` }}"
+      },
+      "id": "cf2d2b40-9b2b-4ef2-adc7-0d5c715cb8b3",
+      "name": "Query Protheus ZA7010",
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1,
+      "position": [
+        1456,
+        4784
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "alwaysOutputData": true,
+      "credentials": {},
+      "continueOnFail": true
     }
   ],
   "connections": {
@@ -1585,17 +1459,6 @@
         ]
       ]
     },
-    "Query Protheus SA": {
-      "main": [
-        [
-          {
-            "node": "Catch: sa",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Catch: sa": {
       "main": [
         [
@@ -1634,17 +1497,6 @@
         [
           {
             "node": "Sub-Merge: G",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Query Protheus CC": {
-      "main": [
-        [
-          {
-            "node": "Catch: cc",
             "type": "main",
             "index": 0
           }
@@ -1750,17 +1602,6 @@
         ]
       ]
     },
-    "Query Protheus SB": {
-      "main": [
-        [
-          {
-            "node": "Catch: sb",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Catch: sb": {
       "main": [
         [
@@ -1799,17 +1640,6 @@
         [
           {
             "node": "Sub-Merge: G5",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Query Protheus SBM": {
-      "main": [
-        [
-          {
-            "node": "Catch: sbm",
             "type": "main",
             "index": 0
           }
@@ -1860,17 +1690,6 @@
         ]
       ]
     },
-    "Query Protheus SC": {
-      "main": [
-        [
-          {
-            "node": "Catch: sc",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Catch: sc": {
       "main": [
         [
@@ -1911,17 +1730,6 @@
             "node": "Sub-Merge: G5",
             "type": "main",
             "index": 2
-          }
-        ]
-      ]
-    },
-    "Query Protheus SF": {
-      "main": [
-        [
-          {
-            "node": "Catch: sf",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -2025,17 +1833,6 @@
         ]
       ]
     },
-    "Query Protheus SX": {
-      "main": [
-        [
-          {
-            "node": "Catch: sx",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Catch: sx": {
       "main": [
         [
@@ -2074,17 +1871,6 @@
         [
           {
             "node": "Sub-Merge: G7",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Query Protheus SZ": {
-      "main": [
-        [
-          {
-            "node": "Catch: sz",
             "type": "main",
             "index": 0
           }
@@ -2131,17 +1917,6 @@
             "node": "Sub-Merge: G7",
             "type": "main",
             "index": 1
-          }
-        ]
-      ]
-    },
-    "Query Protheus ZA": {
-      "main": [
-        [
-          {
-            "node": "Catch: za",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -2216,12 +1991,12 @@
       "main": [
         [
           {
-            "node": "Query Protheus SA",
+            "node": "Query Protheus SA1010",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Query Protheus CC",
+            "node": "Query Protheus CC2010",
             "type": "main",
             "index": 0
           },
@@ -2233,24 +2008,24 @@
         ],
         [
           {
-            "node": "Query Protheus SB",
+            "node": "Query Protheus SB1010",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Query Protheus SBM",
+            "node": "Query Protheus SBM010",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Query Protheus SC",
+            "node": "Query Protheus SC5010",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Query Protheus SF",
+            "node": "Query Protheus SF2010",
             "type": "main",
             "index": 0
           },
@@ -2262,17 +2037,17 @@
         ],
         [
           {
-            "node": "Query Protheus SX",
+            "node": "Query Protheus SX5010",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Query Protheus SZ",
+            "node": "Query Protheus SZ1010",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Query Protheus ZA",
+            "node": "Query Protheus ZA7010",
             "type": "main",
             "index": 0
           }
@@ -2396,17 +2171,17 @@
       "main": [
         [
           {
-            "node": "Query Protheus SB",
+            "node": "Query Protheus SB1010",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Query Protheus SBM",
+            "node": "Query Protheus SBM010",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Query Protheus SC",
+            "node": "Query Protheus SC5010",
             "type": "main",
             "index": 0
           }
@@ -2417,17 +2192,17 @@
       "main": [
         [
           {
-            "node": "Query Protheus SX",
+            "node": "Query Protheus SX5010",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Query Protheus SZ",
+            "node": "Query Protheus SZ1010",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Query Protheus ZA",
+            "node": "Query Protheus ZA7010",
             "type": "main",
             "index": 0
           }
@@ -2438,7 +2213,7 @@
       "main": [
         [
           {
-            "node": "Query Protheus SF",
+            "node": "Query Protheus SF2010",
             "type": "main",
             "index": 0
           },
@@ -2454,12 +2229,12 @@
       "main": [
         [
           {
-            "node": "Query Protheus SA",
+            "node": "Query Protheus SA1010",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Query Protheus CC",
+            "node": "Query Protheus CC2010",
             "type": "main",
             "index": 0
           },
@@ -2470,19 +2245,109 @@
           }
         ]
       ]
+    },
+    "Query Protheus SF2010": {
+      "main": [
+        [
+          {
+            "node": "Catch: sf",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Protheus SC5010": {
+      "main": [
+        [
+          {
+            "node": "Catch: sc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Protheus SBM010": {
+      "main": [
+        [
+          {
+            "node": "Catch: sbm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Protheus SB1010": {
+      "main": [
+        [
+          {
+            "node": "Catch: sb",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Protheus CC2010": {
+      "main": [
+        [
+          {
+            "node": "Catch: cc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Protheus SA1010": {
+      "main": [
+        [
+          {
+            "node": "Catch: sa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Protheus SX5010": {
+      "main": [
+        [
+          {
+            "node": "Catch: sx",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Protheus SZ1010": {
+      "main": [
+        [
+          {
+            "node": "Catch: sz",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Protheus ZA7010": {
+      "main": [
+        [
+          {
+            "node": "Catch: za",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "pinData": {},
-  "settings": {
-    "executionOrder": "v1",
-    "saveExecutionProgress": false,
-    "saveDataSuccessExecution": "none",
-    "saveDataErrorExecution": "all",
-    "saveManualExecutions": true,
-    "executionTimeout": 3600
-  },
   "meta": {
-    "templateCredsSetupCompleted": true,
     "instanceId": "03d32a206f2d8840fce482e6c587726f18775bd9177e9401c00ca76d3086ad41"
   }
 }
