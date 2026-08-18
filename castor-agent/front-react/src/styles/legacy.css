@@ -1126,36 +1126,35 @@
       /* MODALS & SIDEBAR FOOTER */
 
       /* ─── Login screen (2-column hero + form) ──────────────────
-       * Tokens reskinados para a marca Castor (azul #0050b3 / azul
-       * profundo #00296b). Estrutura baseada no template de handoff
-       * docs/telalogin. Todas as classes usam prefixo login- para
-       * evitar colisao com o restante do app. */
+       * Consome o design system do dashboard (tokens --color-*,
+       * --text-*, --border-color, --shadow-*, --bg-*). Assim a tela
+       * segue o mesmo tema (claro/escuro) e paleta do restante do app.
+       * Estrutura baseada no template docs/telalogin. Classes com
+       * prefixo login- para evitar colisao. */
       .login-overlay {
-        --login-bg: #ffffff;
-        --login-surface: #f0f2f4;
-        --login-fg: #0f172a;
-        --login-muted: #475569;
-        --login-meta: #8a94a3;
-        --login-border: #dfe3e7;
-        --login-border-hover: #c3cad2;
-        --login-accent: #0050b3;
-        --login-accent-dark: #003d8f;
+        --login-bg: var(--bg-chat);
+        --login-surface: var(--color-light-gray);
+        --login-fg: var(--text-primary);
+        --login-muted: var(--text-secondary);
+        --login-meta: var(--text-secondary);
+        --login-border: var(--border-color);
+        --login-border-hover: var(--color-primary);
+        --login-accent: var(--color-primary);
+        --login-accent-dark: var(--color-primary-hover);
         --login-accent-on: #ffffff;
-        --login-accent-soft: #e2edfb;
-        --login-green: #16a34a;
-        --login-green-soft: #e7f3ec;
-        --login-danger: #dc2626;
-        --login-hero-bg: #00296b;
+        --login-accent-soft: rgba(0, 80, 179, 0.15);
+        --login-hero-bg: var(--color-wine);
         --login-hero-fg: #ffffff;
-        --login-radius-sm: 8px;
-        --login-radius-lg: 14px;
+        --login-radius-control: 8px;
+        --login-radius-tag: 6px;
+        --login-radius-card: 12px;
         --login-ease: cubic-bezier(0.2, 0, 0, 1);
 
         position: fixed;
         inset: 0;
         display: none;
         z-index: 9999;
-        background: var(--login-bg);
+        background: var(--bg-body);
       }
 
       .login-screen {
@@ -1230,13 +1229,13 @@
       }
       .login-hero-tag {
         font-size: 12px;
-        font-weight: 600;
-        letter-spacing: 0.04em;
+        font-weight: 700;
+        letter-spacing: 0.5px;
         text-transform: uppercase;
         background: rgba(255, 255, 255, 0.14);
         color: var(--login-hero-fg);
         padding: 8px 16px;
-        border-radius: var(--login-radius-sm);
+        border-radius: var(--login-radius-tag);
       }
 
       .login-hero-mid {
@@ -1385,13 +1384,13 @@
         width: 100%;
         font-size: 16px;
         color: var(--login-fg);
-        background: var(--login-bg);
-        border: 1px solid var(--login-border);
-        border-radius: var(--login-radius-sm);
-        padding: 13px 16px;
+        background: var(--bg-input);
+        border: 2px solid var(--login-border);
+        border-radius: var(--login-radius-control);
+        padding: 12px 16px;
         outline: none;
-        transition: border-color 0.15s var(--login-ease),
-          box-shadow 0.15s var(--login-ease);
+        font-family: inherit;
+        transition: all 0.2s;
       }
       .login-field-input input::placeholder {
         color: var(--login-meta);
@@ -1441,52 +1440,34 @@
         font-size: 16px;
         font-weight: 600;
         border: none;
-        border-radius: var(--login-radius-sm);
+        border-radius: var(--login-radius-control);
         padding: 14px 24px;
         margin-top: 8px;
         cursor: pointer;
-        box-shadow: 0 4px 14px -2px rgba(0, 80, 179, 0.35);
-        transition: background 0.15s var(--login-ease),
-          transform 0.1s var(--login-ease);
+        box-shadow: 0 2px 8px rgba(0, 80, 179, 0.3);
+        transition: all 0.3s;
       }
       .login-submit::after {
         content: "→";
         font-size: 17px;
         line-height: 1;
-        transition: transform 0.15s var(--login-ease);
+        transition: transform 0.2s var(--login-ease);
       }
       .login-submit:hover {
         background: var(--login-accent-dark);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 80, 179, 0.4);
       }
       .login-submit:hover::after {
         transform: translateX(3px);
       }
       .login-submit:active {
-        transform: translateY(1px);
+        transform: translateY(0);
       }
       .login-submit:disabled {
-        background: #9db8dc;
+        opacity: 0.5;
         box-shadow: none;
         cursor: not-allowed;
-      }
-
-      .login-cert-badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        margin: 24px auto 0;
-        font-size: 12px;
-        font-weight: 500;
-        color: var(--login-green);
-        background: var(--login-green-soft);
-        padding: 6px 12px;
-        border-radius: var(--login-radius-sm);
-      }
-      .login-cert-badge svg {
-        width: 14px;
-        height: 14px;
-        flex: none;
       }
 
       .login-copyright {
