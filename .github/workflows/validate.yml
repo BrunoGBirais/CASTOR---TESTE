@@ -14,15 +14,11 @@ name: Validar
 on:
   pull_request:
     paths:
-      - "workflows/**"
-      - "migrations/**"
+      - "castor-agent/workspaces/**"
+      - "castor-agent/migrations-clean/**"
+      - "castor-agent/front-react/**"
       - "deploy/**"
       - ".scripts/**"
-      - "front-react/**"
-      - "frontend/**"
-      - "front/**"
-      - "web/**"
-      - "client/**"
     types: [opened, synchronize, reopened]
 
 concurrency:
@@ -43,13 +39,10 @@ jobs:
         with:
           filters: |
             frontend:
-              - 'front-react/**'
-              - 'frontend/**'
-              - 'front/**'
-              - 'web/**'
-              - 'client/**'
+              - 'castor-agent/front-react/**'
             workflows:
-              - 'workflows/**'
+              - 'castor-agent/workspaces/**'
+              - 'castor-agent/migrations-clean/**'
               - '.scripts/**'
               - 'deploy/**'
 
@@ -69,7 +62,7 @@ jobs:
           ERRORS=0
           NAMES=()
 
-          for f in workflows/*.json; do
+          for f in castor-agent/workspaces/*.json; do
             case "$f" in *credentials*) continue ;; esac
             echo -n "  $(basename "$f") → "
 
@@ -139,10 +132,9 @@ jobs:
         run: |
           node -e "
             const fs = require('fs');
-            const dir = 'workflows';
-            const file = fs.readdirSync(dir).find(f => /static.?server.*\.json\$/i.test(f));
-            if (!file) throw new Error('nenhum workflow de static server em ' + dir);
-            const wf = JSON.parse(fs.readFileSync(dir + '/' + file, 'utf-8'));
+            const file = 'castor-agent/workspaces/Castor-Front.json';
+            if (!fs.existsSync(file)) throw new Error('workflow de static server não encontrado: ' + file);
+            const wf = JSON.parse(fs.readFileSync(file, 'utf-8'));
             const html = wf.nodes.find(n => n.name === 'HTML')?.parameters?.html || '';
             if (html.length < 10000) throw new Error('HTML do nó parece vazio: ' + html.length + ' bytes');
             console.log('✓ ' + file + ' — nó HTML com ' + (html.length / 1024).toFixed(0) + ' KB');

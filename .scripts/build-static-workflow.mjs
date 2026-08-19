@@ -51,8 +51,10 @@ if (!["loader", "raw"].includes(modeArg)) {
   console.error(`modo inválido: ${modeArg} (use loader|raw)`);
   process.exit(1);
 }
-const distDir = resolve(args[0] || "front-react/dist");
-const outputPath = resolve(args[1] || "workflows/Static-Server.json");
+const distDir = resolve(args[0] || "castor-agent/front-react/dist");
+const outputPath = resolve(
+  args[1] || "castor-agent/workspaces/Castor-Front.json",
+);
 
 // ── Validate ─────────────────────────────────────────────────────
 if (!existsSync(distDir)) {

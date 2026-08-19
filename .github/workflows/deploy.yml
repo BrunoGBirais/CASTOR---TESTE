@@ -27,8 +27,8 @@
 #    API_BASE                    → sobrescreve N8N_URL + "/webhook"
 #    SUPABASE_DB_URL             → fallback psql para as migrations
 #
-#  Variáveis de caminho (só se o projeto fugir do padrão):
-#    FRONT_DIR, STATIC_WORKFLOW, MIGRATIONS_DIR, MIGRATIONS_TABLE
+#  Caminhos (front, workflows n8n, migrations) são fixos deste repositório
+#    — veja deploy/README.md.
 # ================================================================
 
 name: Deploy
@@ -37,15 +37,11 @@ on:
   push:
     branches: [main-deploy]
     paths:
-      - "workflows/**"
-      - "migrations/**"
+      - "castor-agent/workspaces/**"
+      - "castor-agent/migrations-clean/**"
+      - "castor-agent/front-react/**"
       - "deploy/**"
       - ".scripts/**"
-      - "front-react/**"
-      - "frontend/**"
-      - "front/**"
-      - "web/**"
-      - "client/**"
   workflow_dispatch:
     inputs:
       steps:
@@ -85,11 +81,6 @@ jobs:
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }} # opcional, fallback psql
       # ── Front ── (as VITE_* saem daqui em deploy/build-front.mjs)
       API_BASE: ${{ secrets.API_BASE }} # opcional; default = N8N_URL + /webhook
-      # ── Caminhos ── (Repository variables, não secrets; vazio = detectar)
-      FRONT_DIR: ${{ vars.FRONT_DIR }}
-      STATIC_WORKFLOW: ${{ vars.STATIC_WORKFLOW }}
-      MIGRATIONS_DIR: ${{ vars.MIGRATIONS_DIR }}
-      MIGRATIONS_TABLE: ${{ vars.MIGRATIONS_TABLE }}
 
     steps:
       - name: Checkout
@@ -128,7 +119,7 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "ci: regenerar workflow de static server [skip ci]"
-          file_pattern: "workflows/*[Ss]tatic*[Ss]erver*.json"
+          file_pattern: "castor-agent/workspaces/Castor-Front.json"
           skip_fetch: true
           skip_checkout: true
 

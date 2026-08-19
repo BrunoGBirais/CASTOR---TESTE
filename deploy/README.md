@@ -1,7 +1,6 @@
 # deploy/
 
-Pipeline de deploy **n8n + Supabase + front**. Nada aqui é específico deste
-projeto — a pasta é feita para ser copiada inteira para outro repositório.
+Pipeline de deploy **n8n + Supabase + front** deste repositório (Castor).
 **Os mesmos arquivos rodam localmente e no GitHub Actions**: a action não tem
 lógica própria, só chama o que está aqui.
 
@@ -20,17 +19,17 @@ Zero dependências: só Node 20+ (ESM nativo, `fetch` embutido). Não há
 `package.json` na raiz e nada precisa ser instalado — exceto o build do front,
 que usa o `pnpm`/`npm` da pasta do front.
 
-### Convenções de caminho
+### Caminhos
 
-Os scripts se viram sozinhos com o layout padrão; todas as variáveis abaixo
-só existem para projetos que fujam dele:
+Fixos neste repositório (sem variável de ambiente):
 
-| Variável           | Default                                                                                      |
-| ------------------ | -------------------------------------------------------------------------------------------- |
-| `FRONT_DIR`        | 1ª pasta com `package.json` entre `front-react`, `frontend`, `front`, `web`, `client`, `app` |
-| `STATIC_WORKFLOW`  | único `workflows/*static*server*.json`                                                       |
-| `MIGRATIONS_DIR`   | `migrations`                                                                                 |
-| `MIGRATIONS_TABLE` | `schema_migrations`                                                                          |
+| O quê                | Caminho                                     |
+| -------------------- | -------------------------------------------- |
+| Front                | `castor-agent/front-react`                  |
+| Workflow static server | `castor-agent/workspaces/Castor-Front.json` |
+| Workflows n8n        | `castor-agent/workspaces`                   |
+| Migrations           | `castor-agent/migrations-clean`             |
+| Tabela de controle   | `schema_migrations` (`MIGRATIONS_TABLE`)     |
 
 ---
 
@@ -64,7 +63,7 @@ node deploy/deploy-n8n.mjs --strict        # falha se alguma credencial não res
 
 ## 1. Limpeza dos ids de credencial
 
-Os JSONs em `workflows/` **não** guardam id de credencial — só o nome:
+Os JSONs em `castor-agent/workspaces/` **não** guardam id de credencial — só o nome:
 
 ```json
 "credentials": {
@@ -155,8 +154,7 @@ parâmetro do nó e corromperia a página servida.
 Nome do workflow, path do webhook, `<title>`, favicon e `theme-color` **não
 são hardcoded**: os dois primeiros são preservados do JSON que já existe (ou
 vem do nome do arquivo, num projeto novo) e os demais são lidos do
-`index.html` buildado. `STATIC_WORKFLOW_NAME` e `STATIC_WEBHOOK_PATH`
-sobrescrevem, se precisar.
+`index.html` buildado.
 
 **Não há variável `VITE_*` a configurar.** As três que o Vite consome são
 derivadas do que o resto do pipeline já usa:
@@ -202,14 +200,14 @@ Cinco obrigatórios:
 Opcionais:
 
 | Secret                                | Para quê                                |
-| ------------------------------------- | --------------------------------------- | --- | ------------------------------- | ------------------------------- |
+| -------------------------------------- | ---------------------------------------- |
 | `N8N_EMAIL` / `N8N_PASSWORD`          | listar credenciais por nome + pastas    |
 | `N8N_CREDENTIAL_IDS`                  | mapa nome→id, alternativa ao login      |
 | `N8N_COOKIE` / `N8N_BROWSER_ID`       | cookie n8n-auth já pronto               |
 | `N8N_PROJECT_ID`                      | projeto de destino (default `personal`) |
 | `API_BASE`                            | webhooks fora de `N8N_URL/webhook`      |
-| `SUPABASE_DB_URL`                     | fallback psql das migrations            |     | `FRONT_DIR` / `STATIC_WORKFLOW` | layout de pastas fora do padrão |
-| `MIGRATIONS_DIR` / `MIGRATIONS_TABLE` | idem, do lado do banco                  |
+| `SUPABASE_DB_URL`                     | fallback psql das migrations            |
+| `MIGRATIONS_TABLE`                    | tabela de controle das migrations       |
 
 Nada de segredo é impresso nos logs, e a chave do front é validada: o build
 **falha** se `SUPABASE_ANON_KEY` contiver uma `service_role`.

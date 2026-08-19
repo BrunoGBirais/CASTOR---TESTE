@@ -1,13 +1,13 @@
 // ================================================================
 //  deploy/lib/workflows.mjs
-//  Leitura/escrita dos JSONs em workflows/.
+//  Leitura/escrita dos JSONs em castor-agent/workspaces/.
 // ================================================================
 
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { REPO_ROOT } from "./env.mjs";
 
-export const WORKFLOWS_DIR = resolve(REPO_ROOT, "workflows");
+export const WORKFLOWS_DIR = resolve(REPO_ROOT, "castor-agent", "workspaces");
 
 /** Lista recursiva dos workflows (ignora *.credentials.json). */
 export function listWorkflowFiles(dir = WORKFLOWS_DIR, out = []) {
@@ -24,12 +24,13 @@ export function listWorkflowFiles(dir = WORKFLOWS_DIR, out = []) {
 }
 
 export function readWorkflow(path) {
-  return JSON.parse(readFileSync(path, "utf8"));
+  // JSON.parse rejects a leading BOM (unlike JS source) — strip it defensively.
+  return JSON.parse(readFileSync(path, "utf8").replace(/^\uFEFF/, ""));
 }
 
 /** Escreve preservando o estilo de indentação já usado no arquivo. */
 export function writeWorkflow(path, workflow) {
-  const current = readFileSync(path, "utf8");
+  const current = readFileSync(path, "utf8").replace(/^\uFEFF/, "");
   const indent = /^\{\n(\s+)"/.exec(current)?.[1]?.length ?? 4;
   writeFileSync(path, `${JSON.stringify(workflow, null, indent)}\n`, "utf8");
 }

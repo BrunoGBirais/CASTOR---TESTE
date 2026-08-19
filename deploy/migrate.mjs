@@ -20,7 +20,6 @@
 //  Variáveis (deploy/.env, .env ou GitHub Secrets):
 //    SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY   (preferido)
 //    SUPABASE_DB_URL                            (fallback via psql)
-//    MIGRATIONS_DIR                             (default "migrations")
 //    MIGRATIONS_TABLE                           (default "schema_migrations")
 //
 // ================================================================
@@ -31,7 +30,7 @@ import { join, relative, resolve } from "node:path";
 import { REPO_ROOT, env, log, fail } from "./lib/env.mjs";
 import { runSql, quote, resolveDriver } from "./lib/sql.mjs";
 
-const MIGRATIONS_DIR = resolve(REPO_ROOT, env("MIGRATIONS_DIR", "migrations"));
+const MIGRATIONS_DIR = resolve(REPO_ROOT, "castor-agent", "migrations-clean");
 const TABLE = env("MIGRATIONS_TABLE", "schema_migrations").replace(
   /[^a-zA-Z0-9_]/g,
   "",
