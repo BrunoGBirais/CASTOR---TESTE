@@ -17,9 +17,9 @@
 //    node deploy/build-front.mjs
 //    node deploy/build-front.mjs --skip-install
 //
-//  Caminhos (opcionais — detectados sozinhos quando não definidos):
-//    FRONT_DIR        pasta do front            (auto: front-react, frontend, front, web, client, app)
-//    STATIC_WORKFLOW  JSON do static server     (auto: workflows/*static*server*.json)
+//  Caminhos (fixos deste projeto):
+//    castor-agent/front-react                       pasta do front
+//    castor-agent/workspaces/Castor-Front.json       workflow de static server
 //
 //  Não existem variáveis VITE_* de deploy: as três que o Vite consome são
 //  DERIVADAS das que o resto do pipeline já usa —
@@ -31,56 +31,26 @@
 // ================================================================
 
 import { spawnSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { basename, relative, resolve } from "node:path";
 import { REPO_ROOT, env, log, fail } from "./lib/env.mjs";
 
-const FRONT_CANDIDATES = [
-  "front-react",
-  "frontend",
-  "front",
-  "web",
-  "client",
-  "app",
-];
-
-/** Pasta do front: FRONT_DIR, ou a primeira candidata com package.json. */
-function resolveFrontDir() {
-  const explicit = env("FRONT_DIR");
-  if (explicit) return resolve(REPO_ROOT, explicit);
-
-  for (const name of FRONT_CANDIDATES) {
-    const dir = resolve(REPO_ROOT, name);
-    if (existsSync(resolve(dir, "package.json"))) return dir;
-  }
-  fail(
-    `pasta do front não encontrada (procurei por ${FRONT_CANDIDATES.join(", ")}) — defina FRONT_DIR`,
-  );
-}
-
-/** JSON do static server: STATIC_WORKFLOW, ou o único workflows/*static*server*.json. */
-function resolveStaticWorkflow() {
-  const explicit = env("STATIC_WORKFLOW");
-  if (explicit) return resolve(REPO_ROOT, explicit);
-
-  const dir = resolve(REPO_ROOT, "workflows");
-  const found = existsSync(dir)
-    ? readdirSync(dir).filter((f) => /static.?server.*\.json$/i.test(f))
-    : [];
-
-  if (found.length === 1) return resolve(dir, found[0]);
-  if (found.length > 1) {
-    fail(
-      `mais de um workflow de static server em workflows/ (${found.join(", ")}) — defina STATIC_WORKFLOW`,
-    );
-  }
-  return resolve(dir, "Static-Server.json");
-}
-
-const FRONT_DIR = resolveFrontDir();
+const FRONT_DIR = resolve(REPO_ROOT, "castor-agent", "front-react");
 const DIST_DIR = resolve(FRONT_DIR, "dist");
-const STATIC_WORKFLOW = resolveStaticWorkflow();
+const STATIC_WORKFLOW = resolve(
+  REPO_ROOT,
+  "castor-agent",
+  "workspaces",
+  "Castor-Front.json",
+);
 const STATIC_NAME = basename(STATIC_WORKFLOW);
+
+if (!existsSync(resolve(FRONT_DIR, "package.json"))) {
+  fail(`pasta do front não encontrada: ${relative(REPO_ROOT, FRONT_DIR)}`);
+}
+if (!existsSync(STATIC_WORKFLOW)) {
+  fail(`workflow de static server não encontrado: ${relative(REPO_ROOT, STATIC_WORKFLOW)}`);
+}
 
 const SKIP_INSTALL = process.argv.includes("--skip-install");
 

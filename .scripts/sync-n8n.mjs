@@ -4,15 +4,15 @@
 //  Sincroniza workflows do Git → n8n via API REST
 // ================================================================
 //
-//  Lê os JSONs em workflows/ (recursivamente) e cria/atualiza no n8n.
+//  Lê os JSONs em castor-agent/workspaces/ (recursivamente) e cria/atualiza no n8n.
 //  Workflows gerenciados recebem a tag "castor-git-managed".
 //
 //  Pastas (folders):
-//    workflows/Comercial/CRM/Lead.json  →  folder "Comercial" › "CRM" no n8n
+//    castor-agent/workspaces/Comercial/CRM/Lead.json  →  folder "Comercial" › "CRM" no n8n
 //    A árvore de diretórios é espelhada como pastas aninhadas (quando a API
 //    interna /rest está disponível — veja abaixo). Sem ela, só o PRIMEIRO
 //    nível vira folder e o mapeamento fica na const FOLDERS.
-//    Arquivos na raiz de workflows/ continuam indo para a raiz do projeto.
+//    Arquivos na raiz de castor-agent/workspaces/ continuam indo para a raiz do projeto.
 //
 //  Uso:
 //    node .scripts/sync-n8n.mjs                        # sync real
@@ -53,7 +53,7 @@ import { randomUUID } from "node:crypto";
 //     Para checar: GET {N8N_URL}/api/v1/openapi.yml deve conter "folders".
 //
 //  FOLDERS (opcional): sobrescreve o 1º nível.
-//  Chave = nome da pasta de 1º nível dentro de workflows/
+//  Chave = nome da pasta de 1º nível dentro de castor-agent/workspaces/
 //  Valor = { title: "Nome no n8n" }  → busca (e cria, se a API permitir)
 //          { id: "xxxxxxxxxxxxxxxx" } → usa o ID direto, sem busca
 //              (o ID aparece na URL da pasta:
@@ -71,7 +71,7 @@ const DRY_RUN = args.includes("--dry-run");
 const FORCE_FOLDERS = args.includes("--force-folders");
 const ONLY = args.find((a, i) => args[i - 1] === "--only") || null;
 const WORKSPACES_DIR = resolve(
-  args.find((a) => a.startsWith("--dir="))?.slice(6) || "workflows",
+  args.find((a) => a.startsWith("--dir="))?.slice(6) || "castor-agent/workspaces",
 );
 
 // ── Env ──────────────────────────────────────────────────────────
@@ -514,7 +514,7 @@ async function resolveFolderId(segments) {
 }
 
 // ── Load local workflows ────────────────────────────────────────
-// Percorre workflows/ recursivamente. Cada diretório vira um nível de pasta
+// Percorre castor-agent/workspaces/ recursivamente. Cada diretório vira um nível de pasta
 // ("segments"); com a API pública só o 1º nível é aproveitado.
 function walkWorkflowFiles(dir, segments = [], out = []) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {

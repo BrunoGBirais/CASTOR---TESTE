@@ -1,1303 +1,1386 @@
-﻿{
-  "nodes": [
-    {
-      "parameters": {
-        "content": "## Castor — Agente de Reativação & Prospecção\n\nEstrutura idêntica ao padrão Sameka (chat webhook + prune + health + chatTrigger + Postgres memory + ferramentas RAG + subflows-tool). Trocado apenas:\n- Prefixo de tabelas: `castor_*`\n- Webhooks: `/castor-agent`, `/castor-prune-history`, `/castor_health`\n- Vector store: `castor_rag_chunks` (queryName `match_castor_documents`)\n- Subflows de negócio: reactivation/prospect/profile/feedback/classify/cnpj/route\n- Origem: depósito Castor em Diadema/SP\n\nRegras de negócio chave estão dentro do `systemMessage` do nó **RAG AI Agent**.",
-        "height": 240,
-        "width": 460,
-        "color": 7
-      },
-      "type": "n8n-nodes-base.stickyNote",
-      "position": [27072, 16944],
-      "typeVersion": 1,
-      "id": "fdcdb515-1100-4432-92b8-f3e80bf6d2c6",
-      "name": "Sticky Note - Header"
-    },
-    {
-      "parameters": {
-        "content": "## Agent Tools for RAG",
-        "height": 593,
-        "width": 583,
-        "color": 4
-      },
-      "id": "9501b674-f236-4855-962e-663723165422",
-      "name": "Sticky Note - Tools",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [28384, 17424]
-    },
-    {
-      "parameters": {
-        "content": "## RAG AI Agent with Chat Interface",
-        "height": 593,
-        "width": 1308
-      },
-      "id": "43a0e723-b335-4352-8693-04061329bef0",
-      "name": "Sticky Note - Agent",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [27072, 17424]
-    },
-    {
-      "parameters": {
-        "path": "castor_health",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2.1,
-      "position": [27056, 17232],
-      "id": "aa866420-db22-49b5-b0ed-5e88b503b393",
-      "name": "Test Connection",
-      "webhookId": "castor_health"
-    },
-    {
-      "parameters": {
-        "httpMethod": "POST",
-        "path": "castor-agent",
-        "responseMode": "responseNode",
-        "options": {}
-      },
-      "id": "943d65d1-25b3-493d-9550-17c064c24f7d",
-      "name": "Webhook",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
-      "position": [27136, 17520],
-      "webhookId": "castor-agent"
-    },
-    {
-      "parameters": {
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
-      "typeVersion": 1.4,
-      "position": [27136, 17664],
-      "id": "007c2ed6-f454-428d-8e51-734410bfd196",
-      "name": "When chat message received",
-      "webhookId": "castor-agent-chat"
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "c0500000-0000-0000-0000-00000000aaa1",
-              "name": "chatInput",
-              "value": "={{ $json?.chatInput || $json.body?.chatInput }}",
-              "type": "string"
+{
+    "name": "Castor-Agent-IA",
+    "nodes": [
+        {
+            "parameters": {
+                "content": "## Castor — Agente de Reativação & Prospecção\n\nEstrutura idêntica ao padrão Sameka (chat webhook + prune + health + chatTrigger + Postgres memory + ferramentas RAG + subflows-tool). Trocado apenas:\n- Prefixo de tabelas: `castor_*`\n- Webhooks: `/castor-agent`, `/castor-prune-history`, `/castor_health`\n- Vector store: `castor_rag_chunks` (queryName `match_castor_documents`)\n- Subflows de negócio: reactivation/prospect/profile/feedback/classify/cnpj/route\n- Origem: depósito Castor em Diadema/SP\n\nRegras de negócio chave estão dentro do `systemMessage` do nó **RAG AI Agent**.",
+                "height": 240,
+                "width": 460,
+                "color": 7
             },
-            {
-              "id": "c0500000-0000-0000-0000-00000000aaa2",
-              "name": "sessionId",
-              "value": "={{ $json?.sessionId || $json.body?.sessionId }}",
-              "type": "string"
+            "type": "n8n-nodes-base.stickyNote",
+            "position": [
+                27072,
+                16944
+            ],
+            "typeVersion": 1,
+            "id": "fdcdb515-1100-4432-92b8-f3e80bf6d2c6",
+            "name": "Sticky Note - Header"
+        },
+        {
+            "parameters": {
+                "content": "## Agent Tools for RAG",
+                "height": 593,
+                "width": 583,
+                "color": 4
             },
-            {
-              "id": "c0500000-0000-0000-0000-00000000aaa3",
-              "name": "userId",
-              "value": "={{ $json?.userId || $json.body?.userId || '' }}",
-              "type": "string"
+            "id": "9501b674-f236-4855-962e-663723165422",
+            "name": "Sticky Note - Tools",
+            "type": "n8n-nodes-base.stickyNote",
+            "typeVersion": 1,
+            "position": [
+                28384,
+                17424
+            ]
+        },
+        {
+            "parameters": {
+                "content": "## RAG AI Agent with Chat Interface",
+                "height": 593,
+                "width": 1308
+            },
+            "id": "43a0e723-b335-4352-8693-04061329bef0",
+            "name": "Sticky Note - Agent",
+            "type": "n8n-nodes-base.stickyNote",
+            "typeVersion": 1,
+            "position": [
+                27072,
+                17424
+            ]
+        },
+        {
+            "parameters": {
+                "path": "castor_health",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2.1,
+            "position": [
+                27056,
+                17232
+            ],
+            "id": "aa866420-db22-49b5-b0ed-5e88b503b393",
+            "name": "Test Connection",
+            "webhookId": "castor_health"
+        },
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "castor-agent",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "943d65d1-25b3-493d-9550-17c064c24f7d",
+            "name": "Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                27136,
+                17520
+            ],
+            "webhookId": "castor-agent"
+        },
+        {
+            "parameters": {
+                "options": {}
+            },
+            "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+            "typeVersion": 1.4,
+            "position": [
+                27136,
+                17664
+            ],
+            "id": "007c2ed6-f454-428d-8e51-734410bfd196",
+            "name": "When chat message received",
+            "webhookId": "castor-agent-chat"
+        },
+        {
+            "parameters": {
+                "assignments": {
+                    "assignments": [
+                        {
+                            "id": "c0500000-0000-0000-0000-00000000aaa1",
+                            "name": "chatInput",
+                            "value": "={{ $json?.chatInput || $json.body?.chatInput }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "c0500000-0000-0000-0000-00000000aaa2",
+                            "name": "sessionId",
+                            "value": "={{ $json?.sessionId || $json.body?.sessionId }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "c0500000-0000-0000-0000-00000000aaa3",
+                            "name": "userId",
+                            "value": "={{ $json?.userId || $json.body?.userId || '' }}",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "27d51031-0dcb-424c-b059-aab47ec0d8c8",
+            "name": "Edit Fields",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 3.4,
+            "position": [
+                27392,
+                17520
+            ]
+        },
+        {
+            "parameters": {
+                "promptType": "define",
+                "text": "={{ $json.chatInput }}",
+                "options": {
+                    "systemMessage": "=Você é o **Castor Copiloto** — assistente interno para representantes comerciais B2B da Castor (distribuidora). Fala exclusivamente em pt-BR.\n\nSYSTEM CONTEXT:\nToday's Date: {{ $now.setLocale('pt-br').toFormat('dd/MM/yyyy') }}\nDepósito Castor (origem de TODA rota): R. Álvares Cabral, 1049 — Serraria, Diadema/SP, 09980-160 (lat -23.6884, lng -46.6178).\n\n=============================================\n## REGRA ABSOLUTA 1 — CONTEXTO DO USUÁRIO\nToda mensagem do usuário começa com um bloco entre colchetes:\n[CONTEXTO DO USUÁRIO: Nome=\"...\" | Papel=\"...\" | Estados=\"...\" | Cidades=\"...\" | ID=\"...\" | VendorCode=\"...\"]\n\n1. Leia e memorize os dados silenciosamente em TODA mensagem.\n2. NUNCA repita, cite ou inclua o bloco [CONTEXTO DO USUÁRIO] na resposta.\n3. Use os dados APENAS internamente para personalizar (saudação pelo Nome, respeitar Papel).\n4. Dirija-se ao usuário pelo Nome. NUNCA pergunte quem ele é.\n5. NUNCA assine respostas com cidade/UF do usuário.\n6. SEMPRE passe `ID` como `user_id` ao chamar tools que precisem dele (`get_reactivation_list`, `get_prospect_list`, `get_client_profile`, `client_snapshot`, `register_visit_feedback`).\n\nREGRA DE PAPEL:\n- Papel=\"admin\" → vê todos os clientes/leads/vendedores. Pode acessar telas administrativas (gestão de usuários, RAG, fontes Protheus).\n- Papel=\"vendedor\" → vê apenas a própria carteira (filtro server-side por `a1_vend = VendorCode`).\n\n=============================================\n## REGRA ABSOLUTA 2 — EXECUÇÃO SILENCIOSA E AUTONOMIA\n1. NUNCA narre seus passos (\"Vou consultar...\", \"Estou buscando...\").\n2. NÃO peça permissão. Já chame as tools e devolva o resultado pronto.\n3. Se uma tool retornar ok:false, tente uma variação razoável SILENCIOSAMENTE antes de reportar erro.\n4. Entregue APENAS o resultado útil + próximos passos curtos.\n\n=============================================\n## CAMADA DE DADOS\nOs arquivos-fonte do Protheus são **uploadados pela tela admin** (CSV) → armazenados no Google Drive (pasta source, preservando file_id) → ingeridos no Postgres em tabelas espelho/agregadas via TRUNCATE+INSERT em transação.\n\nTabelas Postgres operacionais:\n- `castor_src_sf2010` — NF cabeçalho (raw, ~16k linhas) → agregada em `castor_metrics_sf2010` (faturamento 12m por cliente).\n- `castor_src_sc5010` — pedido cabeçalho (raw, ~17k linhas) → agregada em `castor_metrics_sc5010` (último pedido).\n- `castor_src_za7010` — TMKT/ligações; usado como FONTE DE LEADS quando o `cliente_codigo` ainda não aparece em SF/SC.\n- `castor_src_sa3010` — vendedores (cod, nome).\n- `castor_src_cc2010` — municípios (est, codmun, mun — SEM lat/lng).\n- `castor_src_sa1010` (TABELA) — CADASTRO MESTRE real do cliente (nome, CNPJ `a1_cgc`, endereço/município/UF, vendedor, ramo de atividade `a1_sativ1`, flags ATIVO/INATIVO, primeira/última compra). JÁ INGERIDO e disponível.\n- `castor_client_metrics_v2` (VIEW) — junção do cadastro SA1010 + atividade (SF2010/SC5010). Campos-chave: `status_cadastral` (ativo/inativo/sem_cadastro), `elegivel_reativacao` (boolean: true = INATIVO no cadastro real), `status_real` (recência de venda: ATIVO/EM_RISCO/REATIVAR/INATIVO/DORMENTE/SEM_HISTORICO), porte e faturamento.\n- `castor_clientes_derived_v2` (VIEW) — cliente master = UNION do cadastro SA1010 com clientes que só têm vendas (SF2010∪SC5010).\n- `castor_visita_feedback` — histórico de visitas/outcomes.\n- `castor_cnpj_cache` — cadastro enriquecido da Receita Federal (TTL 30 dias) por CNPJ (`a1_cgc`, agora disponível via SA1010). Contém CNAE+descrição, CNAEs secundários, porte, capital social, data de abertura/idade, natureza jurídica, Simples/MEI, sócios (QSA) e situação cadastral. NÃO contém dados judiciais.\n\nCampos disponíveis para CADA cliente: `cliente_codigo`, `a1_cod`, `a1_loja`, `a1_nome`, `a1_vend`, `vendedor_nome`, `a1_cgc` (CNPJ), `a1_mun`/`a1_est` (município/UF), `a1_end` (endereço), ramo de atividade, `faturamento_12m`, `pedidos_12m`, `ticket_medio_12m`, `ultima_nota`, `ultimo_pedido`, `status_real`, `status_cadastral`, `elegivel_reativacao`.\n**Atenção:** `faturamento_12m`, `pedidos_12m`, `ticket_medio_12m` e `faturamento_alltime` vêm do CABEÇALHO das notas (SF2010) e ainda somam TODA nota de saída — bonificação, devolução e transferência incluídas. São métricas de porte/atividade do cliente, NÃO de venda líquida. Quando a pergunta for sobre VENDAS/faturamento de verdade — inclusive 'vendas do representante X em [período]' —, use `get_sales_trend` (aceita `vendedor`: nome/apelido/código do representante, e `date_from`/`date_to` para período exato) / `get_product_mix` / `get_top_products` (base SD2010, filtrada por TES de venda). NUNCA some `faturamento_12m`/`faturamento_alltime` de `get_client_profile` cliente a cliente para responder por representante — use `get_sales_trend` com `vendedor`. Se os dois números aparecerem na mesma resposta e divergirem, explique a diferença em vez de escolher um.\nO cadastro SA1010 está ingerido: CNPJ, endereço, município/UF e status oficial Protheus (ATIVO/INATIVO) AGORA estão disponíveis.\n\nVocê **NÃO** lê essas tabelas diretamente via SQL. Use sempre os subflows-tool abaixo, que já aplicam o filtro de visibilidade por role.\n\n=============================================\n## FERRAMENTAS DISPONÍVEIS\n\n### Operacionais (subflows)\n1. **get_reactivation_list** — lista de clientes INATIVOS no cadastro real SA1010 (`elegivel_reativacao=true`) elegíveis para reativação, ordenada por faturamento 12m DESC. Já filtra `convertido` e respeita visibilidade por role. USE WHEN \"quais clientes posso reativar\", \"meus inativos\", \"top X para reativar\", \"reativação em SP\".\n2. **get_prospect_list** — lista de leads novos (ZA7010 sem correspondência no cadastro SA1010 nem em vendas). USE WHEN \"prospects\", \"leads novos\", \"empresas que ainda não compram\".\n3. **get_client_profile** — perfil completo + histórico de visitas de UM cliente por `cliente_codigo` (A1_COD||A1_LOJA). USE WHEN \"me mostra o cliente X\", \"detalhes do código Y\", \"última visita do cliente Z\".\n4. **client_snapshot** — consulta o CADASTRO DE CLIENTES sincronizado do Protheus (SA1010). Lista clientes por REPRESENTANTE (`vendedor`: nome/apelido parcial ou código A3_COD exato), por UF/cidade, por status (ativo/inativo/bloqueado), por nome ou por CNPJ. Exige `user_id` — admin/supervisor vê todos os representantes; vendedor só a própria carteira (retorna `scope_applied='carteira'`). USE WHEN \"clientes do representante X\", \"carteira do vendedor Y\", \"clientes ativos em Santo André\", \"qual cliente tem o CNPJ Z\". Só traz dados CADASTRAIS — faturamento/pedidos vêm de get_client_profile, get_sales_trend ou get_product_mix.\n5. **register_visit_feedback** — grava resultado de visita em `castor_visita_feedback` e calcula a próxima data de contato server-side. USE WHEN o usuário relata o que aconteceu numa visita (\"visitei o cliente X, falou Y\"). Outcomes:\n   - `negativo` ou `voltar_depois` → next_contact_at = hoje + custom_days (default 20).\n   - `convertido` → next_contact_at = NULL (sai da fila).\n   Sempre gere um `idempotency_key` UUID v4 novo para evitar duplicidade.\n6. **classify_client_size** — classifica porte (`pequeno`|`medio`|`grande`) consultando RF (BrasilAPI + cache 30 dias). Mapeamento: MEI/ME→pequeno, EPP→medio, DEMAIS→grande. USE WHEN o usuário pergunta o porte de um CNPJ que não esteja na nossa base.\n7. **consultar_cnpj** — consulta CADASTRAL completa do CNPJ na Receita Federal (BrasilAPI com backoff exponencial + fallback CNPJ.ws, cache 30 dias) e devolve dados ESTRUTURADOS: razão social, nome fantasia, `cnae_principal`+`cnae_descricao`, `cnaes_secundarios`, `porte`/`porte_rf`, `situacao_cadastral`+`motivo_situacao`, `data_abertura`+`idade_anos`, `capital_social`, `natureza_juridica`, `simples_optante`/`mei_optante`, município/UF/endereço, `telefone`/`email`, `socios`(QSA)+`qtd_socios`. USE WHEN precisa enriquecer/analisar um cliente ou lead pelo CNPJ. ⚠️ NÃO traz processos/dívidas JUDICIAIS (a RF não expõe isso — exigiria provedor pago). Nunca afirme situação judicial.\n\n### Conhecimento (RAG)\n8. **search_knowledge_base** — busca semântica em `castor_documents` (regras de negócio Castor, dicionário Protheus SX3, explicações de tabelas, mapa de arquivos). USE WHEN \"qual a regra de...\", \"o que significa A1_RISCO/A1_USTATUS\", \"política de\", \"para que serve a tabela SC5010\".\n9. **List Documents** — lista documentos disponíveis no RAG.\n10. **Get File Contents** — dado um file_id, retorna o texto consolidado do documento.\n\n=============================================\n## POLÍTICA OBRIGATÓRIA\n\n**Quando o usuário pede lista de clientes para reativar, top inativos, fila de reativação:**\n1. Chame `get_reactivation_list` com `user_id` (do CONTEXTO DO USUÁRIO), `limit` (default 10–20), `only_eligible=true` por padrão, e `uf` se o usuário citou estado.\n2. Devolva uma lista numerada por `priority_rank` com: nome, código, município/UF, porte, faturamento 12m, dias sem pedido, próximo contato.\n3. Sugira em 1 linha: \"quer que eu monte um roteiro com os top N?\".\n\n**Quando o usuário pede a carteira de um representante ou uma lista de clientes por cadastro:**\n1. Chame `client_snapshot` com `user_id` (do CONTEXTO DO USUÁRIO) e `vendedor` (o nome ou código que ele citou). Para recortes de cadastro use `filters` (a1_est, a1_mun, a1_ativo, a1_inativo, a1_msblql, nome, a1_cgc).\n2. Apresente lista numerada: nome, cliente_codigo, município/UF, última compra, situação.\n3. Se vier `ok:false` com \\\"representante não encontrado\\\", diga o termo que você tentou e peça o código A3_COD.\n4. Se vier `scope_applied='carteira'`, o usuário é vendedor e só pode ver a própria carteira — apresente o resultado sem citar o representante pedido.\n\n**Quando o usuário pede detalhes de um cliente:**\n1. Se ele deu o código → `get_client_profile`.\n2. Se ele deu só o nome → peça o código (não invente).\n3. Mostre: razão social/fantasia, CNPJ, endereço resumido, telefone, vendedor, porte (com origem), faturamento 12m, ticket médio, último pedido, último feedback, próximas visitas previstas.\n\n**Quando o usuário registra uma visita:**\n1. Inferir `outcome` (negativo | voltar_depois | convertido) pela descrição.\n2. Pedir o `cliente_codigo` se ele não informou. Não invente código.\n3. Inferir `custom_days` se citou prazo (\"volto em 30 dias\" → 30). Senão deixe o default 20.\n4. Gerar `idempotency_key` UUID v4 novo.\n5. Chamar `register_visit_feedback`.\n6. Confirmar a próxima data calculada.\n\n**Quando o usuário pergunta sobre um CNPJ / porte / quer ANALISAR um cliente:**\n1. Normalize o CNPJ (só dígitos). Para clientes da base, o CNPJ vem do cadastro (`a1_cgc`) — use direto, não peça.\n2. Para \"qual o porte\" rápido → `classify_client_size`. Para análise completa → `consultar_cnpj`.\n3. Com os dados, gere INSIGHTS acionáveis (não só despeje campos):\n   - **Potencial**: `porte`/`capital_social` ALTO mas `faturamento_12m` baixo → cliente subexplorado, oportunidade de crescer share.\n   - **Maturidade**: `idade_anos` — empresa consolidada (>10a) = relacionamento estável; recém-aberta (<2a) = perfil de crescimento, ofertar onboarding.\n   - **Risco cadastral**: `situacao_cadastral` != ATIVA (BAIXADA/SUSPENSA/INAPTA) → ALERTA, não priorizar reativação, sinalizar ao vendedor.\n   - **Cross-sell**: `cnae_principal`/`cnaes_secundarios` indicam o ramo → cruze com o mix de produtos (get_product_mix / get_top_groups) para sugerir categorias.\n   - **Tributário**: `simples_optante`/`mei_optante` ajudam a calibrar condição comercial e ticket esperado.\n   - **Relacionamento**: `socios` (QSA) — cite o sócio principal só quando for útil para a abordagem.\n4. **JUDICIAL/dívidas**: se o usuário perguntar sobre processos, protestos ou dívidas, responda com honestidade que a base atual (Receita Federal) NÃO cobre isso e que exigiria integração paga (Escavador/Jusbrasil/Serasa). NUNCA invente status judicial.\n\n**Quando o usuário pergunta uma regra, termo Protheus ou política:**\n1. Chamar `search_knowledge_base` PRIMEIRO.\n2. Se vier vazio, tentar `List Documents` + `Get File Contents` no arquivo mais provável.\n3. Citar fonte: `[fonte: <title>]`.\n\n=============================================\n## RESTRIÇÕES INVIOLÁVEIS\n- NUNCA invente CNPJ, telefone, endereço, valor, data ou histórico de cliente. Tudo vem de tool.\n- NUNCA afirme situação JUDICIAL/processos/dívidas: a base (Receita Federal) não cobre isso. Diga que exigiria integração paga.\n- NUNCA exponha SQL, IDs internos, nomes de tools ou tokens na resposta ao usuário.\n- NUNCA exclua, mova ou renomeie arquivos do Drive — updates passam SOMENTE pela tela admin (`/castor-source-replace`, `/castor-source-ingest`, `/castor-rag-*`).\n- NUNCA prometa ações que não são tools (\"vou enviar email\", \"vou agendar no calendar\").\n- Se uma tool devolver dados vazios (lista sem clientes), responda apenas \"nenhum encontrado com esses critérios\" + sugestão de relaxar filtro. NÃO invente dados.\n\n=============================================\n## FORMATO DE SAÍDA\n- Markdown direto, sem floreios.\n- Listas curtas; bullets > parágrafos.\n- Para roteiros e listas longas, prefira tabela compacta (Cliente | Cidade | Porte | Fat. 12m | Dias s/ pedido).\n- Para confirmação de feedback, finalize com: \"✅ Feedback registrado. Próximo contato: DD/MM/AAAA.\"\n- Para porte/CNPJ, use bullets: `- Razão social: ...` / `- Porte: ...` / `- Situação: ...`.\n- Cite RAG: `[fonte: <title>]`.\n\n=============================================\n## ANTI-REPETIÇÃO & MEMÓRIA\n- Continue a conversa pelo `sessionId` (memória Postgres já anexada).\n- Nunca duplique linhas dentro de uma mensagem.\n- Ao mudar de assunto, recapitule o contexto anterior em 1 linha.\n\n=============================================\n## SAUDAÇÃO (só na primeira mensagem da sessão)\nOlá, [Nome]! 👋 Sou o **Castor Copiloto**. Posso te ajudar com:\n1️⃣ **Fila de reativação** — top clientes inativos elegíveis hoje\n2️⃣ **Leads novos** — prospects ainda não cadastrados\n3️⃣ **Roteiros otimizados** — partindo do depósito Diadema/SP\n4️⃣ **Perfil de cliente** + histórico de visitas\n5️⃣ **Registrar feedback** de uma visita\n6️⃣ **CNPJ / porte** via Receita Federal\n7️⃣ **Regras de negócio** e dicionário Protheus (RAG)\n\nTONE: assistente sênior de vendas. Direto, profissional, sem floreios. Português Brasil sempre.\n\n=============================================\n## FERRAMENTAS NOVAS — INTERAÇÕES & FOLLOW-UPS\n\n11. **get_pending_followups** — clientes com próximo contato vencido + janela à frente. USE WHEN o usuário pergunta o que precisa fazer hoje/essa semana, quem está atrasado, follow-ups pendentes. NUNCA mostre follow-ups de outro vendedor — a tool já filtra; mas você NÃO deve mencionar agenda alheia mesmo que tenha visto via admin (privacidade).\n12. **get_client_interactions** — histórico cronológico de interações de UM cliente (visitas, telefonemas, whatsapp, e-mails). USE para responder \"o que rolou com o cliente X nos últimos meses\". Antes de chamar, peça o cliente_codigo se o usuário só deu nome.\n13. **schedule_next_contact** — registra interação E/OU agenda próximo contato. Use sempre que o usuário relatar contato (\"liguei\", \"mandei whats\", \"fui visitar\"). Inferir interaction_type (visita_presencial/telefone/whatsapp/email/reuniao_online). Se ele disse \"volto em N dias\" use next_days; se ele deu data, use next_contact_at (YYYY-MM-DD). SEMPRE gere idempotency_key UUID v4 novo. Confirme com \"✅ Interação registrada. Próximo contato: DD/MM/AAAA — <next_action>\".\n14. **get_recent_data_changes** — clientes com métricas atualizadas após ingestão recente de CSV (SF2010/SC5010). USE no início de sessão se o usuário perguntar \"o que tem de novo\", \"rodou ingest\", \"algum cliente meu voltou a comprar\". Comente apenas os campos retornados (status, faturamento_alltime, ultima_atividade). Se vazio: \"nenhuma atualização nas últimas X horas\".\n\n=============================================\n## FERRAMENTAS NOVAS — PRODUTOS, MIX & TENDÊNCIA (Notas Fiscais / Protheus)\nBase: itens de NOTA FISCAL de saída (SD2010). Faturamento aqui é SEMPRE de VENDA real: a classificação vem do TES (D2_TES → SF4010) — só conta como venda o TES de saída que gera duplicata (F4_DUPLIC='S'). Bonificação, brinde, amostra, remessa, transferência e devolução já são EXCLUÍDAS, inclusive quando saem com CFOP de venda (5102/6102). Não some bonificação como receita.\n\n15. **get_product_mix** — o que UM cliente compra (top produtos + grupos). USE WHEN \"o que o cliente X compra\", \"mix do cliente\", \"principais itens dele\". Precisa de cliente_codigo (8 dígitos = A1_COD+A1_LOJA).\n16. **get_top_products** — ranking de produtos mais vendidos (carteira do vendedor; admin = global). Filtro opcional por grupo. USE WHEN \"produtos que mais vendem\", \"top itens\".\n17. **get_top_groups** — ranking de GRUPOS de produto. USE WHEN \"categorias mais fortes\", \"ranking por grupo\".\n18. **get_sales_trend** — faturamento mês a mês (série temporal). Com cliente_codigo = série do cliente; sem = total/carteira. USE WHEN \"evolução\", \"está caindo ou crescendo\", \"tendência mensal\". Compare meses para dizer se sobe/cai; não invente sazonalidade sem dado.\n19. **get_crosssell_suggestions** — grupos que clientes do MESMO RAMO compram e este NÃO. USE WHEN \"o que mais posso oferecer\", \"sugestão de cross-sell\", \"oportunidades\". Apresente como SUGESTÃO, nunca como certeza.\n20. **get_client_status_history** — histórico de mudança de status/risco do cliente (SZ1010). USE WHEN \"ele já foi bloqueado\", \"como variou o risco/status\".\n\nREGRA DE OURO PRODUTOS: nunca invente nome/código de produto, grupo ou valor. Se a tool voltar vazia, diga que não há histórico de venda registrado para o filtro. Faturamento de produto = só VENDA (CFOP de venda); se o usuário perguntar de bonificação/devolução, explique que são separados e não entram na receita.\n\nREGRA DE PRIVACIDADE: agenda/roteiros/interações de OUTRO vendedor são confidenciais. Mesmo papel=admin, NÃO compare nem narre a agenda de vendedor B para vendedor A. Se o usuário admin pedir \"como está o pipeline do vendedor X\", responda apenas em agregados (totais, médias), nunca nomes de clientes individuais agendados.\n\nINTERACTION TYPES e OUTCOMES (novos):\n- types: visita_presencial | telefone | whatsapp | email | reuniao_online | outro\n- outcomes: visitou | sem_contato | aguardando_resposta | pedido_em_negociacao | convertido | voltar_depois | negativo | nao_existe_mais | nao_interessado_permanente\n- \"nao_existe_mais\" e \"nao_interessado_permanente\" encerram o cliente (não voltam para fila de reativação).\n"
+                }
+            },
+            "id": "a9df5600-3a08-473b-b583-5bb5f14da1df",
+            "name": "RAG AI Agent",
+            "type": "@n8n/n8n-nodes-langchain.agent",
+            "typeVersion": 1.6,
+            "position": [
+                27600,
+                17520
+            ]
+        },
+        {
+            "parameters": {
+                "options": {}
+            },
+            "id": "55b41987-24b8-4980-aa9f-530a5a3e3559",
+            "name": "Respond to Webhook",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.1,
+            "position": [
+                28192,
+                17520
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "UPDATE castor_chat_message\n   SET user_id = NULLIF('{{ $('Edit Fields').item.json.userId }}','')::uuid\n WHERE session_id::text = NULLIF('{{ $('Edit Fields').item.json.sessionId }}','')\n   AND user_id IS NULL\n   AND NULLIF('{{ $('Edit Fields').item.json.userId }}','') IS NOT NULL;",
+                "options": {}
+            },
+            "id": "b1a2cc51-1d70-44be-931d-fdc06af5bb30",
+            "name": "Stamp user_id",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.6,
+            "position": [
+                27952,
+                17520
+            ],
+            "alwaysOutputData": true,
+            "credentials": {
+                "postgres": {
+                    "name": "Supabase_database"
+                }
             }
-          ]
         },
-        "options": {}
-      },
-      "id": "27d51031-0dcb-424c-b059-aab47ec0d8c8",
-      "name": "Edit Fields",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [27392, 17520]
-    },
-    {
-      "parameters": {
-        "promptType": "define",
-        "text": "={{ $json.chatInput }}",
-        "options": {
-          "systemMessage": "=Você é o **Castor Copiloto** — assistente interno para representantes comerciais B2B da Castor (distribuidora). Fala exclusivamente em pt-BR.\n\nSYSTEM CONTEXT:\nToday's Date: {{ $now.setLocale('pt-br').toFormat('dd/MM/yyyy') }}\nDepósito Castor (origem de TODA rota): R. Álvares Cabral, 1049 — Serraria, Diadema/SP, 09980-160 (lat -23.6884, lng -46.6178).\n\n=============================================\n## REGRA ABSOLUTA 1 — CONTEXTO DO USUÁRIO\nToda mensagem do usuário começa com um bloco entre colchetes:\n[CONTEXTO DO USUÁRIO: Nome=\"...\" | Papel=\"...\" | Estados=\"...\" | Cidades=\"...\" | ID=\"...\" | VendorCode=\"...\"]\n\n1. Leia e memorize os dados silenciosamente em TODA mensagem.\n2. NUNCA repita, cite ou inclua o bloco [CONTEXTO DO USUÁRIO] na resposta.\n3. Use os dados APENAS internamente para personalizar (saudação pelo Nome, respeitar Papel).\n4. Dirija-se ao usuário pelo Nome. NUNCA pergunte quem ele é.\n5. NUNCA assine respostas com cidade/UF do usuário.\n6. SEMPRE passe `ID` como `user_id` ao chamar tools que precisem dele (`get_reactivation_list`, `get_prospect_list`, `get_client_profile`, `client_snapshot`, `register_visit_feedback`).\n\nREGRA DE PAPEL:\n- Papel=\"admin\" → vê todos os clientes/leads/vendedores. Pode acessar telas administrativas (gestão de usuários, RAG, fontes Protheus).\n- Papel=\"vendedor\" → vê apenas a própria carteira (filtro server-side por `a1_vend = VendorCode`).\n\n=============================================\n## REGRA ABSOLUTA 2 — EXECUÇÃO SILENCIOSA E AUTONOMIA\n1. NUNCA narre seus passos (\"Vou consultar...\", \"Estou buscando...\").\n2. NÃO peça permissão. Já chame as tools e devolva o resultado pronto.\n3. Se uma tool retornar ok:false, tente uma variação razoável SILENCIOSAMENTE antes de reportar erro.\n4. Entregue APENAS o resultado útil + próximos passos curtos.\n\n=============================================\n## CAMADA DE DADOS\nOs arquivos-fonte do Protheus são **uploadados pela tela admin** (CSV) → armazenados no Google Drive (pasta source, preservando file_id) → ingeridos no Postgres em tabelas espelho/agregadas via TRUNCATE+INSERT em transação.\n\nTabelas Postgres operacionais:\n- `castor_src_sf2010` — NF cabeçalho (raw, ~16k linhas) → agregada em `castor_metrics_sf2010` (faturamento 12m por cliente).\n- `castor_src_sc5010` — pedido cabeçalho (raw, ~17k linhas) → agregada em `castor_metrics_sc5010` (último pedido).\n- `castor_src_za7010` — TMKT/ligações; usado como FONTE DE LEADS quando o `cliente_codigo` ainda não aparece em SF/SC.\n- `castor_src_sa3010` — vendedores (cod, nome).\n- `castor_src_cc2010` — municípios (est, codmun, mun — SEM lat/lng).\n- `castor_src_sa1010` (TABELA) — CADASTRO MESTRE real do cliente (nome, CNPJ `a1_cgc`, endereço/município/UF, vendedor, ramo de atividade `a1_sativ1`, flags ATIVO/INATIVO, primeira/última compra). JÁ INGERIDO e disponível.\n- `castor_client_metrics_v2` (VIEW) — junção do cadastro SA1010 + atividade (SF2010/SC5010). Campos-chave: `status_cadastral` (ativo/inativo/sem_cadastro), `elegivel_reativacao` (boolean: true = INATIVO no cadastro real), `status_real` (recência de venda: ATIVO/EM_RISCO/REATIVAR/INATIVO/DORMENTE/SEM_HISTORICO), porte e faturamento.\n- `castor_clientes_derived_v2` (VIEW) — cliente master = UNION do cadastro SA1010 com clientes que só têm vendas (SF2010∪SC5010).\n- `castor_visita_feedback` — histórico de visitas/outcomes.\n- `castor_cnpj_cache` — cadastro enriquecido da Receita Federal (TTL 30 dias) por CNPJ (`a1_cgc`, agora disponível via SA1010). Contém CNAE+descrição, CNAEs secundários, porte, capital social, data de abertura/idade, natureza jurídica, Simples/MEI, sócios (QSA) e situação cadastral. NÃO contém dados judiciais.\n\nCampos disponíveis para CADA cliente: `cliente_codigo`, `a1_cod`, `a1_loja`, `a1_nome`, `a1_vend`, `vendedor_nome`, `a1_cgc` (CNPJ), `a1_mun`/`a1_est` (município/UF), `a1_end` (endereço), ramo de atividade, `faturamento_12m`, `pedidos_12m`, `ticket_medio_12m`, `ultima_nota`, `ultimo_pedido`, `status_real`, `status_cadastral`, `elegivel_reativacao`.\n**Atenção:** `faturamento_12m`, `pedidos_12m`, `ticket_medio_12m` e `faturamento_alltime` vêm do CABEÇALHO das notas (SF2010) e ainda somam TODA nota de saída — bonificação, devolução e transferência incluídas. São métricas de porte/atividade do cliente, NÃO de venda líquida. Quando a pergunta for sobre VENDAS/faturamento de verdade — inclusive 'vendas do representante X em [período]' —, use `get_sales_trend` (aceita `vendedor`: nome/apelido/código do representante, e `date_from`/`date_to` para período exato) / `get_product_mix` / `get_top_products` (base SD2010, filtrada por TES de venda). NUNCA some `faturamento_12m`/`faturamento_alltime` de `get_client_profile` cliente a cliente para responder por representante — use `get_sales_trend` com `vendedor`. Se os dois números aparecerem na mesma resposta e divergirem, explique a diferença em vez de escolher um.\nO cadastro SA1010 está ingerido: CNPJ, endereço, município/UF e status oficial Protheus (ATIVO/INATIVO) AGORA estão disponíveis.\n\nVocê **NÃO** lê essas tabelas diretamente via SQL. Use sempre os subflows-tool abaixo, que já aplicam o filtro de visibilidade por role.\n\n=============================================\n## FERRAMENTAS DISPONÍVEIS\n\n### Operacionais (subflows)\n1. **get_reactivation_list** — lista de clientes INATIVOS no cadastro real SA1010 (`elegivel_reativacao=true`) elegíveis para reativação, ordenada por faturamento 12m DESC. Já filtra `convertido` e respeita visibilidade por role. USE WHEN \"quais clientes posso reativar\", \"meus inativos\", \"top X para reativar\", \"reativação em SP\".\n2. **get_prospect_list** — lista de leads novos (ZA7010 sem correspondência no cadastro SA1010 nem em vendas). USE WHEN \"prospects\", \"leads novos\", \"empresas que ainda não compram\".\n3. **get_client_profile** — perfil completo + histórico de visitas de UM cliente por `cliente_codigo` (A1_COD||A1_LOJA). USE WHEN \"me mostra o cliente X\", \"detalhes do código Y\", \"última visita do cliente Z\".\n4. **client_snapshot** — consulta o CADASTRO DE CLIENTES sincronizado do Protheus (SA1010). Lista clientes por REPRESENTANTE (`vendedor`: nome/apelido parcial ou código A3_COD exato), por UF/cidade, por status (ativo/inativo/bloqueado), por nome ou por CNPJ. Exige `user_id` — admin/supervisor vê todos os representantes; vendedor só a própria carteira (retorna `scope_applied='carteira'`). USE WHEN \"clientes do representante X\", \"carteira do vendedor Y\", \"clientes ativos em Santo André\", \"qual cliente tem o CNPJ Z\". Só traz dados CADASTRAIS — faturamento/pedidos vêm de get_client_profile, get_sales_trend ou get_product_mix.\n5. **register_visit_feedback** — grava resultado de visita em `castor_visita_feedback` e calcula a próxima data de contato server-side. USE WHEN o usuário relata o que aconteceu numa visita (\"visitei o cliente X, falou Y\"). Outcomes:\n   - `negativo` ou `voltar_depois` → next_contact_at = hoje + custom_days (default 20).\n   - `convertido` → next_contact_at = NULL (sai da fila).\n   Sempre gere um `idempotency_key` UUID v4 novo para evitar duplicidade.\n6. **classify_client_size** — classifica porte (`pequeno`|`medio`|`grande`) consultando RF (BrasilAPI + cache 30 dias). Mapeamento: MEI/ME→pequeno, EPP→medio, DEMAIS→grande. USE WHEN o usuário pergunta o porte de um CNPJ que não esteja na nossa base.\n7. **consultar_cnpj** — consulta CADASTRAL completa do CNPJ na Receita Federal (BrasilAPI com backoff exponencial + fallback CNPJ.ws, cache 30 dias) e devolve dados ESTRUTURADOS: razão social, nome fantasia, `cnae_principal`+`cnae_descricao`, `cnaes_secundarios`, `porte`/`porte_rf`, `situacao_cadastral`+`motivo_situacao`, `data_abertura`+`idade_anos`, `capital_social`, `natureza_juridica`, `simples_optante`/`mei_optante`, município/UF/endereço, `telefone`/`email`, `socios`(QSA)+`qtd_socios`. USE WHEN precisa enriquecer/analisar um cliente ou lead pelo CNPJ. ⚠️ NÃO traz processos/dívidas JUDICIAIS (a RF não expõe isso — exigiria provedor pago). Nunca afirme situação judicial.\n\n### Conhecimento (RAG)\n8. **search_knowledge_base** — busca semântica em `castor_documents` (regras de negócio Castor, dicionário Protheus SX3, explicações de tabelas, mapa de arquivos). USE WHEN \"qual a regra de...\", \"o que significa A1_RISCO/A1_USTATUS\", \"política de\", \"para que serve a tabela SC5010\".\n9. **List Documents** — lista documentos disponíveis no RAG.\n10. **Get File Contents** — dado um file_id, retorna o texto consolidado do documento.\n\n=============================================\n## POLÍTICA OBRIGATÓRIA\n\n**Quando o usuário pede lista de clientes para reativar, top inativos, fila de reativação:**\n1. Chame `get_reactivation_list` com `user_id` (do CONTEXTO DO USUÁRIO), `limit` (default 10–20), `only_eligible=true` por padrão, e `uf` se o usuário citou estado.\n2. Devolva uma lista numerada por `priority_rank` com: nome, código, município/UF, porte, faturamento 12m, dias sem pedido, próximo contato.\n3. Sugira em 1 linha: \"quer que eu monte um roteiro com os top N?\".\n\n**Quando o usuário pede a carteira de um representante ou uma lista de clientes por cadastro:**\n1. Chame `client_snapshot` com `user_id` (do CONTEXTO DO USUÁRIO) e `vendedor` (o nome ou código que ele citou). Para recortes de cadastro use `filters` (a1_est, a1_mun, a1_ativo, a1_inativo, a1_msblql, nome, a1_cgc).\n2. Apresente lista numerada: nome, cliente_codigo, município/UF, última compra, situação.\n3. Se vier `ok:false` com \\\"representante não encontrado\\\", diga o termo que você tentou e peça o código A3_COD.\n4. Se vier `scope_applied='carteira'`, o usuário é vendedor e só pode ver a própria carteira — apresente o resultado sem citar o representante pedido.\n\n**Quando o usuário pede detalhes de um cliente:**\n1. Se ele deu o código → `get_client_profile`.\n2. Se ele deu só o nome → peça o código (não invente).\n3. Mostre: razão social/fantasia, CNPJ, endereço resumido, telefone, vendedor, porte (com origem), faturamento 12m, ticket médio, último pedido, último feedback, próximas visitas previstas.\n\n**Quando o usuário registra uma visita:**\n1. Inferir `outcome` (negativo | voltar_depois | convertido) pela descrição.\n2. Pedir o `cliente_codigo` se ele não informou. Não invente código.\n3. Inferir `custom_days` se citou prazo (\"volto em 30 dias\" → 30). Senão deixe o default 20.\n4. Gerar `idempotency_key` UUID v4 novo.\n5. Chamar `register_visit_feedback`.\n6. Confirmar a próxima data calculada.\n\n**Quando o usuário pergunta sobre um CNPJ / porte / quer ANALISAR um cliente:**\n1. Normalize o CNPJ (só dígitos). Para clientes da base, o CNPJ vem do cadastro (`a1_cgc`) — use direto, não peça.\n2. Para \"qual o porte\" rápido → `classify_client_size`. Para análise completa → `consultar_cnpj`.\n3. Com os dados, gere INSIGHTS acionáveis (não só despeje campos):\n   - **Potencial**: `porte`/`capital_social` ALTO mas `faturamento_12m` baixo → cliente subexplorado, oportunidade de crescer share.\n   - **Maturidade**: `idade_anos` — empresa consolidada (>10a) = relacionamento estável; recém-aberta (<2a) = perfil de crescimento, ofertar onboarding.\n   - **Risco cadastral**: `situacao_cadastral` != ATIVA (BAIXADA/SUSPENSA/INAPTA) → ALERTA, não priorizar reativação, sinalizar ao vendedor.\n   - **Cross-sell**: `cnae_principal`/`cnaes_secundarios` indicam o ramo → cruze com o mix de produtos (get_product_mix / get_top_groups) para sugerir categorias.\n   - **Tributário**: `simples_optante`/`mei_optante` ajudam a calibrar condição comercial e ticket esperado.\n   - **Relacionamento**: `socios` (QSA) — cite o sócio principal só quando for útil para a abordagem.\n4. **JUDICIAL/dívidas**: se o usuário perguntar sobre processos, protestos ou dívidas, responda com honestidade que a base atual (Receita Federal) NÃO cobre isso e que exigiria integração paga (Escavador/Jusbrasil/Serasa). NUNCA invente status judicial.\n\n**Quando o usuário pergunta uma regra, termo Protheus ou política:**\n1. Chamar `search_knowledge_base` PRIMEIRO.\n2. Se vier vazio, tentar `List Documents` + `Get File Contents` no arquivo mais provável.\n3. Citar fonte: `[fonte: <title>]`.\n\n=============================================\n## RESTRIÇÕES INVIOLÁVEIS\n- NUNCA invente CNPJ, telefone, endereço, valor, data ou histórico de cliente. Tudo vem de tool.\n- NUNCA afirme situação JUDICIAL/processos/dívidas: a base (Receita Federal) não cobre isso. Diga que exigiria integração paga.\n- NUNCA exponha SQL, IDs internos, nomes de tools ou tokens na resposta ao usuário.\n- NUNCA exclua, mova ou renomeie arquivos do Drive — updates passam SOMENTE pela tela admin (`/castor-source-replace`, `/castor-source-ingest`, `/castor-rag-*`).\n- NUNCA prometa ações que não são tools (\"vou enviar email\", \"vou agendar no calendar\").\n- Se uma tool devolver dados vazios (lista sem clientes), responda apenas \"nenhum encontrado com esses critérios\" + sugestão de relaxar filtro. NÃO invente dados.\n\n=============================================\n## FORMATO DE SAÍDA\n- Markdown direto, sem floreios.\n- Listas curtas; bullets > parágrafos.\n- Para roteiros e listas longas, prefira tabela compacta (Cliente | Cidade | Porte | Fat. 12m | Dias s/ pedido).\n- Para confirmação de feedback, finalize com: \"✅ Feedback registrado. Próximo contato: DD/MM/AAAA.\"\n- Para porte/CNPJ, use bullets: `- Razão social: ...` / `- Porte: ...` / `- Situação: ...`.\n- Cite RAG: `[fonte: <title>]`.\n\n=============================================\n## ANTI-REPETIÇÃO & MEMÓRIA\n- Continue a conversa pelo `sessionId` (memória Postgres já anexada).\n- Nunca duplique linhas dentro de uma mensagem.\n- Ao mudar de assunto, recapitule o contexto anterior em 1 linha.\n\n=============================================\n## SAUDAÇÃO (só na primeira mensagem da sessão)\nOlá, [Nome]! 👋 Sou o **Castor Copiloto**. Posso te ajudar com:\n1️⃣ **Fila de reativação** — top clientes inativos elegíveis hoje\n2️⃣ **Leads novos** — prospects ainda não cadastrados\n3️⃣ **Roteiros otimizados** — partindo do depósito Diadema/SP\n4️⃣ **Perfil de cliente** + histórico de visitas\n5️⃣ **Registrar feedback** de uma visita\n6️⃣ **CNPJ / porte** via Receita Federal\n7️⃣ **Regras de negócio** e dicionário Protheus (RAG)\n\nTONE: assistente sênior de vendas. Direto, profissional, sem floreios. Português Brasil sempre.\n\n=============================================\n## FERRAMENTAS NOVAS — INTERAÇÕES & FOLLOW-UPS\n\n11. **get_pending_followups** — clientes com próximo contato vencido + janela à frente. USE WHEN o usuário pergunta o que precisa fazer hoje/essa semana, quem está atrasado, follow-ups pendentes. NUNCA mostre follow-ups de outro vendedor — a tool já filtra; mas você NÃO deve mencionar agenda alheia mesmo que tenha visto via admin (privacidade).\n12. **get_client_interactions** — histórico cronológico de interações de UM cliente (visitas, telefonemas, whatsapp, e-mails). USE para responder \"o que rolou com o cliente X nos últimos meses\". Antes de chamar, peça o cliente_codigo se o usuário só deu nome.\n13. **schedule_next_contact** — registra interação E/OU agenda próximo contato. Use sempre que o usuário relatar contato (\"liguei\", \"mandei whats\", \"fui visitar\"). Inferir interaction_type (visita_presencial/telefone/whatsapp/email/reuniao_online). Se ele disse \"volto em N dias\" use next_days; se ele deu data, use next_contact_at (YYYY-MM-DD). SEMPRE gere idempotency_key UUID v4 novo. Confirme com \"✅ Interação registrada. Próximo contato: DD/MM/AAAA — <next_action>\".\n14. **get_recent_data_changes** — clientes com métricas atualizadas após ingestão recente de CSV (SF2010/SC5010). USE no início de sessão se o usuário perguntar \"o que tem de novo\", \"rodou ingest\", \"algum cliente meu voltou a comprar\". Comente apenas os campos retornados (status, faturamento_alltime, ultima_atividade). Se vazio: \"nenhuma atualização nas últimas X horas\".\n\n=============================================\n## FERRAMENTAS NOVAS — PRODUTOS, MIX & TENDÊNCIA (Notas Fiscais / Protheus)\nBase: itens de NOTA FISCAL de saída (SD2010). Faturamento aqui é SEMPRE de VENDA real: a classificação vem do TES (D2_TES → SF4010) — só conta como venda o TES de saída que gera duplicata (F4_DUPLIC='S'). Bonificação, brinde, amostra, remessa, transferência e devolução já são EXCLUÍDAS, inclusive quando saem com CFOP de venda (5102/6102). Não some bonificação como receita.\n\n15. **get_product_mix** — o que UM cliente compra (top produtos + grupos). USE WHEN \"o que o cliente X compra\", \"mix do cliente\", \"principais itens dele\". Precisa de cliente_codigo (8 dígitos = A1_COD+A1_LOJA).\n16. **get_top_products** — ranking de produtos mais vendidos (carteira do vendedor; admin = global). Filtro opcional por grupo. USE WHEN \"produtos que mais vendem\", \"top itens\".\n17. **get_top_groups** — ranking de GRUPOS de produto. USE WHEN \"categorias mais fortes\", \"ranking por grupo\".\n18. **get_sales_trend** — faturamento mês a mês (série temporal). Com cliente_codigo = série do cliente; sem = total/carteira. USE WHEN \"evolução\", \"está caindo ou crescendo\", \"tendência mensal\". Compare meses para dizer se sobe/cai; não invente sazonalidade sem dado.\n19. **get_crosssell_suggestions** — grupos que clientes do MESMO RAMO compram e este NÃO. USE WHEN \"o que mais posso oferecer\", \"sugestão de cross-sell\", \"oportunidades\". Apresente como SUGESTÃO, nunca como certeza.\n20. **get_client_status_history** — histórico de mudança de status/risco do cliente (SZ1010). USE WHEN \"ele já foi bloqueado\", \"como variou o risco/status\".\n\nREGRA DE OURO PRODUTOS: nunca invente nome/código de produto, grupo ou valor. Se a tool voltar vazia, diga que não há histórico de venda registrado para o filtro. Faturamento de produto = só VENDA (CFOP de venda); se o usuário perguntar de bonificação/devolução, explique que são separados e não entram na receita.\n\nREGRA DE PRIVACIDADE: agenda/roteiros/interações de OUTRO vendedor são confidenciais. Mesmo papel=admin, NÃO compare nem narre a agenda de vendedor B para vendedor A. Se o usuário admin pedir \"como está o pipeline do vendedor X\", responda apenas em agregados (totais, médias), nunca nomes de clientes individuais agendados.\n\nINTERACTION TYPES e OUTCOMES (novos):\n- types: visita_presencial | telefone | whatsapp | email | reuniao_online | outro\n- outcomes: visitou | sem_contato | aguardando_resposta | pedido_em_negociacao | convertido | voltar_depois | negativo | nao_existe_mais | nao_interessado_permanente\n- \"nao_existe_mais\" e \"nao_interessado_permanente\" encerram o cliente (não voltam para fila de reativação).\n"
-        }
-      },
-      "id": "a9df5600-3a08-473b-b583-5bb5f14da1df",
-      "name": "RAG AI Agent",
-      "type": "@n8n/n8n-nodes-langchain.agent",
-      "typeVersion": 1.6,
-      "position": [27600, 17520]
-    },
-    {
-      "parameters": {
-        "options": {}
-      },
-      "id": "55b41987-24b8-4980-aa9f-530a5a3e3559",
-      "name": "Respond to Webhook",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
-      "position": [28192, 17520]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "UPDATE castor_chat_message\n   SET user_id = NULLIF('{{ $('Edit Fields').item.json.userId }}','')::uuid\n WHERE session_id::text = NULLIF('{{ $('Edit Fields').item.json.sessionId }}','')\n   AND user_id IS NULL\n   AND NULLIF('{{ $('Edit Fields').item.json.userId }}','') IS NOT NULL;",
-        "options": {}
-      },
-      "id": "b1a2cc51-1d70-44be-931d-fdc06af5bb30",
-      "name": "Stamp user_id",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [27952, 17520],
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "tableName": "castor_chat_message"
-      },
-      "id": "a44e8b76-3cf3-4fe9-b64b-cc37ad2dceb9",
-      "name": "Postgres Chat Memory",
-      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
-      "typeVersion": 1.1,
-      "position": [27536, 17856],
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "model": "gpt-5.4-mini",
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatAzureOpenAi",
-      "typeVersion": 1,
-      "position": [27344, 17824],
-      "id": "94e58130-65fa-40a1-9d7c-139b9eb98d6e",
-      "name": "Azure OpenAI Chat Model",
-      "credentials": {
-        "azureOpenAiApi": {
-          "id": "xby4FSbCaCnssJxl",
-          "name": "Azure Open AI account 3"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "model": "text-embedding-3-small",
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.embeddingsAzureOpenAi",
-      "typeVersion": 1,
-      "position": [28608, 17760],
-      "id": "8be2b757-f9cf-4a8a-aaef-a815546833db",
-      "name": "Embeddings Azure OpenAI",
-      "credentials": {
-        "azureOpenAiApi": {
-          "id": "xby4FSbCaCnssJxl",
-          "name": "Azure Open AI account 3"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "retrieve-as-tool",
-        "toolName": "search_knowledge_base",
-        "toolDescription": "BUSCA SEMÂNTICA no RAG da Castor (regras de negócio, dicionário de campos Protheus, políticas internas, documentação do agente).\n\nUSE WHEN: usuário pergunta 'qual a regra de...', 'o que significa A1_RISCO/A1_USTATUS', 'política de pagamento', 'como classificamos porte', 'documentação de campo Protheus'.\n\n❌ NÃO USE para listar clientes, leads ou pedidos — para dados estruturados use Query Castor Tables ou os subflows de negócio (get_reactivation_list, get_client_profile etc.).\n\nResultados desta ferramenta NÃO viram cards de cliente/lead. Servem APENAS como contexto textual.",
-        "tableName": {
-          "__rl": true,
-          "value": "castor_documents",
-          "mode": "list",
-          "cachedResultName": "castor_documents"
-        },
-        "topK": 10,
-        "options": {
-          "queryName": "match_castor_documents"
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
-      "typeVersion": 1,
-      "position": [28608, 17584],
-      "id": "4a03cd37-6b58-4444-adb3-12c27852f84a",
-      "name": "search_knowledge_base",
-      "credentials": {
-        "supabaseApi": {
-          "id": "i5Q8tj8Pyc9XjSGd",
-          "name": "Supabase account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "descriptionType": "manual",
-        "toolDescription": "Lista TODOS os documentos disponíveis no RAG da Castor (file_id, title, mime, source, modified_time). Use no início se precisar saber qual file_id existe antes de chamar Get File Contents.",
-        "operation": "executeQuery",
-        "query": "SELECT id AS file_id, title, url, modified_time, last_indexed_at FROM castor_document_metadata WHERE session_id IS NULL OR session_id = '' ORDER BY COALESCE(last_indexed_at, created_at) DESC NULLS LAST;",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgresTool",
-      "typeVersion": 2.5,
-      "position": [27664, 17856],
-      "id": "0954fe75-6cff-4433-97cd-3a904d985e92",
-      "name": "List Documents",
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "descriptionType": "manual",
-        "toolDescription": "Dado um file_id (descoberto via List Documents), retorna o texto consolidado (todos os chunks concatenados em ordem). Use para ler um documento inteiro do RAG.",
-        "operation": "executeQuery",
-        "query": "SELECT string_agg(content, '\\n\\n' ORDER BY id) AS document_text FROM castor_documents WHERE metadata->>'file_id' = $1;",
-        "options": {
-          "queryReplacement": "={{ $fromAI('file_id', 'O file_id do documento (UUID ou Drive file_id) descoberto via List Documents.', 'string') }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgresTool",
-      "typeVersion": 2.5,
-      "position": [27936, 17856],
-      "id": "92d36a8b-b40f-4cbe-a6f9-d0a438efaade",
-      "name": "Get File Contents",
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "description": "Registra resultado de visita em castor_visita_feedback. Calcula next_contact_at server-side:\n• negativo / voltar_depois → visited_at + custom_days (default 20)\n• convertido → NULL (sai da fila; só reentra se A1_USTATUS voltar a '2')\n\nUSE WHEN: usuário relata o que aconteceu na visita ('visitei o cliente X, ele falou que volta em 30 dias' / 'visitei e converti' / 'fui no Y mas não rolou').\n\nSempre gere um idempotency_key UUID novo. Confirme a próxima data no texto.",
-        "workflowId": {
-          "__rl": true,
-          "value": "gGEKBiqSYtBDUtsO",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/gGEKBiqSYtBDUtsO",
-          "cachedResultName": "[Castor] Sub-fluxo_ Register Visit Feedback"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "user_id": "={{ $fromAI('user_id', 'UUID do vendedor logado.', 'string') }}",
-            "cliente_codigo": "={{ $fromAI('cliente_codigo', 'Código A1_COD||A1_LOJA.', 'string') }}",
-            "outcome": "={{ $fromAI('outcome', 'Um de: negativo | voltar_depois | convertido.', 'string') }}",
-            "custom_days": "={{ $fromAI('custom_days', 'Inteiro 1-365 para sobrescrever os 20 dias default. Use null para usar default.', 'number') }}",
-            "notes": "={{ $fromAI('notes', 'Observações livres do vendedor sobre a visita.', 'string') }}",
-            "idempotency_key": "={{ $fromAI('idempotency_key', 'UUID v4 novo gerado pelo agente para evitar duplicidade.', 'string') }}"
-          },
-          "matchingColumns": [],
-          "schema": [
-            {
-              "id": "user_id",
-              "displayName": "user_id",
-              "required": true,
-              "type": "string",
-              "display": true,
-              "defaultMatch": false,
-              "canBeUsedToMatch": false
+        {
+            "parameters": {
+                "tableName": "castor_chat_message"
             },
-            {
-              "id": "cliente_codigo",
-              "displayName": "cliente_codigo",
-              "required": true,
-              "type": "string",
-              "display": true,
-              "defaultMatch": false,
-              "canBeUsedToMatch": false
-            },
-            {
-              "id": "outcome",
-              "displayName": "outcome",
-              "required": true,
-              "type": "string",
-              "display": true,
-              "defaultMatch": false,
-              "canBeUsedToMatch": false
-            },
-            {
-              "id": "custom_days",
-              "displayName": "custom_days",
-              "required": false,
-              "type": "number",
-              "display": true,
-              "defaultMatch": false,
-              "canBeUsedToMatch": false
-            },
-            {
-              "id": "notes",
-              "displayName": "notes",
-              "required": false,
-              "type": "string",
-              "display": true,
-              "defaultMatch": false,
-              "canBeUsedToMatch": false
-            },
-            {
-              "id": "idempotency_key",
-              "displayName": "idempotency_key",
-              "required": true,
-              "type": "string",
-              "display": true,
-              "defaultMatch": false,
-              "canBeUsedToMatch": false
+            "id": "a44e8b76-3cf3-4fe9-b64b-cc37ad2dceb9",
+            "name": "Postgres Chat Memory",
+            "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+            "typeVersion": 1.1,
+            "position": [
+                27536,
+                17856
+            ],
+            "credentials": {
+                "postgres": {
+                    "name": "Supabase_database"
+                }
             }
-          ],
-          "attemptToConvertTypes": true,
-          "convertFieldsToString": false
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
-      "typeVersion": 2.2,
-      "position": [28672, 18144],
-      "id": "2a524233-a1e8-4332-89db-2a8ef22dd1ee",
-      "name": "register_visit_feedback"
-    },
-    {
-      "parameters": {
-        "description": "Classifica porte do cliente consultando Receita Federal (BrasilAPI com backoff exponencial + cache 30 dias). Mapeamento: MEI/ME→pequeno, EPP→medio, DEMAIS→grande. USE WHEN usuário pergunta 'qual o porte do CNPJ X' ou para enriquecer card de lead.",
-        "workflowId": {
-          "__rl": true,
-          "value": "HmuTrVRyNC6pZjig",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/HmuTrVRyNC6pZjig",
-          "cachedResultName": "[Castor] Sub-fluxo_ Classify Client Size"
         },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "cnpj": "={{ $fromAI('cnpj', 'CNPJ 14 dígitos (com ou sem máscara — será normalizado).', 'string') }}",
-            "force_refresh": "={{ $fromAI('force_refresh', 'true para ignorar cache e re-consultar.', 'boolean') }}"
-          },
-          "matchingColumns": [],
-          "schema": [
-            {
-              "id": "cnpj",
-              "displayName": "cnpj",
-              "required": true,
-              "type": "string",
-              "display": true,
-              "defaultMatch": false,
-              "canBeUsedToMatch": false
+        {
+            "parameters": {
+                "model": "gpt-5.4-mini",
+                "options": {}
             },
-            {
-              "id": "force_refresh",
-              "displayName": "force_refresh",
-              "required": false,
-              "type": "boolean",
-              "display": true,
-              "defaultMatch": false,
-              "canBeUsedToMatch": false
+            "type": "@n8n/n8n-nodes-langchain.lmChatAzureOpenAi",
+            "typeVersion": 1,
+            "position": [
+                27344,
+                17824
+            ],
+            "id": "94e58130-65fa-40a1-9d7c-139b9eb98d6e",
+            "name": "Azure OpenAI Chat Model",
+            "credentials": {
+                "azureOpenAiApi": {
+                    "name": "Azure Open AI account 3"
+                }
             }
-          ],
-          "attemptToConvertTypes": true,
-          "convertFieldsToString": false
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
-      "typeVersion": 2.2,
-      "position": [28496, 18304],
-      "id": "dd01afa9-0d1f-4025-bded-4b8cf924a204",
-      "name": "classify_client_size"
-    },
-    {
-      "parameters": {
-        "description": "Lista clientes INATIVOS elegíveis para REATIVAÇÃO (A1_USTATUS='2', ordenados por faturamento 12m DESC). Já exclui quem foi marcado como `convertido` no último feedback. Respeita visibilidade por role (admin vê tudo, vendedor vê apenas a própria carteira). USE WHEN o usuário pede 'fila de reativação', 'meus inativos', 'top X para reativar', 'inativos em SP'.\n\nPARÂMETROS (todos opcionais com defaults; sempre envie user_id do CONTEXTO):\n- user_id (string): UUID do vendedor. OBRIGATÓRIO funcionalmente.\n- limit (number, default 20): 1–100.\n- uf (string, default ''): sigla do estado; vazio = todos.\n- only_eligible (boolean, default true): true = apenas next_contact_at <= hoje.\n\nEXEMPLO: {\"user_id\":\"<UUID>\",\"limit\":10,\"uf\":\"SP\",\"only_eligible\":true}\n\nDevolve priority_rank, cliente_codigo, a1_nome, a1_mun/a1_est, porte_efetivo, faturamento_12m, ticket_medio_12m, days_since_last_order, last_feedback.",
-        "workflowId": {
-          "__rl": true,
-          "value": "eEQak3zNsQ3LnIih",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/eEQak3zNsQ3LnIih",
-          "cachedResultName": "[Castor] Sub-fluxo_ Get Reactivation List"
         },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "user_id": "={{ $fromAI('user_id', 'UUID do vendedor logado (vem do CONTEXTO DO USUÁRIO). OBRIGATÓRIO.', 'string') || '' }}",
-            "limit": "={{ Number($fromAI('limit', 'Quantos clientes retornar (default 20, max 100).', 'number')) || 20 }}",
-            "uf": "={{ $fromAI('uf', 'Sigla do estado (ex: SP). String vazia = todos.', 'string') || '' }}",
-            "only_eligible": "={{ $fromAI('only_eligible', 'true (default) para apenas next_contact_at <= hoje.', 'boolean') ?? true }}"
-          },
-          "matchingColumns": [],
-          "schema": [
-            {
-              "id": "user_id",
-              "displayName": "user_id",
-              "required": false,
-              "type": "string",
-              "display": true,
-              "defaultMatch": false,
-              "canBeUsedToMatch": false
+        {
+            "parameters": {
+                "model": "text-embedding-3-small",
+                "options": {}
             },
-            {
-              "id": "limit",
-              "displayName": "limit",
-              "required": false,
-              "type": "number",
-              "display": true,
-              "defaultMatch": false,
-              "canBeUsedToMatch": false
-            },
-            {
-              "id": "uf",
-              "displayName": "uf",
-              "required": false,
-              "type": "string",
-              "display": true,
-              "defaultMatch": false,
-              "canBeUsedToMatch": false
-            },
-            {
-              "id": "only_eligible",
-              "displayName": "only_eligible",
-              "required": false,
-              "type": "boolean",
-              "display": true,
-              "defaultMatch": false,
-              "canBeUsedToMatch": false
+            "type": "@n8n/n8n-nodes-langchain.embeddingsAzureOpenAi",
+            "typeVersion": 1,
+            "position": [
+                28608,
+                17760
+            ],
+            "id": "8be2b757-f9cf-4a8a-aaef-a815546833db",
+            "name": "Embeddings Azure OpenAI",
+            "credentials": {
+                "azureOpenAiApi": {
+                    "name": "Azure Open AI account 3"
+                }
             }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": false
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
-      "typeVersion": 2.2,
-      "position": [28144, 18304],
-      "id": "067e5187-4e86-4e5f-bb8f-b0ea2af12667",
-      "name": "get_reactivation_list"
-    },
-    {
-      "parameters": {
-        "description": "Lista LEADS / PROSPECTS (tabela ZA7010 cujo CNPJ ainda NÃO existe em SA1010). USE WHEN o usuário pede 'leads novos', 'prospects', 'empresas que não compram ainda', 'lista de captação'.\n\nPARÂMETROS (todos opcionais com defaults; sempre que possível envie user_id do CONTEXTO):\n- user_id (string): UUID do vendedor logado. OBRIGATÓRIO funcionalmente.\n- limit (number, default 20): quantos leads (1–100).\n- uf (string, default ''): sigla do estado para filtrar; vazio = todos.\n- segmento (string, default ''): substring de segmento/atividade; vazio = todos.\n\nEXEMPLO de chamada: {\"user_id\":\"<UUID>\",\"limit\":5,\"uf\":\"\",\"segmento\":\"\"}",
-        "workflowId": {
-          "__rl": true,
-          "value": "eRVT1No2iK3AGzDa",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/eRVT1No2iK3AGzDa",
-          "cachedResultName": "[Castor] Sub-fluxo_ Get Prospect List"
         },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "user_id": "={{ $fromAI('user_id', 'UUID do vendedor logado (vem do CONTEXTO DO USUÁRIO). OBRIGATÓRIO.', 'string') || '' }}",
-            "limit": "={{ Number($fromAI('limit', 'Quantos leads retornar (default 20, max 100).', 'number')) || 20 }}",
-            "uf": "={{ $fromAI('uf', 'Sigla do estado (ex: SP). String vazia = todos.', 'string') || '' }}",
-            "segmento": "={{ $fromAI('segmento', 'Substring de segmento/atividade. String vazia = todos.', 'string') || '' }}"
-          },
-          "matchingColumns": [],
-          "schema": [
-            {
-              "id": "user_id",
-              "displayName": "user_id",
-              "required": false,
-              "type": "string",
-              "display": true,
-              "defaultMatch": false,
-              "canBeUsedToMatch": false
+        {
+            "parameters": {
+                "mode": "retrieve-as-tool",
+                "toolName": "search_knowledge_base",
+                "toolDescription": "BUSCA SEMÂNTICA no RAG da Castor (regras de negócio, dicionário de campos Protheus, políticas internas, documentação do agente).\n\nUSE WHEN: usuário pergunta 'qual a regra de...', 'o que significa A1_RISCO/A1_USTATUS', 'política de pagamento', 'como classificamos porte', 'documentação de campo Protheus'.\n\n❌ NÃO USE para listar clientes, leads ou pedidos — para dados estruturados use Query Castor Tables ou os subflows de negócio (get_reactivation_list, get_client_profile etc.).\n\nResultados desta ferramenta NÃO viram cards de cliente/lead. Servem APENAS como contexto textual.",
+                "tableName": {
+                    "__rl": true,
+                    "value": "castor_documents",
+                    "mode": "list",
+                    "cachedResultName": "castor_documents"
+                },
+                "topK": 10,
+                "options": {
+                    "queryName": "match_castor_documents"
+                }
             },
-            {
-              "id": "limit",
-              "displayName": "limit",
-              "required": false,
-              "type": "number",
-              "display": true,
-              "defaultMatch": false,
-              "canBeUsedToMatch": false
-            },
-            {
-              "id": "uf",
-              "displayName": "uf",
-              "required": false,
-              "type": "string",
-              "display": true,
-              "defaultMatch": false,
-              "canBeUsedToMatch": false
-            },
-            {
-              "id": "segmento",
-              "displayName": "segmento",
-              "required": false,
-              "type": "string",
-              "display": true,
-              "defaultMatch": false,
-              "canBeUsedToMatch": false
+            "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+            "typeVersion": 1,
+            "position": [
+                28608,
+                17584
+            ],
+            "id": "4a03cd37-6b58-4444-adb3-12c27852f84a",
+            "name": "search_knowledge_base",
+            "credentials": {
+                "supabaseApi": {
+                    "name": "Supabase account"
+                }
             }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": false
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
-      "typeVersion": 2.2,
-      "position": [27968, 18304],
-      "id": "e94c5784-d4f1-41e0-85bc-cb871fbb45a5",
-      "name": "get_prospect_list"
-    },
-    {
-      "parameters": {
-        "description": "Retorna perfil COMPLETO de UM cliente por cliente_codigo (A1_COD||A1_LOJA, ex: '000123-01' ou '00012301'). Inclui cadastro, métricas (faturamento_12m, ticket_medio_12m, último pedido), porte_efetivo + origem do porte, e histórico de visitas (castor_visita_feedback). USE WHEN 'me mostra o cliente X', 'detalhes do código Y', 'histórico de visitas do Z'.",
-        "workflowId": {
-          "__rl": true,
-          "value": "rOppu1keSCDLJyS3",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/rOppu1keSCDLJyS3",
-          "cachedResultName": "[Castor] Sub-fluxo_ Get Client Profile"
         },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "user_id": "={{ $fromAI('user_id', 'UUID do vendedor logado.', 'string') }}",
-            "cliente_codigo": "={{ $fromAI('cliente_codigo', 'A1_COD||A1_LOJA. Aceita com ou sem hífen.', 'string') }}"
-          },
-          "matchingColumns": [],
-          "schema": [
-            {
-              "id": "user_id",
-              "displayName": "user_id",
-              "required": true,
-              "type": "string",
-              "display": true,
-              "defaultMatch": false,
-              "canBeUsedToMatch": false
+        {
+            "parameters": {
+                "descriptionType": "manual",
+                "toolDescription": "Lista TODOS os documentos disponíveis no RAG da Castor (file_id, title, mime, source, modified_time). Use no início se precisar saber qual file_id existe antes de chamar Get File Contents.",
+                "operation": "executeQuery",
+                "query": "SELECT id AS file_id, title, url, modified_time, last_indexed_at FROM castor_document_metadata WHERE session_id IS NULL OR session_id = '' ORDER BY COALESCE(last_indexed_at, created_at) DESC NULLS LAST;",
+                "options": {}
             },
-            {
-              "id": "cliente_codigo",
-              "displayName": "cliente_codigo",
-              "required": true,
-              "type": "string",
-              "display": true,
-              "defaultMatch": false,
-              "canBeUsedToMatch": false
+            "type": "n8n-nodes-base.postgresTool",
+            "typeVersion": 2.5,
+            "position": [
+                27664,
+                17856
+            ],
+            "id": "0954fe75-6cff-4433-97cd-3a904d985e92",
+            "name": "List Documents",
+            "credentials": {
+                "postgres": {
+                    "name": "Supabase_database"
+                }
             }
-          ],
-          "attemptToConvertTypes": true,
-          "convertFieldsToString": false
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
-      "typeVersion": 2.2,
-      "position": [27792, 18304],
-      "id": "6dcaef98-e277-4168-aeb2-6d7831dd00c7",
-      "name": "get_client_profile"
-    },
-    {
-      "parameters": {
-        "description": "Consulta o CADASTRO DE CLIENTES sincronizado do Protheus (tabela castor_client_snapshot, origem SA1010). USE WHEN o usuário pede uma LISTA de clientes por representante ('clientes do representante X', 'carteira do vendedor Y'), por UF/cidade, por status (ativo/inativo/bloqueado), por nome ou por CNPJ. Também serve para conferir dados cadastrais (endereço, ramo de atividade, limite de crédito, primeira/última compra).\n\nParâmetros:\n- user_id (OBRIGATÓRIO): o `ID` do CONTEXTO DO USUÁRIO. Define o escopo — admin/supervisor vê todos os representantes; vendedor vê apenas a própria carteira.\n- vendedor (opcional): representante por NOME/apelido parcial (ex: 'Marcos') ou código A3_COD exato.\n- filters (opcional, STRING JSON — ex: {\\\"a1_est\\\":\\\"SP\\\",\\\"a1_ativo\\\":true}; mande string vazia se não houver filtro): cliente_codigo, a1_cod, a1_loja, a1_cgc (CNPJ), a1_est (UF), a1_mun (cidade, parcial), a1_msblql ('1'=bloqueado, '2'=liberado), a1_ativo (bool), a1_inativo (bool), nome (razão social/fantasia parcial).\n- limit (opcional): 1-500, default 50.\n\nRetorna {ok, count, scope_applied, data[]} com cliente_codigo, a1_nome, a1_nreduz, a1_cgc, a1_vend, vendedor_nome, a1_mun/a1_est, a1_ultcom, a1_lc, a1_msblql. Se `scope_applied='carteira'`, o resultado foi restrito à carteira do próprio vendedor. NÃO tem pedidos/faturamento — para isso use get_client_profile, get_sales_trend ou get_product_mix.",
-        "workflowId": {
-          "__rl": true,
-          "value": "ZRyCa6bSuMBqkaJz",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/ZRyCa6bSuMBqkaJz",
-          "cachedResultName": "[Castor] Sub-fluxo_ Client Snapshot Query"
         },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "user_id": "={{ $fromAI('user_id', 'UUID do usuário logado (campo ID do CONTEXTO DO USUÁRIO).', 'string') }}",
-            "vendedor": "={{ $fromAI('vendedor', 'Representante: nome/apelido parcial ou código A3_COD exato (opcional).', 'string') }}",
-            "filters": "={{ $fromAI('filters', 'String JSON com filtros opcionais: cliente_codigo, a1_cod, a1_loja, a1_cgc, a1_est, a1_mun, a1_msblql, a1_ativo, a1_inativo, nome. Use string vazia quando nao houver filtro.', 'string') }}",
-            "limit": "={{ $fromAI('limit', 'Número máximo de registros a retornar (default 50, máx 500).', 'number') }}"
-          },
-          "matchingColumns": [],
-          "schema": [
-            {
-              "id": "user_id",
-              "displayName": "user_id",
-              "required": true,
-              "type": "string",
-              "display": true,
-              "defaultMatch": false,
-              "canBeUsedToMatch": false
+        {
+            "parameters": {
+                "descriptionType": "manual",
+                "toolDescription": "Dado um file_id (descoberto via List Documents), retorna o texto consolidado (todos os chunks concatenados em ordem). Use para ler um documento inteiro do RAG.",
+                "operation": "executeQuery",
+                "query": "SELECT string_agg(content, '\\n\\n' ORDER BY id) AS document_text FROM castor_documents WHERE metadata->>'file_id' = $1;",
+                "options": {
+                    "queryReplacement": "={{ $fromAI('file_id', 'O file_id do documento (UUID ou Drive file_id) descoberto via List Documents.', 'string') }}"
+                }
             },
-            {
-              "id": "vendedor",
-              "displayName": "vendedor",
-              "required": false,
-              "type": "string",
-              "display": true,
-              "defaultMatch": false,
-              "canBeUsedToMatch": false
-            },
-            {
-              "id": "filters",
-              "displayName": "filters",
-              "required": false,
-              "type": "string",
-              "display": true,
-              "defaultMatch": false,
-              "canBeUsedToMatch": false
-            },
-            {
-              "id": "limit",
-              "displayName": "limit",
-              "required": false,
-              "type": "number",
-              "display": true,
-              "defaultMatch": false,
-              "canBeUsedToMatch": false
+            "type": "n8n-nodes-base.postgresTool",
+            "typeVersion": 2.5,
+            "position": [
+                27936,
+                17856
+            ],
+            "id": "92d36a8b-b40f-4cbe-a6f9-d0a438efaade",
+            "name": "Get File Contents",
+            "credentials": {
+                "postgres": {
+                    "name": "Supabase_database"
+                }
             }
-          ],
-          "attemptToConvertTypes": true,
-          "convertFieldsToString": false
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
-      "typeVersion": 2.2,
-      "position": [28848, 18304],
-      "id": "f3a8b2c1-d456-4e78-90ab-cdef12345678",
-      "name": "client_snapshot"
-    },
-    {
-      "parameters": {
-        "description": "Consulta CNPJ na Receita Federal (BrasilAPI com backoff exponencial 3 tentativas + fallback CNPJ.ws) com cache 30 dias em castor_cnpj_cache. Retorna dados estruturados: razao_social, nome_fantasia, cnae_principal+cnae_descricao, cnaes_secundarios, porte+porte_rf, situacao_cadastral+motivo_situacao, data_abertura+idade_anos, capital_social, natureza_juridica, simples_optante/mei_optante, municipio/uf/endereco, telefone/email, socios(QSA)+qtd_socios. USE WHEN precisa enriquecer ou analisar um cliente/lead pelo CNPJ. NAO retorna processos/dividas judiciais (RF nao expoe).",
-        "workflowId": {
-          "__rl": true,
-          "value": "9rHyZI571D0sKRkb",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/9rHyZI571D0sKRkb",
-          "cachedResultName": "[Castor] Sub-fluxo_ Consultar CNPJ"
         },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "cnpj": "={{ $fromAI('cnpj', 'CNPJ 14 dígitos.', 'string') }}",
-            "force_refresh": "={{ $fromAI('force_refresh', 'true para ignorar cache.', 'boolean') }}"
-          },
-          "matchingColumns": [],
-          "schema": [
-            {
-              "id": "cnpj",
-              "displayName": "cnpj",
-              "required": true,
-              "type": "string",
-              "display": true,
-              "defaultMatch": false,
-              "canBeUsedToMatch": false
+        {
+            "parameters": {
+                "description": "Registra resultado de visita em castor_visita_feedback. Calcula next_contact_at server-side:\n• negativo / voltar_depois → visited_at + custom_days (default 20)\n• convertido → NULL (sai da fila; só reentra se A1_USTATUS voltar a '2')\n\nUSE WHEN: usuário relata o que aconteceu na visita ('visitei o cliente X, ele falou que volta em 30 dias' / 'visitei e converti' / 'fui no Y mas não rolou').\n\nSempre gere um idempotency_key UUID novo. Confirme a próxima data no texto.",
+                "workflowId": {
+                    "__rl": true,
+                    "value": "gGEKBiqSYtBDUtsO",
+                    "mode": "list",
+                    "cachedResultUrl": "/workflow/gGEKBiqSYtBDUtsO",
+                    "cachedResultName": "[Castor] Sub-fluxo_ Register Visit Feedback"
+                },
+                "workflowInputs": {
+                    "mappingMode": "defineBelow",
+                    "value": {
+                        "user_id": "={{ $fromAI('user_id', 'UUID do vendedor logado.', 'string') }}",
+                        "cliente_codigo": "={{ $fromAI('cliente_codigo', 'Código A1_COD||A1_LOJA.', 'string') }}",
+                        "outcome": "={{ $fromAI('outcome', 'Um de: negativo | voltar_depois | convertido.', 'string') }}",
+                        "custom_days": "={{ $fromAI('custom_days', 'Inteiro 1-365 para sobrescrever os 20 dias default. Use null para usar default.', 'number') }}",
+                        "notes": "={{ $fromAI('notes', 'Observações livres do vendedor sobre a visita.', 'string') }}",
+                        "idempotency_key": "={{ $fromAI('idempotency_key', 'UUID v4 novo gerado pelo agente para evitar duplicidade.', 'string') }}"
+                    },
+                    "matchingColumns": [],
+                    "schema": [
+                        {
+                            "id": "user_id",
+                            "displayName": "user_id",
+                            "required": true,
+                            "type": "string",
+                            "display": true,
+                            "defaultMatch": false,
+                            "canBeUsedToMatch": false
+                        },
+                        {
+                            "id": "cliente_codigo",
+                            "displayName": "cliente_codigo",
+                            "required": true,
+                            "type": "string",
+                            "display": true,
+                            "defaultMatch": false,
+                            "canBeUsedToMatch": false
+                        },
+                        {
+                            "id": "outcome",
+                            "displayName": "outcome",
+                            "required": true,
+                            "type": "string",
+                            "display": true,
+                            "defaultMatch": false,
+                            "canBeUsedToMatch": false
+                        },
+                        {
+                            "id": "custom_days",
+                            "displayName": "custom_days",
+                            "required": false,
+                            "type": "number",
+                            "display": true,
+                            "defaultMatch": false,
+                            "canBeUsedToMatch": false
+                        },
+                        {
+                            "id": "notes",
+                            "displayName": "notes",
+                            "required": false,
+                            "type": "string",
+                            "display": true,
+                            "defaultMatch": false,
+                            "canBeUsedToMatch": false
+                        },
+                        {
+                            "id": "idempotency_key",
+                            "displayName": "idempotency_key",
+                            "required": true,
+                            "type": "string",
+                            "display": true,
+                            "defaultMatch": false,
+                            "canBeUsedToMatch": false
+                        }
+                    ],
+                    "attemptToConvertTypes": true,
+                    "convertFieldsToString": false
+                }
             },
-            {
-              "id": "force_refresh",
-              "displayName": "force_refresh",
-              "required": false,
-              "type": "boolean",
-              "display": true,
-              "defaultMatch": false,
-              "canBeUsedToMatch": false
+            "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+            "typeVersion": 2.2,
+            "position": [
+                28672,
+                18144
+            ],
+            "id": "2a524233-a1e8-4332-89db-2a8ef22dd1ee",
+            "name": "register_visit_feedback"
+        },
+        {
+            "parameters": {
+                "description": "Classifica porte do cliente consultando Receita Federal (BrasilAPI com backoff exponencial + cache 30 dias). Mapeamento: MEI/ME→pequeno, EPP→medio, DEMAIS→grande. USE WHEN usuário pergunta 'qual o porte do CNPJ X' ou para enriquecer card de lead.",
+                "workflowId": {
+                    "__rl": true,
+                    "value": "HmuTrVRyNC6pZjig",
+                    "mode": "list",
+                    "cachedResultUrl": "/workflow/HmuTrVRyNC6pZjig",
+                    "cachedResultName": "[Castor] Sub-fluxo_ Classify Client Size"
+                },
+                "workflowInputs": {
+                    "mappingMode": "defineBelow",
+                    "value": {
+                        "cnpj": "={{ $fromAI('cnpj', 'CNPJ 14 dígitos (com ou sem máscara — será normalizado).', 'string') }}",
+                        "force_refresh": "={{ $fromAI('force_refresh', 'true para ignorar cache e re-consultar.', 'boolean') }}"
+                    },
+                    "matchingColumns": [],
+                    "schema": [
+                        {
+                            "id": "cnpj",
+                            "displayName": "cnpj",
+                            "required": true,
+                            "type": "string",
+                            "display": true,
+                            "defaultMatch": false,
+                            "canBeUsedToMatch": false
+                        },
+                        {
+                            "id": "force_refresh",
+                            "displayName": "force_refresh",
+                            "required": false,
+                            "type": "boolean",
+                            "display": true,
+                            "defaultMatch": false,
+                            "canBeUsedToMatch": false
+                        }
+                    ],
+                    "attemptToConvertTypes": true,
+                    "convertFieldsToString": false
+                }
+            },
+            "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+            "typeVersion": 2.2,
+            "position": [
+                28496,
+                18304
+            ],
+            "id": "dd01afa9-0d1f-4025-bded-4b8cf924a204",
+            "name": "classify_client_size"
+        },
+        {
+            "parameters": {
+                "description": "Lista clientes INATIVOS elegíveis para REATIVAÇÃO (A1_USTATUS='2', ordenados por faturamento 12m DESC). Já exclui quem foi marcado como `convertido` no último feedback. Respeita visibilidade por role (admin vê tudo, vendedor vê apenas a própria carteira). USE WHEN o usuário pede 'fila de reativação', 'meus inativos', 'top X para reativar', 'inativos em SP'.\n\nPARÂMETROS (todos opcionais com defaults; sempre envie user_id do CONTEXTO):\n- user_id (string): UUID do vendedor. OBRIGATÓRIO funcionalmente.\n- limit (number, default 20): 1–100.\n- uf (string, default ''): sigla do estado; vazio = todos.\n- only_eligible (boolean, default true): true = apenas next_contact_at <= hoje.\n\nEXEMPLO: {\"user_id\":\"<UUID>\",\"limit\":10,\"uf\":\"SP\",\"only_eligible\":true}\n\nDevolve priority_rank, cliente_codigo, a1_nome, a1_mun/a1_est, porte_efetivo, faturamento_12m, ticket_medio_12m, days_since_last_order, last_feedback.",
+                "workflowId": {
+                    "__rl": true,
+                    "value": "eEQak3zNsQ3LnIih",
+                    "mode": "list",
+                    "cachedResultUrl": "/workflow/eEQak3zNsQ3LnIih",
+                    "cachedResultName": "[Castor] Sub-fluxo_ Get Reactivation List"
+                },
+                "workflowInputs": {
+                    "mappingMode": "defineBelow",
+                    "value": {
+                        "user_id": "={{ $fromAI('user_id', 'UUID do vendedor logado (vem do CONTEXTO DO USUÁRIO). OBRIGATÓRIO.', 'string') || '' }}",
+                        "limit": "={{ Number($fromAI('limit', 'Quantos clientes retornar (default 20, max 100).', 'number')) || 20 }}",
+                        "uf": "={{ $fromAI('uf', 'Sigla do estado (ex: SP). String vazia = todos.', 'string') || '' }}",
+                        "only_eligible": "={{ $fromAI('only_eligible', 'true (default) para apenas next_contact_at <= hoje.', 'boolean') ?? true }}"
+                    },
+                    "matchingColumns": [],
+                    "schema": [
+                        {
+                            "id": "user_id",
+                            "displayName": "user_id",
+                            "required": false,
+                            "type": "string",
+                            "display": true,
+                            "defaultMatch": false,
+                            "canBeUsedToMatch": false
+                        },
+                        {
+                            "id": "limit",
+                            "displayName": "limit",
+                            "required": false,
+                            "type": "number",
+                            "display": true,
+                            "defaultMatch": false,
+                            "canBeUsedToMatch": false
+                        },
+                        {
+                            "id": "uf",
+                            "displayName": "uf",
+                            "required": false,
+                            "type": "string",
+                            "display": true,
+                            "defaultMatch": false,
+                            "canBeUsedToMatch": false
+                        },
+                        {
+                            "id": "only_eligible",
+                            "displayName": "only_eligible",
+                            "required": false,
+                            "type": "boolean",
+                            "display": true,
+                            "defaultMatch": false,
+                            "canBeUsedToMatch": false
+                        }
+                    ],
+                    "attemptToConvertTypes": false,
+                    "convertFieldsToString": false
+                }
+            },
+            "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+            "typeVersion": 2.2,
+            "position": [
+                28144,
+                18304
+            ],
+            "id": "067e5187-4e86-4e5f-bb8f-b0ea2af12667",
+            "name": "get_reactivation_list"
+        },
+        {
+            "parameters": {
+                "description": "Lista LEADS / PROSPECTS (tabela ZA7010 cujo CNPJ ainda NÃO existe em SA1010). USE WHEN o usuário pede 'leads novos', 'prospects', 'empresas que não compram ainda', 'lista de captação'.\n\nPARÂMETROS (todos opcionais com defaults; sempre que possível envie user_id do CONTEXTO):\n- user_id (string): UUID do vendedor logado. OBRIGATÓRIO funcionalmente.\n- limit (number, default 20): quantos leads (1–100).\n- uf (string, default ''): sigla do estado para filtrar; vazio = todos.\n- segmento (string, default ''): substring de segmento/atividade; vazio = todos.\n\nEXEMPLO de chamada: {\"user_id\":\"<UUID>\",\"limit\":5,\"uf\":\"\",\"segmento\":\"\"}",
+                "workflowId": {
+                    "__rl": true,
+                    "value": "eRVT1No2iK3AGzDa",
+                    "mode": "list",
+                    "cachedResultUrl": "/workflow/eRVT1No2iK3AGzDa",
+                    "cachedResultName": "[Castor] Sub-fluxo_ Get Prospect List"
+                },
+                "workflowInputs": {
+                    "mappingMode": "defineBelow",
+                    "value": {
+                        "user_id": "={{ $fromAI('user_id', 'UUID do vendedor logado (vem do CONTEXTO DO USUÁRIO). OBRIGATÓRIO.', 'string') || '' }}",
+                        "limit": "={{ Number($fromAI('limit', 'Quantos leads retornar (default 20, max 100).', 'number')) || 20 }}",
+                        "uf": "={{ $fromAI('uf', 'Sigla do estado (ex: SP). String vazia = todos.', 'string') || '' }}",
+                        "segmento": "={{ $fromAI('segmento', 'Substring de segmento/atividade. String vazia = todos.', 'string') || '' }}"
+                    },
+                    "matchingColumns": [],
+                    "schema": [
+                        {
+                            "id": "user_id",
+                            "displayName": "user_id",
+                            "required": false,
+                            "type": "string",
+                            "display": true,
+                            "defaultMatch": false,
+                            "canBeUsedToMatch": false
+                        },
+                        {
+                            "id": "limit",
+                            "displayName": "limit",
+                            "required": false,
+                            "type": "number",
+                            "display": true,
+                            "defaultMatch": false,
+                            "canBeUsedToMatch": false
+                        },
+                        {
+                            "id": "uf",
+                            "displayName": "uf",
+                            "required": false,
+                            "type": "string",
+                            "display": true,
+                            "defaultMatch": false,
+                            "canBeUsedToMatch": false
+                        },
+                        {
+                            "id": "segmento",
+                            "displayName": "segmento",
+                            "required": false,
+                            "type": "string",
+                            "display": true,
+                            "defaultMatch": false,
+                            "canBeUsedToMatch": false
+                        }
+                    ],
+                    "attemptToConvertTypes": false,
+                    "convertFieldsToString": false
+                }
+            },
+            "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+            "typeVersion": 2.2,
+            "position": [
+                27968,
+                18304
+            ],
+            "id": "e94c5784-d4f1-41e0-85bc-cb871fbb45a5",
+            "name": "get_prospect_list"
+        },
+        {
+            "parameters": {
+                "description": "Retorna perfil COMPLETO de UM cliente por cliente_codigo (A1_COD||A1_LOJA, ex: '000123-01' ou '00012301'). Inclui cadastro, métricas (faturamento_12m, ticket_medio_12m, último pedido), porte_efetivo + origem do porte, e histórico de visitas (castor_visita_feedback). USE WHEN 'me mostra o cliente X', 'detalhes do código Y', 'histórico de visitas do Z'.",
+                "workflowId": {
+                    "__rl": true,
+                    "value": "rOppu1keSCDLJyS3",
+                    "mode": "list",
+                    "cachedResultUrl": "/workflow/rOppu1keSCDLJyS3",
+                    "cachedResultName": "[Castor] Sub-fluxo_ Get Client Profile"
+                },
+                "workflowInputs": {
+                    "mappingMode": "defineBelow",
+                    "value": {
+                        "user_id": "={{ $fromAI('user_id', 'UUID do vendedor logado.', 'string') }}",
+                        "cliente_codigo": "={{ $fromAI('cliente_codigo', 'A1_COD||A1_LOJA. Aceita com ou sem hífen.', 'string') }}"
+                    },
+                    "matchingColumns": [],
+                    "schema": [
+                        {
+                            "id": "user_id",
+                            "displayName": "user_id",
+                            "required": true,
+                            "type": "string",
+                            "display": true,
+                            "defaultMatch": false,
+                            "canBeUsedToMatch": false
+                        },
+                        {
+                            "id": "cliente_codigo",
+                            "displayName": "cliente_codigo",
+                            "required": true,
+                            "type": "string",
+                            "display": true,
+                            "defaultMatch": false,
+                            "canBeUsedToMatch": false
+                        }
+                    ],
+                    "attemptToConvertTypes": true,
+                    "convertFieldsToString": false
+                }
+            },
+            "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+            "typeVersion": 2.2,
+            "position": [
+                27792,
+                18304
+            ],
+            "id": "6dcaef98-e277-4168-aeb2-6d7831dd00c7",
+            "name": "get_client_profile"
+        },
+        {
+            "parameters": {
+                "description": "Consulta o CADASTRO DE CLIENTES sincronizado do Protheus (tabela castor_client_snapshot, origem SA1010). USE WHEN o usuário pede uma LISTA de clientes por representante ('clientes do representante X', 'carteira do vendedor Y'), por UF/cidade, por status (ativo/inativo/bloqueado), por nome ou por CNPJ. Também serve para conferir dados cadastrais (endereço, ramo de atividade, limite de crédito, primeira/última compra).\n\nParâmetros:\n- user_id (OBRIGATÓRIO): o `ID` do CONTEXTO DO USUÁRIO. Define o escopo — admin/supervisor vê todos os representantes; vendedor vê apenas a própria carteira.\n- vendedor (opcional): representante por NOME/apelido parcial (ex: 'Marcos') ou código A3_COD exato.\n- filters (opcional, STRING JSON — ex: {\\\"a1_est\\\":\\\"SP\\\",\\\"a1_ativo\\\":true}; mande string vazia se não houver filtro): cliente_codigo, a1_cod, a1_loja, a1_cgc (CNPJ), a1_est (UF), a1_mun (cidade, parcial), a1_msblql ('1'=bloqueado, '2'=liberado), a1_ativo (bool), a1_inativo (bool), nome (razão social/fantasia parcial).\n- limit (opcional): 1-500, default 50.\n\nRetorna {ok, count, scope_applied, data[]} com cliente_codigo, a1_nome, a1_nreduz, a1_cgc, a1_vend, vendedor_nome, a1_mun/a1_est, a1_ultcom, a1_lc, a1_msblql. Se `scope_applied='carteira'`, o resultado foi restrito à carteira do próprio vendedor. NÃO tem pedidos/faturamento — para isso use get_client_profile, get_sales_trend ou get_product_mix.",
+                "workflowId": {
+                    "__rl": true,
+                    "value": "ZRyCa6bSuMBqkaJz",
+                    "mode": "list",
+                    "cachedResultUrl": "/workflow/ZRyCa6bSuMBqkaJz",
+                    "cachedResultName": "[Castor] Sub-fluxo_ Client Snapshot Query"
+                },
+                "workflowInputs": {
+                    "mappingMode": "defineBelow",
+                    "value": {
+                        "user_id": "={{ $fromAI('user_id', 'UUID do usuário logado (campo ID do CONTEXTO DO USUÁRIO).', 'string') }}",
+                        "vendedor": "={{ $fromAI('vendedor', 'Representante: nome/apelido parcial ou código A3_COD exato (opcional).', 'string') }}",
+                        "filters": "={{ $fromAI('filters', 'String JSON com filtros opcionais: cliente_codigo, a1_cod, a1_loja, a1_cgc, a1_est, a1_mun, a1_msblql, a1_ativo, a1_inativo, nome. Use string vazia quando nao houver filtro.', 'string') }}",
+                        "limit": "={{ $fromAI('limit', 'Número máximo de registros a retornar (default 50, máx 500).', 'number') }}"
+                    },
+                    "matchingColumns": [],
+                    "schema": [
+                        {
+                            "id": "user_id",
+                            "displayName": "user_id",
+                            "required": true,
+                            "type": "string",
+                            "display": true,
+                            "defaultMatch": false,
+                            "canBeUsedToMatch": false
+                        },
+                        {
+                            "id": "vendedor",
+                            "displayName": "vendedor",
+                            "required": false,
+                            "type": "string",
+                            "display": true,
+                            "defaultMatch": false,
+                            "canBeUsedToMatch": false
+                        },
+                        {
+                            "id": "filters",
+                            "displayName": "filters",
+                            "required": false,
+                            "type": "string",
+                            "display": true,
+                            "defaultMatch": false,
+                            "canBeUsedToMatch": false
+                        },
+                        {
+                            "id": "limit",
+                            "displayName": "limit",
+                            "required": false,
+                            "type": "number",
+                            "display": true,
+                            "defaultMatch": false,
+                            "canBeUsedToMatch": false
+                        }
+                    ],
+                    "attemptToConvertTypes": true,
+                    "convertFieldsToString": false
+                }
+            },
+            "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+            "typeVersion": 2.2,
+            "position": [
+                28848,
+                18304
+            ],
+            "id": "f3a8b2c1-d456-4e78-90ab-cdef12345678",
+            "name": "client_snapshot"
+        },
+        {
+            "parameters": {
+                "description": "Consulta CNPJ na Receita Federal (BrasilAPI com backoff exponencial 3 tentativas + fallback CNPJ.ws) com cache 30 dias em castor_cnpj_cache. Retorna dados estruturados: razao_social, nome_fantasia, cnae_principal+cnae_descricao, cnaes_secundarios, porte+porte_rf, situacao_cadastral+motivo_situacao, data_abertura+idade_anos, capital_social, natureza_juridica, simples_optante/mei_optante, municipio/uf/endereco, telefone/email, socios(QSA)+qtd_socios. USE WHEN precisa enriquecer ou analisar um cliente/lead pelo CNPJ. NAO retorna processos/dividas judiciais (RF nao expoe).",
+                "workflowId": {
+                    "__rl": true,
+                    "value": "9rHyZI571D0sKRkb",
+                    "mode": "list",
+                    "cachedResultUrl": "/workflow/9rHyZI571D0sKRkb",
+                    "cachedResultName": "[Castor] Sub-fluxo_ Consultar CNPJ"
+                },
+                "workflowInputs": {
+                    "mappingMode": "defineBelow",
+                    "value": {
+                        "cnpj": "={{ $fromAI('cnpj', 'CNPJ 14 dígitos.', 'string') }}",
+                        "force_refresh": "={{ $fromAI('force_refresh', 'true para ignorar cache.', 'boolean') }}"
+                    },
+                    "matchingColumns": [],
+                    "schema": [
+                        {
+                            "id": "cnpj",
+                            "displayName": "cnpj",
+                            "required": true,
+                            "type": "string",
+                            "display": true,
+                            "defaultMatch": false,
+                            "canBeUsedToMatch": false
+                        },
+                        {
+                            "id": "force_refresh",
+                            "displayName": "force_refresh",
+                            "required": false,
+                            "type": "boolean",
+                            "display": true,
+                            "defaultMatch": false,
+                            "canBeUsedToMatch": false
+                        }
+                    ],
+                    "attemptToConvertTypes": true,
+                    "convertFieldsToString": false
+                }
+            },
+            "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+            "typeVersion": 2.2,
+            "position": [
+                28320,
+                18304
+            ],
+            "id": "fbb87459-91b1-495b-b051-34593e518e4a",
+            "name": "consultar_cnpj"
+        },
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "castor-prune-history",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "b17406fe-befd-4280-913d-37a797fe1448",
+            "name": "PruneWebhook",
+            "position": [
+                27088,
+                18032
+            ],
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "webhookId": "castor-prune-history"
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "DELETE FROM castor_chat_message WHERE session_id = '{{ $json.body.sessionId }}' AND id >= {{ $json.body.id }}",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.6,
+            "position": [
+                27296,
+                18032
+            ],
+            "id": "7d15e3a4-602e-4c29-b000-c01929f52e18",
+            "name": "Delete Edited Message",
+            "credentials": {
+                "postgres": {
+                    "name": "Supabase_database"
+                }
             }
-          ],
-          "attemptToConvertTypes": true,
-          "convertFieldsToString": false
+        },
+        {
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "{ \"success\": true }",
+                "options": {
+                    "responseCode": 200
+                }
+            },
+            "id": "f1a3f93d-e76b-4a04-8e34-e50f6c25a10e",
+            "name": "PruneResponse",
+            "position": [
+                27504,
+                18032
+            ],
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1
+        },
+        {
+            "parameters": {
+                "descriptionType": "manual",
+                "toolDescription": "Lista clientes com FOLLOW-UP agendado (próximo contato registrado) — vencidos, de hoje e da janela futura indicada. Já respeita o scope do vendedor (admin vê tudo; vendedor vê apenas o que ele mesmo agendou). USE WHEN o usuário pergunta 'o que tenho pra hoje', 'quem está atrasado', 'agenda da semana', 'follow-ups vencidos', 'meus contatos pendentes'.\n\nParâmetros (passe como JSON string em \"$1\"):\n{\"user_id\":\"<UUID>\",\"days_ahead\":7,\"limit\":50}\n\n- user_id: obrigatório (do CONTEXTO DO USUÁRIO).\n- days_ahead: 0 = só vencidos+hoje; 7 padrão; máx 365.\n- limit: 1-500 (default 50).\n\nDevolve: cliente_codigo, cliente_nome, municipio/uf, contato_tel/whats/email, next_contact_at, dias_para (negativo = atrasado), last_outcome, last_type, last_notes.",
+                "operation": "executeQuery",
+                "query": "WITH p AS (SELECT $1::jsonb AS body)\nSELECT COALESCE(jsonb_agg(t), '[]'::jsonb) AS result\n  FROM p, castor_client_pending_followups(\n    (p.body->>'user_id')::uuid,\n    COALESCE(NULLIF(p.body->>'days_ahead','')::int, 7),\n    COALESCE(NULLIF(p.body->>'limit','')::int, 50)\n  ) t;",
+                "options": {
+                    "queryReplacement": "={{ $fromAI('input', 'JSON string com {user_id, days_ahead?, limit?}.', 'string') }}"
+                }
+            },
+            "type": "n8n-nodes-base.postgresTool",
+            "typeVersion": 2.5,
+            "position": [
+                29136,
+                18000
+            ],
+            "id": "5c2efd26-bd2c-46c9-a27d-c7b4e50fd183",
+            "name": "get_pending_followups",
+            "credentials": {
+                "postgres": {
+                    "name": "Supabase_database"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "descriptionType": "manual",
+                "toolDescription": "Lista o HISTÓRICO COMPLETO de interações de um cliente (visitas, telefonemas, whatsapp, e-mails, reuniões), em ordem cronológica decrescente. Já respeita scope (vendedor só vê suas próprias; admin vê tudo). USE WHEN 'histórico do cliente X', 'todas as visitas e contatos com Y', 'o que rolou com Z nas últimas semanas'.\n\nParâmetros (JSON string em \"$1\"):\n{\"user_id\":\"<UUID>\",\"cliente_codigo\":\"<A1_COD||A1_LOJA>\",\"limit\":30}\n\nDevolve para cada interação: id, occurred_at, interaction_type (visita_presencial|telefone|whatsapp|email|reuniao_online|outro), outcome (visitou|sem_contato|aguardando_resposta|pedido_em_negociacao|convertido|voltar_depois|negativo|nao_existe_mais|nao_interessado_permanente|null), notes, next_contact_at, next_action, vendedor_nome.",
+                "operation": "executeQuery",
+                "query": "WITH p AS (SELECT $1::jsonb AS body)\nSELECT COALESCE(jsonb_agg(t), '[]'::jsonb) AS result\n  FROM p, castor_client_interaction_list(\n    (p.body->>'user_id')::uuid,\n    (p.body->>'cliente_codigo'),\n    COALESCE(NULLIF(p.body->>'limit','')::int, 30)\n  ) t;",
+                "options": {
+                    "queryReplacement": "={{ $fromAI('input', 'JSON string com {user_id, cliente_codigo, limit?}.', 'string') }}"
+                }
+            },
+            "type": "n8n-nodes-base.postgresTool",
+            "typeVersion": 2.5,
+            "position": [
+                29136,
+                18160
+            ],
+            "id": "7f36ad2e-fee2-45cb-b6cf-6847cbc09f26",
+            "name": "get_client_interactions",
+            "credentials": {
+                "postgres": {
+                    "name": "Supabase_database"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "descriptionType": "manual",
+                "toolDescription": "Registra uma INTERAÇÃO com um cliente (visita, ligação, whatsapp, e-mail, reunião) e/ou AGENDA o próximo contato. USE WHEN o usuário diz 'liguei pro cliente X, ele pediu pra voltar dia 20/06', 'mandei whatsapp pro Y, sem resposta, vou tentar de novo em 7 dias', 'agenda visita pro Z daqui 30 dias'.\n\nParâmetros (JSON string em \"$1\"):\n{\n  \"user_id\":\"<UUID obrigatório>\",\n  \"cliente_codigo\":\"<obrigatório>\",\n  \"interaction_type\":\"visita_presencial|telefone|whatsapp|email|reuniao_online|outro\",\n  \"outcome\":\"visitou|sem_contato|aguardando_resposta|pedido_em_negociacao|convertido|voltar_depois|negativo|nao_existe_mais|nao_interessado_permanente\" (opcional),\n  \"notes\":\"texto livre\" (opcional),\n  \"next_contact_at\":\"YYYY-MM-DD\" (opcional — data específica),\n  \"next_days\": 7 (opcional — fallback se next_contact_at vazio),\n  \"next_action\":\"o que fazer no próximo contato\" (opcional),\n  \"idempotency_key\":\"UUID v4 novo\" (recomendado para evitar duplicidade)\n}\n\nOutcomes \"convertido\", \"nao_existe_mais\" e \"nao_interessado_permanente\" cancelam o próximo contato automaticamente. Os dois últimos também marcam o cliente como inativo permanente.",
+                "operation": "executeQuery",
+                "query": "WITH p AS (SELECT $1::jsonb AS body)\nSELECT castor_client_interaction_add(\n  (p.body->>'user_id')::uuid,\n  (p.body->>'cliente_codigo'),\n  (p.body->>'interaction_type'),\n  NULLIF(p.body->>'outcome',''),\n  NULLIF(p.body->>'notes',''),\n  NULLIF(p.body->>'next_contact_at','')::date,\n  NULLIF(p.body->>'next_days','')::int,\n  NULLIF(p.body->>'next_action',''),\n  NULLIF(p.body->>'route_id','')::uuid,\n  NULLIF(p.body->>'idempotency_key','')\n) AS result FROM p;",
+                "options": {
+                    "queryReplacement": "={{ $fromAI('input', 'JSON string com {user_id, cliente_codigo, interaction_type, outcome?, notes?, next_contact_at?, next_days?, next_action?, idempotency_key?}.', 'string') }}"
+                }
+            },
+            "type": "n8n-nodes-base.postgresTool",
+            "typeVersion": 2.5,
+            "position": [
+                29136,
+                18320
+            ],
+            "id": "8f60fc7f-0daf-4210-8492-6327f140aaee",
+            "name": "schedule_next_contact",
+            "credentials": {
+                "postgres": {
+                    "name": "Supabase_database"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "descriptionType": "manual",
+                "toolDescription": "Lista clientes cujas MÉTRICAS foram atualizadas recentemente (após nova ingestão de SF2010 / SC5010 via /castor-source-*). Use para narrar ao vendedor o que mudou desde a última conversa: faturamento subiu, status mudou, voltou a ter pedido, etc. USE WHEN 'o que mudou hoje', 'tem novidade?', 'algum cliente meu ficou ativo de novo?', 'rodou ingest, me dá o resumo'.\n\nParâmetros (JSON string em \"$1\"):\n{\"user_id\":\"<UUID>\",\"since_hours\":48,\"limit\":30}\n\nsince_hours = janela de horas desde computed_at (default 48). Devolve cliente_codigo, cliente_nome, ultima_atividade, faturamento_alltime, status_real (ATIVO|EM_RISCO|REATIVAR|INATIVO|DORMENTE|SEM_HISTORICO|ENCERRADO|NAO_INTERESSADO), changed_at.\n\nNÃO INVENTE variações: só comente os campos que vieram. Se a lista estiver vazia, diga 'nenhuma atualização nas últimas X horas'.",
+                "operation": "executeQuery",
+                "query": "WITH p AS (SELECT $1::jsonb AS body)\nSELECT COALESCE(jsonb_agg(t), '[]'::jsonb) AS result\n  FROM p, castor_client_recent_changes(\n    (p.body->>'user_id')::uuid,\n    COALESCE(NULLIF(p.body->>'since_hours','')::int, 48),\n    COALESCE(NULLIF(p.body->>'limit','')::int, 30)\n  ) t;",
+                "options": {
+                    "queryReplacement": "={{ $fromAI('input', 'JSON string com {user_id, since_hours?, limit?}.', 'string') }}"
+                }
+            },
+            "type": "n8n-nodes-base.postgresTool",
+            "typeVersion": 2.5,
+            "position": [
+                29136,
+                18480
+            ],
+            "id": "948f3b2f-780d-48f0-99a3-d5c1a65b7fc3",
+            "name": "get_recent_data_changes",
+            "credentials": {
+                "postgres": {
+                    "name": "Supabase_database"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "descriptionType": "manual",
+                "toolDescription": "Mostra O QUE UM CLIENTE COMPRA: top produtos (por valor faturado) e resumo por grupo de produto, com base nas NOTAS FISCAIS de saída (apenas itens de VENDA — bonificação/devolução já são excluídas via CFOP). Respeita o scope do vendedor. USE WHEN 'o que o cliente X compra', 'mix de produtos do cliente', 'principais itens do cliente Y', 'em quais grupos ele compra'.\n\nParâmetros (JSON string em \"$1\"):\n{\"user_id\":\"<UUID>\",\"cliente_codigo\":\"<A1_COD||A1_LOJA, 8 dígitos>\",\"limit\":15}\n\nDevolve: produtos[] (produto, b1_desc, grupo, grupo_desc, qtd_total, valor_total, n_notas, primeira_compra, ultima_compra) e grupos[] (grupo, grupo_desc, valor_total, qtd_total, n_produtos).",
+                "operation": "executeQuery",
+                "query": "WITH p AS (SELECT $1::jsonb AS body)\nSELECT castor_product_mix(\n  (p.body->>'user_id')::uuid,\n  (p.body->>'cliente_codigo'),\n  COALESCE(NULLIF(p.body->>'limit','')::int, 15)\n) AS result FROM p;",
+                "options": {
+                    "queryReplacement": "={{ $fromAI('input', 'JSON string com os parâmetros da tool.', 'string') }}"
+                }
+            },
+            "type": "n8n-nodes-base.postgresTool",
+            "typeVersion": 2.5,
+            "position": [
+                29136,
+                18640
+            ],
+            "id": "a1b2c3d4-0001-4a01-9001-000000000001",
+            "name": "get_product_mix",
+            "credentials": {
+                "postgres": {
+                    "name": "Supabase_database"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "descriptionType": "manual",
+                "toolDescription": "RANKING dos produtos mais vendidos (por valor faturado de VENDA). Admin vê o ranking global; vendedor vê apenas a carteira dele. Pode filtrar por um grupo específico. USE WHEN 'produtos mais vendidos', 'top produtos', 'o que mais sai', 'ranking de itens', 'campeões de venda no grupo X'.\n\nParâmetros (JSON string em \"$1\"):\n{\"user_id\":\"<UUID>\",\"limit\":20,\"grupo\":\"<código BM_GRUPO opcional>\"}\n\nDevolve produtos[] com produto, b1_desc, grupo, grupo_desc, qtd_total, valor_total, n_clientes, ultima_venda.",
+                "operation": "executeQuery",
+                "query": "WITH p AS (SELECT $1::jsonb AS body)\nSELECT castor_top_products(\n  (p.body->>'user_id')::uuid,\n  COALESCE(NULLIF(p.body->>'limit','')::int, 20),\n  NULLIF(p.body->>'grupo','')\n) AS result FROM p;",
+                "options": {
+                    "queryReplacement": "={{ $fromAI('input', 'JSON string com os parâmetros da tool.', 'string') }}"
+                }
+            },
+            "type": "n8n-nodes-base.postgresTool",
+            "typeVersion": 2.5,
+            "position": [
+                29136,
+                18800
+            ],
+            "id": "a1b2c3d4-0002-4a02-9002-000000000002",
+            "name": "get_top_products",
+            "credentials": {
+                "postgres": {
+                    "name": "Supabase_database"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "descriptionType": "manual",
+                "toolDescription": "RANKING dos grupos de produto mais vendidos (por valor faturado de VENDA). Admin = global; vendedor = carteira dele. USE WHEN 'grupos que mais vendem', 'categorias mais fortes', 'ranking por grupo de produto', 'onde está meu faturamento por categoria'.\n\nParâmetros (JSON string em \"$1\"):\n{\"user_id\":\"<UUID>\",\"limit\":20}\n\nDevolve grupos[] com grupo, grupo_desc, qtd_total, valor_total, n_clientes, n_produtos.",
+                "operation": "executeQuery",
+                "query": "WITH p AS (SELECT $1::jsonb AS body)\nSELECT castor_top_groups(\n  (p.body->>'user_id')::uuid,\n  COALESCE(NULLIF(p.body->>'limit','')::int, 20)\n) AS result FROM p;",
+                "options": {
+                    "queryReplacement": "={{ $fromAI('input', 'JSON string com os parâmetros da tool.', 'string') }}"
+                }
+            },
+            "type": "n8n-nodes-base.postgresTool",
+            "typeVersion": 2.5,
+            "position": [
+                29136,
+                18960
+            ],
+            "id": "a1b2c3d4-0003-4a03-9003-000000000003",
+            "name": "get_top_groups",
+            "credentials": {
+                "postgres": {
+                    "name": "Supabase_database"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "descriptionType": "manual",
+                "toolDescription": "TENDÊNCIA de faturamento MÊS A MÊS — SEMPRE venda líquida (TES de venda; exclui bonificação/devolução/transferência). Se passar cliente_codigo, retorna a série daquele cliente. Sem cliente_codigo, aceita vendedor (nome/apelido parcial ou código A3_COD) para somar a carteira de UM representante nomeado; sem vendedor, retorna o total (admin) ou a carteira do vendedor logado. USE WHEN 'evolução de faturamento', 'tendência mensal', 'vendas do representante X em [período]', 'quanto o vendedor Y vendeu em julho', 'está caindo ou crescendo', 'histórico mês a mês do cliente X'. Esta é a tool CORRETA para vendas por representante — NUNCA some faturamento_12m/faturamento_alltime de get_client_profile cliente a cliente para responder isso (são brutos, incluem bonificação/devolução).\n\nParâmetros (JSON string em \"$1\"):\n{\"user_id\":\"<UUID>\",\"cliente_codigo\":\"<opcional>\",\"vendedor\":\"<opcional, nome/apelido/código>\",\"months\":24,\"date_from\":\"<opcional, YYYY-MM-DD>\",\"date_to\":\"<opcional, YYYY-MM-DD>\"}\n\nDevolve serie[] com ym ('YYYY-MM'), faturamento, qtd_itens, n_notas.",
+                "operation": "executeQuery",
+                "query": "WITH p AS (SELECT $1::jsonb AS body)\nSELECT castor_monthly_trend(\n  (p.body->>'user_id')::uuid,\n  NULLIF(p.body->>'cliente_codigo',''),\n  COALESCE(NULLIF(p.body->>'months','')::int, 24),\n  NULLIF(p.body->>'date_from','')::date,\n  NULLIF(p.body->>'date_to','')::date,\n  NULLIF(p.body->>'vendedor','')\n) AS result FROM p;",
+                "options": {
+                    "queryReplacement": "={{ $fromAI('input', 'JSON string com os parâmetros da tool.', 'string') }}"
+                }
+            },
+            "type": "n8n-nodes-base.postgresTool",
+            "typeVersion": 2.5,
+            "position": [
+                29136,
+                19120
+            ],
+            "id": "a1b2c3d4-0004-4a04-9004-000000000004",
+            "name": "get_sales_trend",
+            "credentials": {
+                "postgres": {
+                    "name": "Supabase_database"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "descriptionType": "manual",
+                "toolDescription": "Sugere CROSS-SELL para um cliente: grupos de produto que clientes do MESMO RAMO de atividade compram e que este cliente AINDA NÃO compra, ordenados por penetração (quantos clientes do ramo compram). USE WHEN 'o que mais posso oferecer pro cliente X', 'sugestão de cross-sell', 'o que clientes parecidos compram que ele não compra', 'oportunidades de venda pra esse cliente'.\n\nParâmetros (JSON string em \"$1\"):\n{\"user_id\":\"<UUID>\",\"cliente_codigo\":\"<obrigatório>\",\"limit\":8}\n\nDevolve ramo e sugestoes[] com grupo, grupo_desc, clientes_compram, valor_total. Trate como SUGESTÃO (não garantia).",
+                "operation": "executeQuery",
+                "query": "WITH p AS (SELECT $1::jsonb AS body)\nSELECT castor_crosssell(\n  (p.body->>'user_id')::uuid,\n  (p.body->>'cliente_codigo'),\n  COALESCE(NULLIF(p.body->>'limit','')::int, 8)\n) AS result FROM p;",
+                "options": {
+                    "queryReplacement": "={{ $fromAI('input', 'JSON string com os parâmetros da tool.', 'string') }}"
+                }
+            },
+            "type": "n8n-nodes-base.postgresTool",
+            "typeVersion": 2.5,
+            "position": [
+                29136,
+                19280
+            ],
+            "id": "a1b2c3d4-0005-4a05-9005-000000000005",
+            "name": "get_crosssell_suggestions",
+            "credentials": {
+                "postgres": {
+                    "name": "Supabase_database"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "descriptionType": "manual",
+                "toolDescription": "Histórico de MUDANÇAS DE STATUS/RISCO do cliente antes/depois de vendas (tabela SZ1010 do Protheus). USE WHEN 'como variou o status do cliente X', 'ele já foi bloqueado antes', 'histórico de risco do cliente', 'esse cliente estava inativo e voltou?'.\n\nParâmetros (JSON string em \"$1\"):\n{\"user_id\":\"<UUID>\",\"cliente_codigo\":\"<obrigatório>\",\"limit\":30}\n\nDevolve historico[] com z1_data, z1_hora, z1_statua (antes), z1_statud (depois), z1_riscoa, z1_riscod, z1_pedido, z1_usunom.",
+                "operation": "executeQuery",
+                "query": "WITH p AS (SELECT $1::jsonb AS body)\nSELECT castor_client_status_history(\n  (p.body->>'user_id')::uuid,\n  (p.body->>'cliente_codigo'),\n  COALESCE(NULLIF(p.body->>'limit','')::int, 30)\n) AS result FROM p;",
+                "options": {
+                    "queryReplacement": "={{ $fromAI('input', 'JSON string com os parâmetros da tool.', 'string') }}"
+                }
+            },
+            "type": "n8n-nodes-base.postgresTool",
+            "typeVersion": 2.5,
+            "position": [
+                29136,
+                19440
+            ],
+            "id": "a1b2c3d4-0006-4a06-9006-000000000006",
+            "name": "get_client_status_history",
+            "credentials": {
+                "postgres": {
+                    "name": "Supabase_database"
+                }
+            }
         }
-      },
-      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
-      "typeVersion": 2.2,
-      "position": [28320, 18304],
-      "id": "fbb87459-91b1-495b-b051-34593e518e4a",
-      "name": "consultar_cnpj"
-    },
-    {
-      "parameters": {
-        "httpMethod": "POST",
-        "path": "castor-prune-history",
-        "responseMode": "responseNode",
-        "options": {}
-      },
-      "id": "b17406fe-befd-4280-913d-37a797fe1448",
-      "name": "PruneWebhook",
-      "position": [27088, 18032],
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 1,
-      "webhookId": "castor-prune-history"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "DELETE FROM castor_chat_message WHERE session_id = '{{ $json.body.sessionId }}' AND id >= {{ $json.body.id }}",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [27296, 18032],
-      "id": "7d15e3a4-602e-4c29-b000-c01929f52e18",
-      "name": "Delete Edited Message",
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
+    ],
+    "connections": {
+        "Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Edit Fields",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "When chat message received": {
+            "main": [
+                [
+                    {
+                        "node": "Edit Fields",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Edit Fields": {
+            "main": [
+                [
+                    {
+                        "node": "RAG AI Agent",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "RAG AI Agent": {
+            "main": [
+                [
+                    {
+                        "node": "Respond to Webhook",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Stamp user_id",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Postgres Chat Memory": {
+            "ai_memory": [
+                [
+                    {
+                        "node": "RAG AI Agent",
+                        "type": "ai_memory",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Azure OpenAI Chat Model": {
+            "ai_languageModel": [
+                [
+                    {
+                        "node": "RAG AI Agent",
+                        "type": "ai_languageModel",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Embeddings Azure OpenAI": {
+            "ai_embedding": [
+                [
+                    {
+                        "node": "search_knowledge_base",
+                        "type": "ai_embedding",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "search_knowledge_base": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "RAG AI Agent",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "List Documents": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "RAG AI Agent",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Get File Contents": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "RAG AI Agent",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "register_visit_feedback": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "RAG AI Agent",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "classify_client_size": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "RAG AI Agent",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "get_reactivation_list": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "RAG AI Agent",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "get_prospect_list": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "RAG AI Agent",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "get_client_profile": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "RAG AI Agent",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "client_snapshot": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "RAG AI Agent",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "consultar_cnpj": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "RAG AI Agent",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "PruneWebhook": {
+            "main": [
+                [
+                    {
+                        "node": "Delete Edited Message",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Delete Edited Message": {
+            "main": [
+                [
+                    {
+                        "node": "PruneResponse",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "get_pending_followups": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "RAG AI Agent",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "get_client_interactions": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "RAG AI Agent",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "schedule_next_contact": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "RAG AI Agent",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "get_recent_data_changes": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "RAG AI Agent",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "get_product_mix": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "RAG AI Agent",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "get_top_products": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "RAG AI Agent",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "get_top_groups": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "RAG AI Agent",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "get_sales_trend": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "RAG AI Agent",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "get_crosssell_suggestions": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "RAG AI Agent",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "get_client_status_history": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "RAG AI Agent",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
         }
-      }
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "{ \"success\": true }",
-        "options": {
-          "responseCode": 200
-        }
-      },
-      "id": "f1a3f93d-e76b-4a04-8e34-e50f6c25a10e",
-      "name": "PruneResponse",
-      "position": [27504, 18032],
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1
-    },
-    {
-      "parameters": {
-        "descriptionType": "manual",
-        "toolDescription": "Lista clientes com FOLLOW-UP agendado (próximo contato registrado) — vencidos, de hoje e da janela futura indicada. Já respeita o scope do vendedor (admin vê tudo; vendedor vê apenas o que ele mesmo agendou). USE WHEN o usuário pergunta 'o que tenho pra hoje', 'quem está atrasado', 'agenda da semana', 'follow-ups vencidos', 'meus contatos pendentes'.\n\nParâmetros (passe como JSON string em \"$1\"):\n{\"user_id\":\"<UUID>\",\"days_ahead\":7,\"limit\":50}\n\n- user_id: obrigatório (do CONTEXTO DO USUÁRIO).\n- days_ahead: 0 = só vencidos+hoje; 7 padrão; máx 365.\n- limit: 1-500 (default 50).\n\nDevolve: cliente_codigo, cliente_nome, municipio/uf, contato_tel/whats/email, next_contact_at, dias_para (negativo = atrasado), last_outcome, last_type, last_notes.",
-        "operation": "executeQuery",
-        "query": "WITH p AS (SELECT $1::jsonb AS body)\nSELECT COALESCE(jsonb_agg(t), '[]'::jsonb) AS result\n  FROM p, castor_client_pending_followups(\n    (p.body->>'user_id')::uuid,\n    COALESCE(NULLIF(p.body->>'days_ahead','')::int, 7),\n    COALESCE(NULLIF(p.body->>'limit','')::int, 50)\n  ) t;",
-        "options": {
-          "queryReplacement": "={{ $fromAI('input', 'JSON string com {user_id, days_ahead?, limit?}.', 'string') }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgresTool",
-      "typeVersion": 2.5,
-      "position": [29136, 18000],
-      "id": "5c2efd26-bd2c-46c9-a27d-c7b4e50fd183",
-      "name": "get_pending_followups",
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "descriptionType": "manual",
-        "toolDescription": "Lista o HISTÓRICO COMPLETO de interações de um cliente (visitas, telefonemas, whatsapp, e-mails, reuniões), em ordem cronológica decrescente. Já respeita scope (vendedor só vê suas próprias; admin vê tudo). USE WHEN 'histórico do cliente X', 'todas as visitas e contatos com Y', 'o que rolou com Z nas últimas semanas'.\n\nParâmetros (JSON string em \"$1\"):\n{\"user_id\":\"<UUID>\",\"cliente_codigo\":\"<A1_COD||A1_LOJA>\",\"limit\":30}\n\nDevolve para cada interação: id, occurred_at, interaction_type (visita_presencial|telefone|whatsapp|email|reuniao_online|outro), outcome (visitou|sem_contato|aguardando_resposta|pedido_em_negociacao|convertido|voltar_depois|negativo|nao_existe_mais|nao_interessado_permanente|null), notes, next_contact_at, next_action, vendedor_nome.",
-        "operation": "executeQuery",
-        "query": "WITH p AS (SELECT $1::jsonb AS body)\nSELECT COALESCE(jsonb_agg(t), '[]'::jsonb) AS result\n  FROM p, castor_client_interaction_list(\n    (p.body->>'user_id')::uuid,\n    (p.body->>'cliente_codigo'),\n    COALESCE(NULLIF(p.body->>'limit','')::int, 30)\n  ) t;",
-        "options": {
-          "queryReplacement": "={{ $fromAI('input', 'JSON string com {user_id, cliente_codigo, limit?}.', 'string') }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgresTool",
-      "typeVersion": 2.5,
-      "position": [29136, 18160],
-      "id": "7f36ad2e-fee2-45cb-b6cf-6847cbc09f26",
-      "name": "get_client_interactions",
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "descriptionType": "manual",
-        "toolDescription": "Registra uma INTERAÇÃO com um cliente (visita, ligação, whatsapp, e-mail, reunião) e/ou AGENDA o próximo contato. USE WHEN o usuário diz 'liguei pro cliente X, ele pediu pra voltar dia 20/06', 'mandei whatsapp pro Y, sem resposta, vou tentar de novo em 7 dias', 'agenda visita pro Z daqui 30 dias'.\n\nParâmetros (JSON string em \"$1\"):\n{\n  \"user_id\":\"<UUID obrigatório>\",\n  \"cliente_codigo\":\"<obrigatório>\",\n  \"interaction_type\":\"visita_presencial|telefone|whatsapp|email|reuniao_online|outro\",\n  \"outcome\":\"visitou|sem_contato|aguardando_resposta|pedido_em_negociacao|convertido|voltar_depois|negativo|nao_existe_mais|nao_interessado_permanente\" (opcional),\n  \"notes\":\"texto livre\" (opcional),\n  \"next_contact_at\":\"YYYY-MM-DD\" (opcional — data específica),\n  \"next_days\": 7 (opcional — fallback se next_contact_at vazio),\n  \"next_action\":\"o que fazer no próximo contato\" (opcional),\n  \"idempotency_key\":\"UUID v4 novo\" (recomendado para evitar duplicidade)\n}\n\nOutcomes \"convertido\", \"nao_existe_mais\" e \"nao_interessado_permanente\" cancelam o próximo contato automaticamente. Os dois últimos também marcam o cliente como inativo permanente.",
-        "operation": "executeQuery",
-        "query": "WITH p AS (SELECT $1::jsonb AS body)\nSELECT castor_client_interaction_add(\n  (p.body->>'user_id')::uuid,\n  (p.body->>'cliente_codigo'),\n  (p.body->>'interaction_type'),\n  NULLIF(p.body->>'outcome',''),\n  NULLIF(p.body->>'notes',''),\n  NULLIF(p.body->>'next_contact_at','')::date,\n  NULLIF(p.body->>'next_days','')::int,\n  NULLIF(p.body->>'next_action',''),\n  NULLIF(p.body->>'route_id','')::uuid,\n  NULLIF(p.body->>'idempotency_key','')\n) AS result FROM p;",
-        "options": {
-          "queryReplacement": "={{ $fromAI('input', 'JSON string com {user_id, cliente_codigo, interaction_type, outcome?, notes?, next_contact_at?, next_days?, next_action?, idempotency_key?}.', 'string') }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgresTool",
-      "typeVersion": 2.5,
-      "position": [29136, 18320],
-      "id": "8f60fc7f-0daf-4210-8492-6327f140aaee",
-      "name": "schedule_next_contact",
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "descriptionType": "manual",
-        "toolDescription": "Lista clientes cujas MÉTRICAS foram atualizadas recentemente (após nova ingestão de SF2010 / SC5010 via /castor-source-*). Use para narrar ao vendedor o que mudou desde a última conversa: faturamento subiu, status mudou, voltou a ter pedido, etc. USE WHEN 'o que mudou hoje', 'tem novidade?', 'algum cliente meu ficou ativo de novo?', 'rodou ingest, me dá o resumo'.\n\nParâmetros (JSON string em \"$1\"):\n{\"user_id\":\"<UUID>\",\"since_hours\":48,\"limit\":30}\n\nsince_hours = janela de horas desde computed_at (default 48). Devolve cliente_codigo, cliente_nome, ultima_atividade, faturamento_alltime, status_real (ATIVO|EM_RISCO|REATIVAR|INATIVO|DORMENTE|SEM_HISTORICO|ENCERRADO|NAO_INTERESSADO), changed_at.\n\nNÃO INVENTE variações: só comente os campos que vieram. Se a lista estiver vazia, diga 'nenhuma atualização nas últimas X horas'.",
-        "operation": "executeQuery",
-        "query": "WITH p AS (SELECT $1::jsonb AS body)\nSELECT COALESCE(jsonb_agg(t), '[]'::jsonb) AS result\n  FROM p, castor_client_recent_changes(\n    (p.body->>'user_id')::uuid,\n    COALESCE(NULLIF(p.body->>'since_hours','')::int, 48),\n    COALESCE(NULLIF(p.body->>'limit','')::int, 30)\n  ) t;",
-        "options": {
-          "queryReplacement": "={{ $fromAI('input', 'JSON string com {user_id, since_hours?, limit?}.', 'string') }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgresTool",
-      "typeVersion": 2.5,
-      "position": [29136, 18480],
-      "id": "948f3b2f-780d-48f0-99a3-d5c1a65b7fc3",
-      "name": "get_recent_data_changes",
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "descriptionType": "manual",
-        "toolDescription": "Mostra O QUE UM CLIENTE COMPRA: top produtos (por valor faturado) e resumo por grupo de produto, com base nas NOTAS FISCAIS de saída (apenas itens de VENDA — bonificação/devolução já são excluídas via CFOP). Respeita o scope do vendedor. USE WHEN 'o que o cliente X compra', 'mix de produtos do cliente', 'principais itens do cliente Y', 'em quais grupos ele compra'.\n\nParâmetros (JSON string em \"$1\"):\n{\"user_id\":\"<UUID>\",\"cliente_codigo\":\"<A1_COD||A1_LOJA, 8 dígitos>\",\"limit\":15}\n\nDevolve: produtos[] (produto, b1_desc, grupo, grupo_desc, qtd_total, valor_total, n_notas, primeira_compra, ultima_compra) e grupos[] (grupo, grupo_desc, valor_total, qtd_total, n_produtos).",
-        "operation": "executeQuery",
-        "query": "WITH p AS (SELECT $1::jsonb AS body)\nSELECT castor_product_mix(\n  (p.body->>'user_id')::uuid,\n  (p.body->>'cliente_codigo'),\n  COALESCE(NULLIF(p.body->>'limit','')::int, 15)\n) AS result FROM p;",
-        "options": {
-          "queryReplacement": "={{ $fromAI('input', 'JSON string com os parâmetros da tool.', 'string') }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgresTool",
-      "typeVersion": 2.5,
-      "position": [29136, 18640],
-      "id": "a1b2c3d4-0001-4a01-9001-000000000001",
-      "name": "get_product_mix",
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "descriptionType": "manual",
-        "toolDescription": "RANKING dos produtos mais vendidos (por valor faturado de VENDA). Admin vê o ranking global; vendedor vê apenas a carteira dele. Pode filtrar por um grupo específico. USE WHEN 'produtos mais vendidos', 'top produtos', 'o que mais sai', 'ranking de itens', 'campeões de venda no grupo X'.\n\nParâmetros (JSON string em \"$1\"):\n{\"user_id\":\"<UUID>\",\"limit\":20,\"grupo\":\"<código BM_GRUPO opcional>\"}\n\nDevolve produtos[] com produto, b1_desc, grupo, grupo_desc, qtd_total, valor_total, n_clientes, ultima_venda.",
-        "operation": "executeQuery",
-        "query": "WITH p AS (SELECT $1::jsonb AS body)\nSELECT castor_top_products(\n  (p.body->>'user_id')::uuid,\n  COALESCE(NULLIF(p.body->>'limit','')::int, 20),\n  NULLIF(p.body->>'grupo','')\n) AS result FROM p;",
-        "options": {
-          "queryReplacement": "={{ $fromAI('input', 'JSON string com os parâmetros da tool.', 'string') }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgresTool",
-      "typeVersion": 2.5,
-      "position": [29136, 18800],
-      "id": "a1b2c3d4-0002-4a02-9002-000000000002",
-      "name": "get_top_products",
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "descriptionType": "manual",
-        "toolDescription": "RANKING dos grupos de produto mais vendidos (por valor faturado de VENDA). Admin = global; vendedor = carteira dele. USE WHEN 'grupos que mais vendem', 'categorias mais fortes', 'ranking por grupo de produto', 'onde está meu faturamento por categoria'.\n\nParâmetros (JSON string em \"$1\"):\n{\"user_id\":\"<UUID>\",\"limit\":20}\n\nDevolve grupos[] com grupo, grupo_desc, qtd_total, valor_total, n_clientes, n_produtos.",
-        "operation": "executeQuery",
-        "query": "WITH p AS (SELECT $1::jsonb AS body)\nSELECT castor_top_groups(\n  (p.body->>'user_id')::uuid,\n  COALESCE(NULLIF(p.body->>'limit','')::int, 20)\n) AS result FROM p;",
-        "options": {
-          "queryReplacement": "={{ $fromAI('input', 'JSON string com os parâmetros da tool.', 'string') }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgresTool",
-      "typeVersion": 2.5,
-      "position": [29136, 18960],
-      "id": "a1b2c3d4-0003-4a03-9003-000000000003",
-      "name": "get_top_groups",
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "descriptionType": "manual",
-        "toolDescription": "TENDÊNCIA de faturamento MÊS A MÊS — SEMPRE venda líquida (TES de venda; exclui bonificação/devolução/transferência). Se passar cliente_codigo, retorna a série daquele cliente. Sem cliente_codigo, aceita vendedor (nome/apelido parcial ou código A3_COD) para somar a carteira de UM representante nomeado; sem vendedor, retorna o total (admin) ou a carteira do vendedor logado. USE WHEN 'evolução de faturamento', 'tendência mensal', 'vendas do representante X em [período]', 'quanto o vendedor Y vendeu em julho', 'está caindo ou crescendo', 'histórico mês a mês do cliente X'. Esta é a tool CORRETA para vendas por representante — NUNCA some faturamento_12m/faturamento_alltime de get_client_profile cliente a cliente para responder isso (são brutos, incluem bonificação/devolução).\n\nParâmetros (JSON string em \"$1\"):\n{\"user_id\":\"<UUID>\",\"cliente_codigo\":\"<opcional>\",\"vendedor\":\"<opcional, nome/apelido/código>\",\"months\":24,\"date_from\":\"<opcional, YYYY-MM-DD>\",\"date_to\":\"<opcional, YYYY-MM-DD>\"}\n\nDevolve serie[] com ym ('YYYY-MM'), faturamento, qtd_itens, n_notas.",
-        "operation": "executeQuery",
-        "query": "WITH p AS (SELECT $1::jsonb AS body)\nSELECT castor_monthly_trend(\n  (p.body->>'user_id')::uuid,\n  NULLIF(p.body->>'cliente_codigo',''),\n  COALESCE(NULLIF(p.body->>'months','')::int, 24),\n  NULLIF(p.body->>'date_from','')::date,\n  NULLIF(p.body->>'date_to','')::date,\n  NULLIF(p.body->>'vendedor','')\n) AS result FROM p;",
-        "options": {
-          "queryReplacement": "={{ $fromAI('input', 'JSON string com os parâmetros da tool.', 'string') }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgresTool",
-      "typeVersion": 2.5,
-      "position": [29136, 19120],
-      "id": "a1b2c3d4-0004-4a04-9004-000000000004",
-      "name": "get_sales_trend",
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "descriptionType": "manual",
-        "toolDescription": "Sugere CROSS-SELL para um cliente: grupos de produto que clientes do MESMO RAMO de atividade compram e que este cliente AINDA NÃO compra, ordenados por penetração (quantos clientes do ramo compram). USE WHEN 'o que mais posso oferecer pro cliente X', 'sugestão de cross-sell', 'o que clientes parecidos compram que ele não compra', 'oportunidades de venda pra esse cliente'.\n\nParâmetros (JSON string em \"$1\"):\n{\"user_id\":\"<UUID>\",\"cliente_codigo\":\"<obrigatório>\",\"limit\":8}\n\nDevolve ramo e sugestoes[] com grupo, grupo_desc, clientes_compram, valor_total. Trate como SUGESTÃO (não garantia).",
-        "operation": "executeQuery",
-        "query": "WITH p AS (SELECT $1::jsonb AS body)\nSELECT castor_crosssell(\n  (p.body->>'user_id')::uuid,\n  (p.body->>'cliente_codigo'),\n  COALESCE(NULLIF(p.body->>'limit','')::int, 8)\n) AS result FROM p;",
-        "options": {
-          "queryReplacement": "={{ $fromAI('input', 'JSON string com os parâmetros da tool.', 'string') }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgresTool",
-      "typeVersion": 2.5,
-      "position": [29136, 19280],
-      "id": "a1b2c3d4-0005-4a05-9005-000000000005",
-      "name": "get_crosssell_suggestions",
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "descriptionType": "manual",
-        "toolDescription": "Histórico de MUDANÇAS DE STATUS/RISCO do cliente antes/depois de vendas (tabela SZ1010 do Protheus). USE WHEN 'como variou o status do cliente X', 'ele já foi bloqueado antes', 'histórico de risco do cliente', 'esse cliente estava inativo e voltou?'.\n\nParâmetros (JSON string em \"$1\"):\n{\"user_id\":\"<UUID>\",\"cliente_codigo\":\"<obrigatório>\",\"limit\":30}\n\nDevolve historico[] com z1_data, z1_hora, z1_statua (antes), z1_statud (depois), z1_riscoa, z1_riscod, z1_pedido, z1_usunom.",
-        "operation": "executeQuery",
-        "query": "WITH p AS (SELECT $1::jsonb AS body)\nSELECT castor_client_status_history(\n  (p.body->>'user_id')::uuid,\n  (p.body->>'cliente_codigo'),\n  COALESCE(NULLIF(p.body->>'limit','')::int, 30)\n) AS result FROM p;",
-        "options": {
-          "queryReplacement": "={{ $fromAI('input', 'JSON string com os parâmetros da tool.', 'string') }}"
-        }
-      },
-      "type": "n8n-nodes-base.postgresTool",
-      "typeVersion": 2.5,
-      "position": [29136, 19440],
-      "id": "a1b2c3d4-0006-4a06-9006-000000000006",
-      "name": "get_client_status_history",
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
-        }
-      }
     }
-  ],
-  "connections": {
-    "Webhook": {
-      "main": [
-        [
-          {
-            "node": "Edit Fields",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "When chat message received": {
-      "main": [
-        [
-          {
-            "node": "Edit Fields",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Edit Fields": {
-      "main": [
-        [
-          {
-            "node": "RAG AI Agent",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "RAG AI Agent": {
-      "main": [
-        [
-          {
-            "node": "Respond to Webhook",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Stamp user_id",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres Chat Memory": {
-      "ai_memory": [
-        [
-          {
-            "node": "RAG AI Agent",
-            "type": "ai_memory",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Azure OpenAI Chat Model": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "RAG AI Agent",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Embeddings Azure OpenAI": {
-      "ai_embedding": [
-        [
-          {
-            "node": "search_knowledge_base",
-            "type": "ai_embedding",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "search_knowledge_base": {
-      "ai_tool": [
-        [
-          {
-            "node": "RAG AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "List Documents": {
-      "ai_tool": [
-        [
-          {
-            "node": "RAG AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get File Contents": {
-      "ai_tool": [
-        [
-          {
-            "node": "RAG AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "register_visit_feedback": {
-      "ai_tool": [
-        [
-          {
-            "node": "RAG AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "classify_client_size": {
-      "ai_tool": [
-        [
-          {
-            "node": "RAG AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "get_reactivation_list": {
-      "ai_tool": [
-        [
-          {
-            "node": "RAG AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "get_prospect_list": {
-      "ai_tool": [
-        [
-          {
-            "node": "RAG AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "get_client_profile": {
-      "ai_tool": [
-        [
-          {
-            "node": "RAG AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "client_snapshot": {
-      "ai_tool": [
-        [
-          {
-            "node": "RAG AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "consultar_cnpj": {
-      "ai_tool": [
-        [
-          {
-            "node": "RAG AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "PruneWebhook": {
-      "main": [
-        [
-          {
-            "node": "Delete Edited Message",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Delete Edited Message": {
-      "main": [
-        [
-          {
-            "node": "PruneResponse",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "get_pending_followups": {
-      "ai_tool": [
-        [
-          {
-            "node": "RAG AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "get_client_interactions": {
-      "ai_tool": [
-        [
-          {
-            "node": "RAG AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "schedule_next_contact": {
-      "ai_tool": [
-        [
-          {
-            "node": "RAG AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "get_recent_data_changes": {
-      "ai_tool": [
-        [
-          {
-            "node": "RAG AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "get_product_mix": {
-      "ai_tool": [
-        [
-          {
-            "node": "RAG AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "get_top_products": {
-      "ai_tool": [
-        [
-          {
-            "node": "RAG AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "get_top_groups": {
-      "ai_tool": [
-        [
-          {
-            "node": "RAG AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "get_sales_trend": {
-      "ai_tool": [
-        [
-          {
-            "node": "RAG AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "get_crosssell_suggestions": {
-      "ai_tool": [
-        [
-          {
-            "node": "RAG AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "get_client_status_history": {
-      "ai_tool": [
-        [
-          {
-            "node": "RAG AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    }
-  },
-  "pinData": {},
-  "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "03d32a206f2d8840fce482e6c587726f18775bd9177e9401c00ca76d3086ad41"
-  }
 }
-
-
-

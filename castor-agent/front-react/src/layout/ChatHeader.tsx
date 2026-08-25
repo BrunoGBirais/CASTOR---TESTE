@@ -24,7 +24,7 @@ export const ChatHeader = () => (
           paddingLeft: "15px",
         }}
       >
-        Copiloto Comercial
+        Agente de I.A
       </div>
     </div>
     <div className="header-right">

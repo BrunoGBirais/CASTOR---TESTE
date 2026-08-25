@@ -1,86 +1,137 @@
 {
-  "name": "[Castor] Sub-fluxo_ Client Snapshot Query",
-  "nodes": [
-    {
-      "parameters": {
-        "inputSource": "jsonSchema",
-        "jsonSchema": "{\"type\":\"object\",\"required\":[\"user_id\"],\"properties\":{\"user_id\":{\"type\":\"string\",\"description\":\"UUID do usu\u00e1rio logado (do CONTEXTO DO USU\u00c1RIO) \u2014 define o escopo admin/vendedor\"},\"vendedor\":{\"type\":\"string\",\"description\":\"Representante: nome/apelido parcial ou c\u00f3digo A3_COD exato\"},\"filters\":{\"type\":\"string\",\"description\":\"String JSON com filtros opcionais: cliente_codigo, a1_cod, a1_loja, a1_cgc, a1_est, a1_mun, a1_msblql, a1_ativo, a1_inativo, nome\"},\"limit\":{\"type\":\"integer\",\"default\":50,\"minimum\":1,\"maximum\":500,\"description\":\"N\u00famero m\u00e1ximo de registros\"}}}"
-      },
-      "id": "a1b2c3d4-0001-0001-0001-000000000001",
-      "name": "When called",
-      "type": "n8n-nodes-base.executeWorkflowTrigger",
-      "typeVersion": 1.1,
-      "position": [0, 0]
-    },
-    {
-      "parameters": {
-        "jsCode": "const log = { tool: 'client_snapshot', input: $json, ts: new Date().toISOString() };\nconsole.log(JSON.stringify(log));\nreturn $input.all();"
-      },
-      "id": "a1b2c3d4-0001-0001-0001-000000000002",
-      "name": "Log input",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [200, 0]
-    },
-    {
-      "parameters": {
-        "jsCode": "const input = $json || {};\nconst user_id = String(input.user_id || '').trim();\nif (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user_id)) throw new Error('user_id (UUID) \u00e9 obrigat\u00f3rio');\nconst limit = Math.max(1, Math.min(500, +(input.limit) || 50));\nlet raw = input.filters;\nif (typeof raw === 'string') { try { raw = JSON.parse(raw); } catch (e) { raw = null; } }\nconst filters = (raw && typeof raw === 'object') ? { ...raw } : {};\nconst vendedor = String(input.vendedor || '').trim();\nif (vendedor) filters.vendedor = vendedor;\nfor (const k of Object.keys(filters)) { if (filters[k] === null || filters[k] === '') delete filters[k]; }\nreturn [{ json: { user_id, limit, filters } }];"
-      },
-      "id": "a1b2c3d4-0001-0001-0001-000000000003",
-      "name": "Prepare params",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [400, 0]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT castor_snapshot_query($1::uuid, $2::jsonb, $3::int) AS result",
-        "options": {
-          "queryReplacement": "={{ [$json.user_id, JSON.stringify($json.filters || {}), $json.limit] }}"
+    "name": "[Castor] Sub-fluxo_ Client Snapshot Query",
+    "nodes": [
+        {
+            "parameters": {
+                "inputSource": "jsonSchema",
+                "jsonSchema": "{\"type\":\"object\",\"required\":[\"user_id\"],\"properties\":{\"user_id\":{\"type\":\"string\",\"description\":\"UUID do usuário logado (do CONTEXTO DO USUÁRIO) — define o escopo admin/vendedor\"},\"vendedor\":{\"type\":\"string\",\"description\":\"Representante: nome/apelido parcial ou código A3_COD exato\"},\"filters\":{\"type\":\"string\",\"description\":\"String JSON com filtros opcionais: cliente_codigo, a1_cod, a1_loja, a1_cgc, a1_est, a1_mun, a1_msblql, a1_ativo, a1_inativo, nome\"},\"limit\":{\"type\":\"integer\",\"default\":50,\"minimum\":1,\"maximum\":500,\"description\":\"Número máximo de registros\"}}}"
+            },
+            "id": "a1b2c3d4-0001-0001-0001-000000000001",
+            "name": "When called",
+            "type": "n8n-nodes-base.executeWorkflowTrigger",
+            "typeVersion": 1.1,
+            "position": [
+                0,
+                0
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const log = { tool: 'client_snapshot', input: $json, ts: new Date().toISOString() };\nconsole.log(JSON.stringify(log));\nreturn $input.all();"
+            },
+            "id": "a1b2c3d4-0001-0001-0001-000000000002",
+            "name": "Log input",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                200,
+                0
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const input = $json || {};\nconst user_id = String(input.user_id || '').trim();\nif (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user_id)) throw new Error('user_id (UUID) é obrigatório');\nconst limit = Math.max(1, Math.min(500, +(input.limit) || 50));\nlet raw = input.filters;\nif (typeof raw === 'string') { try { raw = JSON.parse(raw); } catch (e) { raw = null; } }\nconst filters = (raw && typeof raw === 'object') ? { ...raw } : {};\nconst vendedor = String(input.vendedor || '').trim();\nif (vendedor) filters.vendedor = vendedor;\nfor (const k of Object.keys(filters)) { if (filters[k] === null || filters[k] === '') delete filters[k]; }\nreturn [{ json: { user_id, limit, filters } }];"
+            },
+            "id": "a1b2c3d4-0001-0001-0001-000000000003",
+            "name": "Prepare params",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                400,
+                0
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT castor_snapshot_query($1::uuid, $2::jsonb, $3::int) AS result",
+                "options": {
+                    "queryReplacement": "={{ [$json.user_id, JSON.stringify($json.filters || {}), $json.limit] }}"
+                }
+            },
+            "id": "a1b2c3d4-0001-0001-0001-000000000004",
+            "name": "Query snapshot",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.6,
+            "position": [
+                600,
+                0
+            ],
+            "alwaysOutputData": true,
+            "continueOnFail": true,
+            "credentials": {
+                "postgres": {
+                    "name": "Supabase_database"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const params = $('Prepare params').first().json;\nconst rows = $input.all();\nconst firstErr = rows[0] && rows[0].json && rows[0].json.error;\nif (firstErr) {\n  return [{ json: { ok: false, data: null, error: String(firstErr.message || firstErr) } }];\n}\nconst res = rows[0] && rows[0].json ? rows[0].json.result : null;\nif (!res) {\n  return [{ json: { ok: false, data: null, error: 'castor_snapshot_query nao retornou resultado' } }];\n}\nif (res.ok === false) {\n  return [{ json: { ok: false, data: [], count: 0, error: res.error || 'consulta rejeitada' } }];\n}\nreturn [{ json: { ok: true, count: res.count, scope_applied: res.scope_applied, filters: params.filters, data: res.data || [], error: null } }];"
+            },
+            "id": "a1b2c3d4-0001-0001-0001-000000000005",
+            "name": "Envelope",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                800,
+                0
+            ]
         }
-      },
-      "id": "a1b2c3d4-0001-0001-0001-000000000004",
-      "name": "Query snapshot",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [600, 0],
-      "alwaysOutputData": true,
-      "continueOnFail": true,
-      "credentials": {
-        "postgres": {
-          "id": "jFjeYH6Nt3aRNkoM",
-          "name": "Supabase_database"
+    ],
+    "connections": {
+        "When called": {
+            "main": [
+                [
+                    {
+                        "node": "Log input",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Log input": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare params",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Prepare params": {
+            "main": [
+                [
+                    {
+                        "node": "Query snapshot",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Query snapshot": {
+            "main": [
+                [
+                    {
+                        "node": "Envelope",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
         }
-      }
     },
-    {
-      "parameters": {
-        "jsCode": "const params = $('Prepare params').first().json;\nconst rows = $input.all();\nconst firstErr = rows[0] && rows[0].json && rows[0].json.error;\nif (firstErr) {\n  return [{ json: { ok: false, data: null, error: String(firstErr.message || firstErr) } }];\n}\nconst res = rows[0] && rows[0].json ? rows[0].json.result : null;\nif (!res) {\n  return [{ json: { ok: false, data: null, error: 'castor_snapshot_query nao retornou resultado' } }];\n}\nif (res.ok === false) {\n  return [{ json: { ok: false, data: [], count: 0, error: res.error || 'consulta rejeitada' } }];\n}\nreturn [{ json: { ok: true, count: res.count, scope_applied: res.scope_applied, filters: params.filters, data: res.data || [], error: null } }];"
-      },
-      "id": "a1b2c3d4-0001-0001-0001-000000000005",
-      "name": "Envelope",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [800, 0]
-    }
-  ],
-  "pinData": {},
-  "connections": {
-    "When called": {
-      "main": [[{ "node": "Log input", "type": "main", "index": 0 }]]
+    "active": false,
+    "settings": {
+        "executionOrder": "v1"
     },
-    "Log input": {
-      "main": [[{ "node": "Prepare params", "type": "main", "index": 0 }]]
-    },
-    "Prepare params": {
-      "main": [[{ "node": "Query snapshot", "type": "main", "index": 0 }]]
-    },
-    "Query snapshot": {
-      "main": [[{ "node": "Envelope", "type": "main", "index": 0 }]]
-    }
-  },
-  "active": false,
-  "settings": { "executionOrder": "v1" },
-  "tags": [{ "name": "Castor" }]
+    "tags": [
+        {
+            "name": "Castor"
+        }
+    ]
 }
