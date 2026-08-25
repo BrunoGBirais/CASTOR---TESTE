@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "notes": "Manifesto dos arquivos seed do RAG do agente Castor. Use scripts/003_upload_rag_to_drive.ps1 para subir ao Drive e capturar os file_ids. NÃO renomear; sobrescrever in-place quando atualizar.",
+  "notes": "Manifesto dos arquivos seed do RAG do agente Castor. Suba-os para a pasta DRIVE_FOLDER_ID_RAG do Drive e capture os file_ids. NÃO renomear; sobrescrever in-place (files.update no mesmo file_id) quando atualizar. dicionario_sx3.csv não é versionado (*.csv está no .gitignore) e vive apenas no Drive.",
   "files": {
     "MAPA_DOS_ARQUIVOS.md": {
       "title": "Mapa dos Arquivos Protheus do Castor",

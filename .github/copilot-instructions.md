@@ -1,53 +1,38 @@
-# Repository Instructions — Sameka AI Agent Reference
+# Repository Instructions — Castor
 
-Este repositório é a **implementação de referência** de um agente de IA do padrão "Sameka": n8n workflows + front HTML/Netlify + (opcional) Supabase auth/migrations + (opcional) RAG.
+Agente de IA B2B de reativação e prospecção (padrão "Sameka"): workflows n8n + front React embutido numa página servida pelo n8n + Supabase (Postgres + Auth) + Google Drive + RAG. Dados vindos do Protheus (filial 0401).
 
-Sua principal função para o Copilot/agent é servir de **template e fonte de macetes** quando o usuário pedir para criar *outros* agentes seguindo o mesmo padrão.
+[AGENTS.md](../AGENTS.md) na raiz é a referência completa de layout, deploy, fluxo de dados e regras de negócio. Leia-o antes de mexer em qualquer camada.
 
-## Quando o usuário pedir um agente novo
+## Camadas
 
-**Não improvise.** Invoque o agente customizado **AI Agent Architect** ([.github/agents/ai-agent-architect.agent.md](.github/agents/ai-agent-architect.agent.md)).
-
-Pontos de entrada:
-- `/discovery <brief>` — só interpreta o brief e devolve o Discovery Map, sem criar arquivos.
-- `/scaffold-agent <brief>` — cria o repositório completo.
-- Ou simplesmente: "criar agente novo para X" → o picker carrega `AI Agent Architect` pela `description`.
-
-## Padrão arquitetural (resumo, 5 camadas)
-
-1. **migrations/** — Supabase/Postgres com RPCs `SECURITY DEFINER`, metadata-first auth, sufixo `<prefix>_`, `NOTIFY pgrst` no fim de cada arquivo.
-2. **workspaces/** — n8n: main LangChain agent, RAG, Chat CRUD, subflows `[<Brand>] *`. Padrão de naming, contrato `{ok,data,error}` em cada subflow.
-3. **front-<brand>.html + netlify/** — monolito source-of-truth + split idempotente para hosting estático.
-4. **scripts PowerShell** — `_sync-netlify.ps1`, `_sync-front-workflow.ps1`, `004_seed.ps1`.
-5. **RAG** — pasta dedicada no Drive (`DRIVE_FOLDER_ID_RAG`) com identidade estável (`file_id` nunca muda).
+1. **`castor-agent/migrations-clean/`** — 14 migrations consolidadas, idempotentes, com RPCs `SECURITY DEFINER`, prefixo `castor_` e `NOTIFY pgrst, 'reload schema'` no fim de cada arquivo. É o conjunto canônico. `castor-agent/migrations/` guarda as 65 originais só como histórico.
+2. **`castor-agent/workspaces/`** — n8n: `Castor-Agent-IA` (LangChain), `Castor-RAG`, Chat CRUD, `Castor-Source-Manager`, `Castor-Snapshot-Sync`, os 4 `Castor-Panel-*` e os subflows `[Castor] Sub-fluxo_ *`. Todo subflow devolve `{ok, data, error}`.
+3. **`castor-agent/front-react/`** — React 18 + TS + Vite. O React é dono do markup; `public/legacy/castor-app.js` continua dono do comportamento. O build vai embutido em `Castor-Front.json` e é servido pelo n8n em `GET /castor-front`.
+4. **`deploy/` + `.scripts/`** — pipeline `node deploy/run.mjs` (clean → migrate → front → n8n). Exige `FRONT_DIR`, `MIGRATIONS_DIR` e `STATIC_WORKFLOW` porque o código do agente vive em `castor-agent/`, não na raiz.
+5. **`RAG/`** — documentos seed do vector store, numa pasta dedicada do Drive (`DRIVE_FOLDER_ID_RAG`) com identidade estável (`file_id` nunca muda).
 
 ## Skills disponíveis (em .github/skills/)
 
 Carregue via `read_file` quando aplicável (cada SKILL.md tem `description` com gatilhos):
 
 - `supabase-auth` — login Supabase + roles + admin RPCs
-- `n8n-langchain-prompt` — system prompt 7-section + `<user_context>` injection
-- `n8n-tool-contract` — envelope `{ok,data,error}` + JSON Schema + idempotency
-- `n8n-rag-stable-id` — pasta Drive dedicada + `files.update` no mesmo `file_id`
-- `n8n-reset-safety` — Tier A vs Tier B + ban CASCADE + TRUNCATE
-- `n8n-workflow-rewrite` — clonar JSON do n8n preservando node IDs/connections
-- `n8n-front-injection` — monolito ↔ Netlify split ↔ n8n-served front
-- `n8n-credential-placeholders` — `__FILL_ME__`, `.env.example`, Drive IDs
+- `html-to-react` — migração de front monolítico para componentes React
+- `perma-aba` — persistência de aba/estado entre reloads e dentro de iframe
 
-## Regras invioláveis (todas as Constraints do agente AI Agent Architect aplicam aqui também)
+## Regras invioláveis
 
-- **Nunca** `DROP ... CASCADE` em workflows do n8n.
+- **Nunca** `DROP ... CASCADE` em workflow ou migration.
 - **Nunca** `ON DELETE CASCADE` em FK para `auth.users`.
-- **Nunca** chamar `files.delete` da Google Drive em qualquer workflow.
-- **Nunca** colocar `SUPABASE_SERVICE_ROLE_KEY`, password do Postgres ou token longo em `front-*.html` / `netlify/*`.
+- **Nunca** chamar `files.delete` da Google Drive — substituições usam `files.update` (PATCH) no mesmo `file_id`.
+- **Nunca** colocar `SUPABASE_SERVICE_ROLE_KEY`, password do Postgres ou token longo no bundle do front.
 - **Nunca** inventar Drive `file_id` / `folder_id` / tokens — use placeholder `__FILL_ME__<KEY>__`.
-- **Sempre** rename exaustivo ao clonar (SQL identifiers, `tableName`, `queryName`, webhook `path`, credential names, classes CSS, `localStorage` keys).
-- **Sempre** consulte Context7 antes de gerar sintaxe de API externa não vista no Sameka (Supabase JS, Drive API, pgvector, SDK de LLM, novos nodes n8n).
-- **Sempre** preserve casing original em `brand_display` (`São Rafael`, `printAG`); sanitize para `brand_prefix`.
+- **Sempre** ingest no Postgres em transação: `BEGIN; TRUNCATE <tabela>; INSERT em lotes; COMMIT;` (sem CASCADE).
+- **Sempre** consulte a documentação oficial antes de gerar sintaxe de API externa não vista no repo (Supabase JS, Drive API, pgvector, SDK de LLM, novos nodes n8n).
 
 ## Hooks ativos
 
-[.github/hooks/check-dangerous-patterns.json](.github/hooks/check-dangerous-patterns.json) — PreToolUse hook que bloqueia:
+[.github/hooks/check-dangerous-patterns.json](hooks/check-dangerous-patterns.json) — PreToolUse hook que bloqueia:
 - `DROP CASCADE` em workspaces/migrations
 - `files.delete` em workspaces
 - `ON DELETE CASCADE` para `auth.users` em migrations
@@ -57,10 +42,11 @@ Carregue via `read_file` quando aplicável (cada SKILL.md tem `description` com 
 
 - pt-BR por padrão.
 - Pergunte parâmetros faltantes em **uma única** lista numerada consolidada (≤ 8 itens).
-- Apresente Discovery Map + File Map e peça **confirmação explícita** antes de qualquer escrita.
+- Em mudanças amplas, apresente o plano e peça **confirmação explícita** antes de escrever.
 - Nomes/identificadores de código permanecem em English/snake_case.
 
 ## Não faça
 
-- Não edite arquivos do Sameka (`migrations/`, `workspaces/Sameka-*`, `front-sameka.html`, `netlify/`) ao scaffolddar um agente *novo*. Use-os como template lendo + reescrevendo para o `target_repo_path`.
-- Não crie documentação solicitada (`.md` de resumo de mudanças) a menos que o usuário peça explicitamente.
+- Não edite `castor-agent/migrations/` (histórico congelado) — mudanças de schema vão para `migrations-clean/`.
+- Não edite os JSONs de `workspaces/` à mão sem entender `connections` e ids de nós; prefira exportar do n8n.
+- Não crie documentação (`.md` de resumo de mudanças) a menos que o usuário peça explicitamente.
