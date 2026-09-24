@@ -7,7 +7,10 @@
         breaks: true,
         gfm: true,
       });
-      const API_BASE = "https://longflatworm-n8n.cloudfy.live/webhook";
+      const CASTOR_CONFIG = window.CastorConfig || {};
+      const API_BASE =
+        CASTOR_CONFIG.API_BASE ||
+        "https://longflatworm-n8n.cloudfy.live/webhook";
       const CHAT_URL = `${API_BASE}/castor-agent`;
       const UPLOAD_URL = `${API_BASE}/castor-rag-drive-replace`;
       const SESSIONS_URL = `${API_BASE}/castor-sessions`;
@@ -299,8 +302,11 @@
       elements.sendBtn.parentNode.insertBefore(cancelEditBtn, elements.sendBtn);
 
       const AUTH_CONFIG = {
-        SUPABASE_URL: "https://longflatworm-supabase.cloudfy.live",
+        SUPABASE_URL:
+          CASTOR_CONFIG.SUPABASE_URL ||
+          "https://longflatworm-supabase.cloudfy.live",
         SUPABASE_ANON_KEY:
+          CASTOR_CONFIG.SUPABASE_ANON_KEY ||
           "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzczNjY1NzE2LCJleHAiOjE4MDUyMDE3MTZ9.nM55mAkSiyvvaIoUACEw4pY4GSJVfvrMX7b1q5JVwyg",
         STORAGE_KEY: "castor-auth",
         ADMIN_ROLE: "admin",

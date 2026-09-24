@@ -1,14 +1,18 @@
 /**
  * Configuracao de autenticacao (Supabase) e chaves de persistencia.
  *
- * Os valores replicam exatamente o que `public/legacy/castor-app.js` usa, para
- * que a sessao salva pelo app legado continue valida no app React.
+ * O runtime legado recebe SUPABASE_URL / SUPABASE_ANON_KEY via
+ * `window.CastorConfig`, para que a sessao salva por ele continue valida no
+ * app React. `VITE_SUPABASE_*` vem do deploy; sem elas, valem os defaults.
  */
 export type CastorRole = "admin" | "supervisor" | "vendedor";
 
 export const AUTH_CONFIG = {
-  SUPABASE_URL: "https://longflatworm-supabase.cloudfy.live",
+  SUPABASE_URL:
+    import.meta.env.VITE_SUPABASE_URL ||
+    "https://longflatworm-supabase.cloudfy.live",
   SUPABASE_ANON_KEY:
+    import.meta.env.VITE_SUPABASE_ANON_KEY ||
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzczNjY1NzE2LCJleHAiOjE4MDUyMDE3MTZ9.nM55mAkSiyvvaIoUACEw4pY4GSJVfvrMX7b1q5JVwyg",
   STORAGE_KEY: "castor-auth",
   ADMIN_ROLE: "admin",

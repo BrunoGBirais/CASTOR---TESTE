@@ -31,6 +31,16 @@ declare global {
      */
     CastorPersist?: import("../lib/chat/pendingMessage").CastorPersistApi;
 
+    /**
+     * Configuracao de ambiente (URLs e chave anon) publicada por
+     * `lib/legacy/loadCastorRuntime.ts` antes do runtime legado subir.
+     */
+    CastorConfig?: {
+      API_BASE: string;
+      SUPABASE_URL: string;
+      SUPABASE_ANON_KEY: string;
+    };
+
     /* ── Helpers publicados pelo runtime legado ─────────────────────────── */
     buildAuthStorage?: () => Storage;
     diagnoseAuthStorage?: (storage: unknown, storageKey: string) => void;

@@ -1,13 +1,13 @@
 # ================================================================
 #  deploy-n8n.yml
-#  Sobe os workflows de castor-agent/workspaces para o n8n quando um
-#  PR é mergeado no main (= push no main). Só a etapa n8n: sem
-#  migrations, sem build do front — para isso, use o deploy.yml manual.
+#  Quando um PR é mergeado no main (= push no main): compila o front
+#  React num HTML único dentro de Castor-Front.json e sobe os workflows
+#  de castor-agent/workspaces para o n8n. Sem migrations — para isso,
+#  use o deploy.yml manual.
 # ================================================================
 #
 #  Local equivalente:
-#    node deploy/clean-credentials.mjs --check
-#    node deploy/deploy-n8n.mjs
+#    node deploy/run.mjs clean front n8n
 #
 #  Environment do GitHub: "TESTE ORACLE" (Settings → Environments)
 #
@@ -15,6 +15,11 @@
 #    N8N_URL      variável ou secret do environment
 #    N8N_API_KEY  SECRET do environment — nunca variável: o repo é público
 #                 e variáveis aparecem sem máscara no log
+#
+#  Opcionais (variável ou secret) — o front usa os defaults do src/config
+#  quando faltam:
+#    SUPABASE_URL, SUPABASE_ANON_KEY (a anon, nunca a service_role)
+#    API_BASE    → sobrescreve N8N_URL + "/webhook"
 #
 #  Secrets opcionais:
 #    N8N_EMAIL + N8N_PASSWORD    → listar credenciais e criar/mover pastas
@@ -30,9 +35,12 @@ on:
     branches: [main]
     paths:
       - "castor-agent/workspaces/**"
+      - "castor-agent/front-react/**"
       - "deploy/deploy-n8n.mjs"
+      - "deploy/build-front.mjs"
       - "deploy/lib/**"
       - ".scripts/sync-n8n.mjs"
+      - ".scripts/build-static-workflow.mjs"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -61,6 +69,10 @@ jobs:
       N8N_BROWSER_ID: ${{ secrets.N8N_BROWSER_ID }}
       N8N_PROJECT_ID: ${{ secrets.N8N_PROJECT_ID }}
       N8N_CREDENTIAL_IDS: ${{ secrets.N8N_CREDENTIAL_IDS }}
+      # ── Front ── (as VITE_* saem daqui em deploy/build-front.mjs)
+      SUPABASE_URL: ${{ vars.SUPABASE_URL || secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY || secrets.SUPABASE_ANON_KEY }}
+      API_BASE: ${{ vars.API_BASE || secrets.API_BASE }}
 
     steps:
       - name: Checkout
@@ -70,6 +82,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
 
       - name: Conferir secrets obrigatórios
         run: |
@@ -87,6 +104,11 @@ jobs:
       # de instância. Correção: node deploy/clean-credentials.mjs
       - name: Verificar credenciais
         run: node deploy/clean-credentials.mjs --check
+
+      # React → HTML único → nó HTML de Castor-Front.json, com as URLs deste
+      # ambiente. O JSON gerado só vale para este deploy: não volta ao Git.
+      - name: Build do front
+        run: node deploy/build-front.mjs
 
       - name: Subir workflows
         run: node deploy/deploy-n8n.mjs ${{ inputs.dry_run && '--dry-run' || '' }}

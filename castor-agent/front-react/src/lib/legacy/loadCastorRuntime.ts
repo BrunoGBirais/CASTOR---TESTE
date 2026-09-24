@@ -1,4 +1,8 @@
-import { LEGACY_RUNTIME_SRC } from "../../config/endpoints";
+import { AUTH_CONFIG } from "../../config/auth";
+import { API_BASE } from "../../config/endpoints";
+// Texto do script, embutido no bundle: no deploy o front vira um HTML unico
+// servido pelo n8n, onde nao existe `/legacy/castor-app.js` para buscar.
+import legacyRuntime from "../../../public/legacy/castor-app.js?raw";
 import { installCastorPersist } from "../chat/pendingMessage";
 
 /**
@@ -26,16 +30,21 @@ export const loadCastorRuntime = (): Promise<void> => {
   // pending/rascunho/ultima conversa ja no boot (`startApp`).
   installCastorPersist();
 
-  pending = new Promise<void>((resolve, reject) => {
+  // O legado nao le `import.meta.env`: recebe as URLs do ambiente por aqui.
+  window.CastorConfig = {
+    API_BASE,
+    SUPABASE_URL: AUTH_CONFIG.SUPABASE_URL,
+    SUPABASE_ANON_KEY: AUTH_CONFIG.SUPABASE_ANON_KEY,
+  };
+
+  // Script classico inline: roda sincrono no appendChild, em escopo global e
+  // sloppy mode — as mesmas garantias do antigo `<script src>`.
+  pending = new Promise<void>((resolve) => {
     const script = document.createElement("script");
-    script.src = LEGACY_RUNTIME_SRC;
-    script.async = false;
     script.dataset.castorRuntime = "true";
-    script.addEventListener("load", () => resolve());
-    script.addEventListener("error", () =>
-      reject(new Error(`Falha ao carregar ${LEGACY_RUNTIME_SRC}`)),
-    );
+    script.textContent = legacyRuntime;
     document.body.appendChild(script);
+    resolve();
   });
 
   return pending;

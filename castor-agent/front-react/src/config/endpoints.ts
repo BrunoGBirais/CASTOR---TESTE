@@ -1,11 +1,16 @@
 /**
  * Endpoints n8n do Castor.
  *
- * Os mesmos valores existem dentro de `public/legacy/castor-app.js` (copia
- * verbatim do legado). Este modulo e a fonte de verdade para todo codigo React
- * novo; ao alterar uma URL, alterar tambem o runtime legado.
+ * Este modulo e a fonte de verdade para todo codigo React novo. O runtime
+ * legado (`public/legacy/castor-app.js`) recebe o `API_BASE` via
+ * `window.CastorConfig` (ver `lib/legacy/loadCastorRuntime.ts`).
+ *
+ * `VITE_API_BASE` vem do deploy (`deploy/build-front.mjs`: N8N_URL + /webhook);
+ * sem ela, vale o default abaixo.
  */
-export const API_BASE = "https://longflatworm-n8n.cloudfy.live/webhook";
+export const API_BASE =
+  import.meta.env.VITE_API_BASE ||
+  "https://longflatworm-n8n.cloudfy.live/webhook";
 
 export const CHAT_URL = `${API_BASE}/castor-agent`;
 export const UPLOAD_URL = `${API_BASE}/castor-rag-drive-replace`;
@@ -68,6 +73,3 @@ export const PANEL_VENDOR_OFFBOARD_URL = `${API_BASE}/castor-panel-vendor-offboa
 
 export const PANEL_ADMIN_FOLLOWUP_CLEAR_URL = `${API_BASE}/castor-panel-admin-followup-clear`;
 export const PANEL_ADMIN_FOLLOWUP_TRANSFER_URL = `${API_BASE}/castor-panel-admin-followup-transfer`;
-
-/** Script legado servido de `public/`, carregado apos a montagem do React. */
-export const LEGACY_RUNTIME_SRC = "/legacy/castor-app.js";
