@@ -1,4 +1,5 @@
 {
+    "name": "Castor-Front",
     "nodes": [
         {
             "parameters": {
@@ -69,5 +70,8 @@
                 ]
             ]
         }
+    },
+    "settings": {
+        "executionOrder": "v1"
     }
 }
