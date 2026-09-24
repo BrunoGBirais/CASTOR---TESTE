@@ -1,8 +1,6 @@
 import { useState } from "react";
-
-const LOGO_SRC =
-  "https://www.castor.com.br/wp-content/uploads/2021/01/logoweb.png";
-const PARTNER_LOGO = "/assets/logo-rodape-jia-sp.png";
+import LOGO_SRC from "../../assets/logo-castor.png";
+import PARTNER_LOGO from "../../assets/logo-rodape-jia-sp.png";
 
 export const LoginOverlay = () => {
   const [showPassword, setShowPassword] = useState(false);

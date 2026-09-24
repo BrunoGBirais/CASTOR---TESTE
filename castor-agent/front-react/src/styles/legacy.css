@@ -1179,7 +1179,7 @@
         content: "";
         position: absolute;
         inset: -20px;
-        background-image: url("/assets/hero-castor.webp");
+        background-image: url("../assets/hero-castor.webp");
         background-size: cover;
         background-position: center;
         filter: blur(14px) saturate(1.05);

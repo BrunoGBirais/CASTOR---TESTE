@@ -1,5 +1,4 @@
-const LOGO_SRC =
-  "https://www.castor.com.br/wp-content/uploads/2021/01/logoweb.png";
+import LOGO_SRC from "../assets/logo-castor.png";
 
 export const ChatHeader = () => (
   <header className="chat-header">
