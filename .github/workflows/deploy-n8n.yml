@@ -9,8 +9,12 @@
 #    node deploy/clean-credentials.mjs --check
 #    node deploy/deploy-n8n.mjs
 #
-#  Secrets obrigatórios (2):
-#    N8N_URL, N8N_API_KEY
+#  Environment do GitHub: "TESTE ORACLE" (Settings → Environments)
+#
+#  Obrigatórios (2):
+#    N8N_URL      variável ou secret do environment
+#    N8N_API_KEY  SECRET do environment — nunca variável: o repo é público
+#                 e variáveis aparecem sem máscara no log
 #
 #  Secrets opcionais:
 #    N8N_EMAIL + N8N_PASSWORD    → listar credenciais e criar/mover pastas
@@ -45,10 +49,11 @@ jobs:
   deploy-n8n:
     name: "Workflows → n8n"
     runs-on: ubuntu-latest
+    environment: TESTE ORACLE
     permissions:
       contents: read
     env:
-      N8N_URL: ${{ secrets.N8N_URL }}
+      N8N_URL: ${{ vars.N8N_URL || secrets.N8N_URL }}
       N8N_API_KEY: ${{ secrets.N8N_API_KEY }}
       N8N_EMAIL: ${{ secrets.N8N_EMAIL }}
       N8N_PASSWORD: ${{ secrets.N8N_PASSWORD }}
