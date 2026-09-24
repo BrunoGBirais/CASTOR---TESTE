@@ -1,0 +1,100 @@
+# ================================================================
+#  deploy-n8n.yml
+#  Sobe os workflows de castor-agent/workspaces para o n8n quando um
+#  PR é mergeado no main (= push no main). Só a etapa n8n: sem
+#  migrations, sem build do front — para isso, use o deploy.yml manual.
+# ================================================================
+#
+#  Local equivalente:
+#    node deploy/clean-credentials.mjs --check
+#    node deploy/deploy-n8n.mjs
+#
+#  Secrets obrigatórios (2):
+#    N8N_URL, N8N_API_KEY
+#
+#  Secrets opcionais:
+#    N8N_EMAIL + N8N_PASSWORD    → listar credenciais e criar/mover pastas
+#    N8N_CREDENTIAL_IDS          → mapa nome→id, alternativa ao login
+#    N8N_COOKIE + N8N_BROWSER_ID → cookie n8n-auth já pronto
+#    N8N_PROJECT_ID              → default "personal"
+# ================================================================
+
+name: Deploy n8n
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "castor-agent/workspaces/**"
+      - "deploy/deploy-n8n.mjs"
+      - "deploy/lib/**"
+      - ".scripts/sync-n8n.mjs"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry-run (não escreve no n8n)"
+        type: boolean
+        required: false
+        default: false
+
+concurrency:
+  group: ${{ github.repository }}-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-n8n:
+    name: "Workflows → n8n"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      N8N_URL: ${{ secrets.N8N_URL }}
+      N8N_API_KEY: ${{ secrets.N8N_API_KEY }}
+      N8N_EMAIL: ${{ secrets.N8N_EMAIL }}
+      N8N_PASSWORD: ${{ secrets.N8N_PASSWORD }}
+      N8N_COOKIE: ${{ secrets.N8N_COOKIE }}
+      N8N_BROWSER_ID: ${{ secrets.N8N_BROWSER_ID }}
+      N8N_PROJECT_ID: ${{ secrets.N8N_PROJECT_ID }}
+      N8N_CREDENTIAL_IDS: ${{ secrets.N8N_CREDENTIAL_IDS }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Conferir secrets obrigatórios
+        run: |
+          missing=""
+          for v in N8N_URL N8N_API_KEY; do
+            if [ -z "${!v}" ]; then missing="$missing $v"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "✖ secrets faltando:$missing"
+            exit 1
+          fi
+          echo "✓ secrets obrigatórios presentes"
+
+      # Nenhum JSON pode chegar ao n8n com id de credencial ou identidade
+      # de instância. Correção: node deploy/clean-credentials.mjs
+      - name: Verificar credenciais
+        run: node deploy/clean-credentials.mjs --check
+
+      - name: Subir workflows
+        run: node deploy/deploy-n8n.mjs ${{ inputs.dry_run && '--dry-run' || '' }}
+
+      - name: Resumo
+        if: always()
+        run: |
+          {
+            echo "## Deploy n8n"
+            echo ""
+            echo "| Item | Valor |"
+            echo "|------|-------|"
+            echo "| Commit | \`${GITHUB_SHA::7}\` |"
+            echo "| Dry-run | \`${{ inputs.dry_run || false }}\` |"
+            echo "| Status | ${{ job.status }} |"
+          } >> $GITHUB_STEP_SUMMARY

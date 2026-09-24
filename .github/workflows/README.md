@@ -1,13 +1,14 @@
 # .github/workflows/
 
-Duas pipelines de GitHub Actions, herdadas do `jia-agent-template`. Nenhuma
+Três pipelines de GitHub Actions, herdadas do `jia-agent-template`. Nenhuma
 delas tem lógica própria — tudo que rodam já existe em `deploy/` e `verify/`
 e roda igual na sua máquina.
 
 ```
 .github/workflows/
-├── validate.yml    # PR / push fora do main — sem secrets
-└── deploy.yml      # push no main / manual — usa secrets
+├── validate.yml    # PR — sem secrets
+├── deploy-n8n.yml  # merge no main — sobe os workflows para o n8n
+└── deploy.yml      # manual — deploy completo (migrate + front + n8n)
 ```
 
 ## `validate.yml`
@@ -21,6 +22,18 @@ qualquer branch que não seja `main`, ou manual.
 | `build-front` | Compila o front **sem secrets** — só confere que builda                    |
 
 Não escreve em lugar nenhum e não usa segredo algum.
+
+## `deploy-n8n.yml`
+
+**Quando roda:** merge de PR no `main` (push no `main`) que altere
+`castor-agent/workspaces/`, `deploy/deploy-n8n.mjs`, `deploy/lib/` ou
+`.scripts/sync-n8n.mjs`; ou manual (input `dry_run`).
+
+Etapas: conferir secrets → `clean-credentials.mjs --check` →
+`deploy-n8n.mjs`. Só envia para o n8n o que mudou (diff local × remoto).
+
+Secrets obrigatórios: `N8N_URL`, `N8N_API_KEY`. O n8n precisa estar
+acessível pela internet (os runners do GitHub chamam `N8N_URL`).
 
 ## `deploy.yml`
 
