@@ -18,6 +18,10 @@
 //  o da instância de origem e não existe no destino — resolvemos pelo
 //  cachedResultName (nome do sub-workflow) na instância alvo.
 //
+//  Code nodes com `const PANEL_BASE = '…'` (sub-fluxos que chamam os webhooks
+//  do painel) também apontam para a instância de origem — reescrevemos para
+//  API_BASE, ou N8N_URL + "/webhook", da instância alvo.
+//
 //  O resultado vai para .deploy-tmp/workflows/ e é enviado pelo
 //  .scripts/sync-n8n.mjs — que já trata tags, pastas, ativação e diff.
 //
@@ -49,6 +53,12 @@ const TMP_DIR = resolve(REPO_ROOT, ".deploy-tmp", "workflows");
 const args = process.argv.slice(2);
 const STRICT = args.includes("--strict");
 const SYNC_ARGS = args.filter((a) => a !== "--strict");
+
+/** Base dos webhooks da instância alvo (mesma regra do build-front). */
+const WEBHOOK_BASE = (
+  env("API_BASE") || `${env("N8N_URL").replace(/\/+$/, "")}/webhook`
+).replace(/\/+$/, "");
+const PANEL_BASE_RE = /(const PANEL_BASE = )'[^']*'/g;
 
 /** Mapa vindo do secret N8N_CREDENTIAL_IDS (JSON nome→id). */
 function envCredentialMap() {
@@ -89,8 +99,20 @@ async function main() {
     const remoteByNode = remoteNodes.get(workflow.name);
     let resolved = 0;
     let rewired = 0;
+    let rebased = 0;
 
     for (const node of workflow.nodes || []) {
+      // Code node: PANEL_BASE fixo na instância de origem → instância alvo.
+      const code = node.parameters?.jsCode;
+      if (typeof code === "string" && PANEL_BASE_RE.test(code)) {
+        node.parameters.jsCode = code.replace(
+          PANEL_BASE_RE,
+          `$1'${WEBHOOK_BASE}'`,
+        );
+        rebased++;
+      }
+      PANEL_BASE_RE.lastIndex = 0;
+
       // Execute Workflow: troca o id da instância de origem pelo do destino.
       const ref = node.parameters?.workflowId;
       if (ref?.cachedResultName) {
@@ -128,7 +150,8 @@ async function main() {
     writeFileSync(out, `${JSON.stringify(workflow, null, 2)}\n`, "utf8");
     log.info(
       `   ${workflow.name} — ${resolved} credencial(is) resolvida(s)` +
-        (rewired ? ` · ${rewired} sub-workflow(s) religado(s)` : ""),
+        (rewired ? ` · ${rewired} sub-workflow(s) religado(s)` : "") +
+        (rebased ? ` · PANEL_BASE → ${WEBHOOK_BASE}` : ""),
     );
   }
 
